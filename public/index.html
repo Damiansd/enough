@@ -1,0 +1,638 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>enough — month table</title>
+<style>
+  body { font: 15px/1.5 system-ui, sans-serif; margin: 2rem auto; max-width: 96rem; padding: 0 1rem; }
+  h1 { margin-bottom: 0.25rem; }
+  /* The user guide (P17-3), inside the <h1> so the first run, which hides everything else, shows it too. */
+  h1 a.guide-link { float: right; font-size: 1rem; font-weight: normal; }
+  #caption { color: #555; margin-top: 0; }
+  table.months { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; padding: 0.35rem 0.6rem; border-bottom: 1px solid #e3e3e3; vertical-align: top; }
+  td.num, th:nth-child(n+3) { text-align: right; font-variant-numeric: tabular-nums; }
+  td.month { font-variant-numeric: tabular-nums; }
+  button.toggle { border: 1px solid #bbb; background: #fff; cursor: pointer; width: 1.8rem; }
+  tr.summary:hover { background: #fafafa; }
+  /* P7-UX-1 — a financial year's row, above its months; the whole row toggles them. */
+  tr.year-summary { background: #f1f4f2; font-weight: 600; cursor: pointer; }
+  tr.year-summary:hover { background: #e8eee9; }
+  span.ages { color: #555; font-size: 0.85rem; font-weight: 400; margin-left: 0.75rem; }
+  td.detail { background: #fbfbfb; }
+  section.axis { margin: 0 0 1rem; }
+  section.axis h3 { font-size: 0.95rem; margin: 0.5rem 0 0.25rem; }
+  /* Cash and wealth are visually separated because only cash reconciles the balance. */
+  section.cash { border-left: 4px solid #2f6f4f; padding-left: 0.75rem; }
+  section.wealth { border-left: 4px dashed #7a5cad; padding-left: 0.75rem; }
+  div.line { border-top: 1px dotted #ddd; padding: 0.4rem 0; }
+  p.line-head { display: flex; gap: 1rem; margin: 0; }
+  span.line-description { flex: 1; }
+  span.line-amount { font-variant-numeric: tabular-nums; }
+  span.line-effect { color: #666; font-size: 0.85rem; }
+  div.attribution, div.provenance { margin-left: 1rem; font-size: 0.88rem; }
+  /* The three members of each union are given three appearances, never two. */
+  div.provenance[data-basis="legislated"] p.provenance-label { color: #2f6f4f; }
+  div.provenance[data-basis="none"] p.provenance-label { color: #777; font-style: italic; }
+  div.provenance[data-basis="not carried"] p.provenance-label { color: #a4501f; font-weight: 600; }
+  div.attribution[data-basis="entries"] p.attribution-label { color: #2f6f4f; }
+  div.attribution[data-basis="none"] p.attribution-label { color: #777; font-style: italic; }
+  div.attribution[data-basis="not attributed"] p.attribution-label { color: #a4501f; font-weight: 600; }
+  p.caveat { margin: 0.15rem 0; color: #7a4a00; }
+  p.caveat[data-kind="borrowed"] { color: #a4501f; font-weight: 600; }
+  /* The info button (`app/infoButton.js`): the short sentence is the summary, the long explanation
+     is the <p> it opens. Painted as a caveat because it replaces one, and `display: block` like the
+     paragraph it replaces, so a flex row it sits in keeps its shape. Collapsed until clicked. */
+  details.info { margin: 0.15rem 0; color: #7a4a00; }
+  details.info > summary { cursor: pointer; }
+  details.info > p.info-detail { margin: 0.35rem 0 0.35rem 1.1rem; color: #555; font-size: 0.92rem; font-weight: normal; }
+  details.info > p.info-more { margin: 0 0 0.35rem 1.1rem; font-size: 0.92rem; font-weight: normal; }
+  p.provenance-label, p.attribution-label, p.provenance-note, p.attribution-note, p.note-text { margin: 0.15rem 0; }
+  dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 0 0.75rem; margin: 0.25rem 0; }
+  dl.facts dt { color: #666; }
+  dl.facts dd { margin: 0; }
+  ul.determination, ul.entry-ids { margin: 0.2rem 0; padding-left: 1.2rem; }
+  div.month-note { border-top: 1px dotted #ddd; padding: 0.3rem 0; font-size: 0.88rem; }
+  p.empty { color: #777; font-style: italic; margin: 0.2rem 0; }
+  /* The chart needs a fixed height: its canvas is not responsive in the vertical direction. */
+  #chart-box { height: 26rem; margin-bottom: 0.5rem; }
+  /* The second chart — money in and out, by financial year — gets its own fixed-height box for the
+     same reason the wealth chart's canvas needs one: it is not responsive in the vertical direction. */
+  #flow-chart-box { height: 22rem; margin-bottom: 2rem; }
+  #chart-note { color: #555; font-size: 0.88rem; margin: 0 0 2rem; display: flex; flex-wrap: wrap; gap: 0 1.5rem; align-items: flex-start; }
+  /* The three answers above the chart, in one disclosure (Financial Situation). It is OPEN by
+     default and must stay that way: these are the answers the page exists to give, and a plan
+     whose headline is collapsed on load looks like a plan with no answer. Native
+     <details>/<summary>, so it needs no script and is keyboard-operable for free; the summary is
+     styled like the panels around it, and the three sections inside keep their own rules. */
+  #financial-situation { border: 1px solid #ddd; padding: 0.75rem 1rem; margin: 0 0 1.5rem; }
+  /* The last card inside the box already carries its own bottom margin; drop it so the box does
+     not sit with a double gap under its final answer. */
+  #financial-situation > details > :last-child { margin-bottom: 0; }
+  section#financial-situation summary { cursor: pointer; }
+  section#financial-situation summary h2 { display: inline; font-size: 1rem; margin: 0 0 0.5rem; }
+  /* The home loan answer. The lead is the sentence that answers the question and is the only bold
+     thing on the page above the chart; the sentences under it are one per person and read as the
+     evidence for it. */
+  #income-headline { border-left: 3px solid #1a4f7a; padding-left: 0.75rem; margin: 0 0 1.5rem; }
+  #income-headline p { margin: 0.2rem 0; font-size: 0.95rem; }
+  #income-headline .income-lead { font-weight: 600; font-size: 1.08rem; color: inherit; }
+  #mortgage-headline { border-left: 3px solid #1f6f45; padding-left: 0.75rem; margin: 0 0 1.5rem; }
+  #mortgage-headline p { margin: 0.2rem 0; font-size: 0.95rem; }
+  #mortgage-headline p.mortgage-lead { font-weight: 600; font-size: 1.02rem; }
+  /* P10-3 — the sustainable spending answer. It is the only block on this page behind a BUTTON:
+     the search walks the whole forecast about eighteen times, so it runs when it is asked for and
+     never on a redraw. The output is cleared on every redraw, because a figure worked out from a
+     plan that has since been edited is a figure about a plan nobody is looking at. */
+  #sustainable-spend { border-left: 3px solid #6b3f8f; padding-left: 0.75rem; margin: 0 0 1.5rem; }
+  #sustainable-spend p { margin: 0.2rem 0; font-size: 0.95rem; }
+  #sustainable-spend p.sustainable-lead { font-weight: 600; font-size: 1.08rem; }
+  #sustainable-spend p.sustainable-prompt { color: #555; font-style: italic; }
+  /* P16-2 — the phase sentences, each with a small coloured chip above it. Colours match the
+     Life-stages strip (`#phase-timeline`'s own `.working`/`.retired`/`.care`), not the three
+     existing headline blocks' border colours, which happen to coincide for the first two only. */
+  #phase-sentences p.phase-label { display: inline-block; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: #fff; padding: 0.1rem 0.5rem; border-radius: 0.7rem; margin: 0.75rem 0 0.3rem; }
+  #phase-sentences p.phase-label.working { background: #1a4f7a; }
+  #phase-sentences p.phase-label.retired { background: #2f6f4f; }
+  #phase-sentences p.phase-label.aged-care { background: #6b3f8f; }
+  #phase-sentences p.phase-sentence-lead { font-weight: 600; font-size: 1.05rem; margin: 0.2rem 0; }
+  #phase-sentences p.phase-sentence-detail { margin: 0.2rem 0; font-size: 0.9rem; color: #444; }
+  /* P16-1 — the "Life stages" strip: one row per Person, below the Scenarios panel. */
+  #phase-timeline { border: 1px solid #ddd; padding: 0.75rem 1rem 1rem; margin: 0 0 1rem; }
+  #phase-timeline h2 { font-size: 1rem; margin: 0 0 0.75rem; }
+  .phase-row { display: flex; align-items: center; gap: 0.75rem; margin: 0 0 1.9rem; }
+  .phase-row:first-of-type { margin-top: 1.3rem; }
+  .phase-row .phase-name { flex: 0 0 3.2rem; font-weight: 600; font-size: 0.9rem; }
+  .phase-track { position: relative; flex: 1; height: 2rem; }
+  .phase-segment { position: absolute; top: 0; height: 100%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 0.78rem; font-weight: 600; overflow: hidden; white-space: nowrap; box-sizing: border-box; }
+  .phase-segment.working { background: #1a4f7a; }
+  .phase-segment.retired { background: #2f6f4f; }
+  .phase-segment.care { background: #6b3f8f; }
+  .phase-segment:not(:first-child) { border-left: 2px solid #fff; }
+  .phase-boundary { position: absolute; top: -1.15rem; transform: translateX(-50%); font-size: 0.72rem; color: #333; white-space: nowrap; text-align: center; }
+  .phase-boundary .boundary-tick { display: block; width: 1px; height: 0.4rem; background: #999; margin: 0.15rem auto 0; }
+  #phase-timeline-body { position: relative; }
+  #phase-axis { position: relative; height: 1.1rem; margin: 0.4rem 0 0.75rem calc(3.2rem + 0.75rem); }
+  #phase-axis span { position: absolute; transform: translateX(-50%); font-size: 0.75rem; color: #777; border-left: 1px solid #ddd; padding-left: 0.25rem; }
+  #phase-legend { display: flex; gap: 1.25rem; font-size: 0.82rem; color: #444; margin-left: calc(3.2rem + 0.75rem); }
+  #phase-legend span { display: inline-flex; align-items: center; gap: 0.35rem; }
+  #phase-legend .swatch { width: 0.8rem; height: 0.8rem; border-radius: 2px; display: inline-block; }
+  #phase-legend .swatch.working { background: #1a4f7a; }
+  #phase-legend .swatch.retired { background: #2f6f4f; }
+  #phase-legend .swatch.care { background: #6b3f8f; }
+  #chart-axis-toggle { font-size: 0.88rem; margin: 0 0 0.5rem; }
+  #chart-axis-toggle label { margin-right: 1rem; cursor: pointer; }
+  /* The plan-file failure state (P8-2b). Hidden until something has gone wrong; loud when it has,
+     because the dangerous case — a save that did not land — leaves the page looking perfectly fine. */
+  #plan-status { border: 2px solid #a4501f; background: #fff6f0; color: #7a3a13; padding: 0.6rem 0.8rem; margin: 0 0 1rem; }
+  /* The first run (2026-09-20). The page below is UNCONDITIONAL markup — every section is in the
+     document whether or not there is a plan file — so the first-run screen is a section of its
+     own, hidden until `main.ts` finds no plan, and the class on <body> is what takes the rest of
+     the page off screen. Hidden, not removed: nothing below has been mounted at that point, so
+     every box this rule covers is empty, and the reload after the first save brings the whole page
+     back with no state to restore. The heading and the failure banner stay visible — the banner
+     because a refused date of birth is reported there and would otherwise be written into a
+     hidden element. */
+  body.first-run > *:not(h1):not(#plan-status):not(#first-run) { display: none; }
+  #first-run { border: 1px solid #ddd; padding: 0.75rem 1rem; margin: 0 0 1.5rem; max-width: 34rem; }
+  #first-run h2 { font-size: 1.1rem; margin: 0 0 0.5rem; }
+  #first-run form { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; font-size: 0.9rem; }
+  #first-run form label { display: flex; gap: 0.3rem; align-items: center; }
+  #first-run form p.caveat, #first-run form button { flex-basis: 100%; }
+  #first-run input, #first-run button { font: inherit; }
+  #first-run input { padding: 0.2rem 0.3rem; }
+  #first-run button { cursor: pointer; padding: 0.35rem 0.6rem; }
+  /* The entry editor (P6-6). Two operations: add an entry — one of the five types this build can
+     honour, chosen in the form's own selector — and switch an entry off or on. */
+  #entry-editor { border: 1px solid #ddd; padding: 0.75rem 1rem; margin: 0 0 1.5rem; }
+  #entry-editor h2 { font-size: 1rem; margin: 0 0 0.5rem; }
+  #entry-form form { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; font-size: 0.9rem; }
+  #entry-form label { display: flex; gap: 0.3rem; align-items: center; }
+  /* The per-type field groups. Only the chosen type's group is on the page, and for a
+     NON_SUPER_INVESTMENT only the chosen direction's — the two directions are two params shapes
+     (plan.ts), so a box belonging to the other one must not be fillable. `[hidden]` is restated
+     because `display: flex` here would otherwise beat the UA stylesheet's `display: none`. */
+  #entry-form form > span, #entry-form form > span > span { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; }
+  #entry-form form > span[hidden], #entry-form form > span > span[hidden] { display: none; }
+  #entry-form input, #entry-form select { font: inherit; padding: 0.2rem 0.3rem; }
+  #entry-list { margin-top: 0.75rem; font-size: 0.9rem; }
+  /* The entry TABLE (2026-09-22), which replaced one <div> per entry. Five columns — Date, Type,
+     Owner, Description, Enabled — and no Amount column: `params` has no field every entry type
+     carries, so the figures live in the Description cell (`entryTable.ts` says why at length). */
+  #entry-list table.entries { border-collapse: collapse; width: 100%; }
+  #entry-list th { vertical-align: bottom; padding: 0.2rem 0.6rem 0.2rem 0; }
+  #entry-list td { padding: 0.35rem 0.6rem 0.35rem 0; vertical-align: top; }
+  #entry-list td.col-date { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #entry-list td.col-enabled { white-space: nowrap; }
+  /* The heading is a real <button> so the keyboard reaches the sort; it is painted as a heading,
+     not as a control, because a row of five buttons across the top reads as five actions. */
+  #entry-list th button.sort { font: inherit; font-weight: 600; background: none; border: 0; padding: 0; cursor: pointer; color: inherit; }
+  #entry-list th[aria-sort="ascending"] button.sort, #entry-list th[aria-sort="descending"] button.sort { color: #1a4f7a; }
+  #entry-list tr.entry[data-enabled="false"] td { color: #888; }
+  #entry-list tr.entry[data-enabled="false"] td.col-description { text-decoration: line-through; }
+  /* Inherited from a parent scenario: this scenario did not add it and cannot remove it, and the
+     switch beside it states an override rather than editing the parent's own answer. A left border
+     rather than a colour, so it survives the grey a switched-off row already gets. */
+  #entry-list tr.entry[data-inherited="true"] td.col-date { border-left: 3px solid #8ab; }
+  /* The border says "this row is different"; the tag says HOW, and names the scenario it came from.
+     The border alone was read as decoration. Inline-block on its own line under the date so a long
+     scenario name cannot widen the date column. `cursor: help` advertises the fuller explanation. */
+  #entry-list .inherited-tag {
+    display: inline-block;
+    margin-top: 0.15rem;
+    font-size: 0.75rem;
+    color: #46606f;
+    cursor: help;
+  }
+  #entry-list tr.entry[data-enabled="false"] .inherited-tag { color: #7c8a91; }
+  #entry-list tr.empty-row td { color: #777; font-style: italic; }
+  /* The filter bar, and the sentence in it. `p.hidden-count` is NOT decoration: hiding switched-off
+     rows by default is only allowed because this count is always on screen and "Reset filters" is
+     one click away (user rulings 2026-09-19, 2026-09-22 — the reasoning is in `entryTable.ts`).
+     It is styled to be read, not skimmed past, and it is never `display: none`. */
+  #entry-list div.entry-filters { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; margin-bottom: 0.5rem; }
+  #entry-list div.entry-filters label { display: flex; gap: 0.3rem; align-items: center; }
+  #entry-list div.entry-filters input[type="text"] { font: inherit; padding: 0.2rem 0.3rem; }
+  #entry-list p.hidden-count { margin: 0; color: #7a4a00; flex: 1; }
+  #mortgage-headline p.mortgage-target-owing { margin: 0.25rem 0 0.5rem; padding: 0.4rem 0.6rem; border-left: 4px solid #b35900; background: #fff4e5; color: #7a3a00; }
+  #entry-list p.still-working { margin: 0 0 0.5rem; padding: 0.4rem 0.6rem; border-left: 4px solid #b35900; background: #fff4e5; color: #7a3a00; }
+  #entry-list .pension-at-retirement { margin: 0 0 0.5rem; padding: 0.4rem 0.6rem; border-left: 4px solid #1f5f99; background: #eef4fb; color: #163f66; }
+  /* There is no `data-not-modelled` rule here, by decision of 2026-09-19. It used to paint every
+     WORK_PATTERN_CHANGE at a non-zero `daysPerWeek` as a warning, because the engine could not
+     price one; the entry now states its own `annualSalary` and the engine applies it, so the row
+     is as modelled as any other and `entryForm.ts` sets no such attribute. */
+  #entry-list button { font: inherit; cursor: pointer; }
+  /* Both editors are COLLAPSED on load, and deliberately: each is taller than the chart, and with
+     both open the forecast — the thing the page is for — started below the fold. Native
+     <details>/<summary>, so the disclosure needs no script and is keyboard-operable for free.
+     Each summary carries its own size (how many entries, how many scenarios), written by main.ts
+     on every redraw: a collapsed panel that hides how much it is hiding is worse than an open one. */
+  section#entry-editor summary, section#scenario-panel summary { cursor: pointer; }
+  section#entry-editor summary h2, section#scenario-panel summary h2 { display: inline; }
+  /* The scenario list (P7-1). Choosing one is a plan edit like any other: it goes through the same
+     save door, so a reload opens on the scenario you were last looking at. Delete removes a
+     SCENARIO — a container — and never an entry: everything the deleted scenario listed stays in
+     the shared pool, which `p.scenario-announce` says in those words after the write lands. */
+  #scenario-panel { border: 1px solid #ddd; padding: 0.75rem 1rem; margin: 0 0 1.5rem; }
+  #scenario-panel h2 { font-size: 1rem; margin: 0 0 0.5rem; }
+  #scenario-create { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; font-size: 0.9rem; }
+  /* The hint at the top of the panel. Full-width rows in a flex box that is otherwise a single
+     line of controls, so the two sentences read as prose rather than as another field. The
+     warning — switching a change off hits EVERY scenario, which is the one that produces a wrong
+     forecast — is weighted so it is not read as a footnote to the line above it. */
+  #scenario-create h3 { font-size: 0.95rem; margin: 0; }
+  #scenario-create p.caveat { margin: 0; }
+  /* Heading, hint and the switch-off warning share one line (user, 2026-09-29); the name box starts the next. */
+  #scenario-create details.info[open] { flex-basis: 100%; }
+  #scenario-create span.row-break { flex-basis: 100%; height: 0; }
+  #scenario-create > div.scenario-create { display: flex; flex-wrap: wrap; gap: 0.4rem 0.75rem; align-items: center; }
+  #scenario-create .scenario-warning > summary { font-weight: 600; color: #a4501f; }
+  #scenario-list { margin-top: 0.75rem; font-size: 0.9rem; }
+  #scenario-list div.scenario { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: baseline; border-top: 1px dotted #ddd; padding: 0.35rem 0; }
+  #scenario-list div.scenario[data-active="true"] { background: #f5f8ff; }
+  #scenario-list span.inherits { color: #666; font-size: 0.85rem; }
+  #scenario-list span.shortfall { margin-left: auto; font-variant-numeric: tabular-nums; }
+  #scenario-list span.age-pension { font-variant-numeric: tabular-nums; color: #555; font-size: 0.85rem; }
+  #scenario-create p.scenario-announce { flex-basis: 100%; margin: 0.4rem 0 0; color: #2f6f4f; }
+  #comparison-template-panel { border: 1px solid #ddd; padding: 0.75rem 1rem; margin: 0 0 1.5rem; }
+  #comparison-template-panel h2 { font-size: 1rem; margin: 0 0 0.5rem; display: inline; }
+  #comparison-template-panel summary { cursor: pointer; }
+  #comparison-template-form { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; font-size: 0.9rem; }
+  #comparison-template-form p.comparison-template-announce { flex-basis: 100%; margin: 0.4rem 0 0; color: #2f6f4f; }
+  #scenario-panel input, #scenario-panel button { font: inherit; }
+  #scenario-panel button { cursor: pointer; }
+  /* The household and settings panel (P8-5). ONE clock: the position form holds the as-at date
+     itself, names it in its own heading, and saves it with every balance in one write — there is
+     no control that moves the date alone and none that saves a balance alone. Add only: nothing
+     here removes a person, an interest or a parcel while TODO.md P4-12 stands. */
+  #settings-panel { border: 1px solid #ddd; padding: 0.75rem 1rem; margin: 0 0 1.5rem; }
+  #settings-panel h2 { font-size: 1rem; margin: 0 0 0.5rem; }
+  #settings-panel h3 { font-size: 0.95rem; margin: 0.75rem 0 0.35rem; }
+  #settings-form { font-size: 0.9rem; }
+  #settings-form form { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; }
+  #settings-form label { display: flex; gap: 0.3rem; align-items: center; }
+  /* A closed ⓘ line sits on the same row as the box it explains (user, 2026-09-29); opened, it
+     takes the full width so its paragraph has room. */
+  #settings-form h3, #settings-form details.info[open] { flex-basis: 100%; }
+  #settings-form .row-break { flex-basis: 100%; height: 0; }
+  #settings-form p.group-label.with-info { flex-basis: auto; margin-top: 0; }
+  #settings-form span.rate-box { display: inline-flex; gap: 0.75rem; align-items: center; }
+  #settings-form span.rate-box > p.caveat { margin: 0; }
+  #settings-form fieldset.person { flex-basis: 100%; border: 1px dotted #ccc; padding: 0.4rem 0.75rem; margin: 0; }
+  /* Per-person and Forecast-assumptions folds (user, 2026-09-29). */
+  #settings-form details.fold > summary { cursor: pointer; font-weight: 700; padding: 0.2rem 0; }
+  #settings-form details.fold > summary h3 { display: inline; margin: 0; }
+  #settings-form fieldset.person div.fold-body { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; padding-top: 0.5rem; }
+  #settings-form > details.fold, #settings-form details.fold:has(> div > form.assumptions) { border: 1px dotted #ccc; padding: 0.4rem 0.75rem; margin-top: 2rem; }
+  /* Visual delineation (user ruling, 2026-09-25): each person's name, and the Other investments
+     group label, in bold; an extra line of space above Forecast assumptions. */
+  #settings-form p.group-label { flex-basis: 100%; margin: 0.5rem 0 0; font-weight: 700; }
+  #settings-form form.assumptions { padding-top: 0.5rem; }
+  /* The Division 293 release election (register O84 residual (iii)): one row per person, on its own
+     line, with the caveat that says NO ELECTION is an answer and not an empty box. */
+  #settings-form div.election { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; padding-left: 1rem; }
+  #settings-form div.holding { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; padding-left: 1rem; }
+  /* The two transition-to-retirement boxes. `[hidden]` is restated because `display: flex` would
+     otherwise beat the UA stylesheet's `display: none`, as on the entry form's field groups. */
+  #settings-form span.ttr-stream { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 0.5rem 0.75rem; align-items: center; }
+  #settings-form span.ttr-stream[hidden] { display: none; }
+  /* The fee, insurance and at-retirement groups each take a full row and lay out like the form
+     around them, so a caveat sitting on its box's row can't pull a group up beside another. */
+  #settings-form span.pension-fees, #settings-form span.insurance, #settings-form span.at-retirement { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 0.5rem 0.75rem; align-items: center; }
+  #settings-form span.at-retirement[hidden] { display: none; }
+  #settings-form p.field-error { flex-basis: 100%; margin: 0; color: #a4161a; }
+  #settings-form p.field-error:empty { display: none; }
+  #settings-form input, #settings-form select, #settings-form button { font: inherit; }
+  #settings-form input, #settings-form select { padding: 0.2rem 0.3rem; }
+  /* Half the browser's default width (user, 2026-09-29): wide enough for 550000.00. */
+  #settings-form input[type="text"] { width: 11ch; }
+  #settings-form button { cursor: pointer; }
+  #settings-form p.settings-announce { margin: 0.5rem 0 0; color: #2f6f4f; }
+  /* Start again. Ruled off from the figures above it, because it is the one control on the page that writes without being handed a figure: it
+     replaces the whole plan file with a new plan built from the name and date of birth its form
+     asks for. That form is in `settingsPanel.ts`; nothing here hides or reveals anything, so no
+     state depends on this CSS. */
+  #settings-form div.reset { border-top: 1px solid #e0cdbb; margin-top: 2rem; padding-top: 0.5rem; }
+  /* The heading is black, not the warning colour (user ruling, 2026-09-25); the rule above it still marks it off. */
+  #settings-form div.reset h3 { color: #000; display: inline; margin-right: 0.75rem; }
+  #settings-form div.reset > p.caveat { display: inline; }
+  #settings-form div.reset > button { display: block; margin-top: 0.5rem; }
+  section#settings-panel summary { cursor: pointer; }
+  /* The Transactions panel (P11-3), collapsed like the other editors. */
+  #transactions-panel { border: 1px solid #ddd; padding: 0.75rem 1rem; margin: 0 0 1.5rem; }
+  section#transactions-panel summary { cursor: pointer; }
+  section#transactions-panel summary h2 { display: inline; font-size: 1rem; }
+  section#months-panel { border: 1px solid #ddd; padding: 0.75rem 1rem; margin: 0 0 1.5rem; }
+  section#months-panel summary { cursor: pointer; }
+  section#months-panel summary h2 { display: inline; font-size: 1rem; margin: 0; }
+  #transactions form.transaction-form label { display: inline-block; margin: 0 1rem 0.5rem 0; }
+  #transactions div.transaction-import label { display: inline-block; margin: 0 1rem 0.5rem 0; }
+  #transactions p.import-problem, #transactions ul.import-bad { color: #a00; }
+  #transactions table { border-collapse: collapse; font-size: 0.88rem; }
+  #transactions table.transaction-list { font-size: 0.82rem; } /* one step smaller (user, 2026-09-28) */
+  #transactions div.transaction-filters, #transactions p.transaction-filter-count { font-size: 0.82rem; } /* matches the list (user, 2026-09-28) */
+  #transactions div.transaction-filters label { display: inline-block; margin: 0 0.75rem 0.25rem 0; }
+  #transactions div.transaction-filters input, #transactions div.transaction-filters select, #transactions div.transaction-filters button { font-size: inherit; }
+  #transactions div.transaction-filters input[name="filterDescription"] { width: 14ch; }
+  #transactions p.transaction-filter-count { margin: 0.25rem 0; }
+  /* Per-row category controls at half their natural width (user, 2026-09-28): the select's natural
+     width is its longest option (~54ch, the Other label), the text box's the browser default (~20ch). */
+  #transactions span.category-controls select { width: 14ch; } /* halved again (user, 2026-09-28) */
+  #transactions span.category-controls input[type="text"] { width: 10ch; }
+  /* Rule form: account box, category dropdown and subcategory box at half their natural width (user, 2026-09-28). */
+  #transactions div.rule-form input[name="ruleAccount"], #transactions div.rule-form input[name="ruleSubcategory"] { width: 10ch; }
+  #transactions div.rule-form select[name="ruleCategory"] { width: 27ch; }
+  /* Add-a-transaction form: amount, description and account boxes at half their natural width (user, 2026-09-28). */
+  #transactions form.transaction-form input[name="transactionAmount"],
+  #transactions form.transaction-form input[name="transactionDescription"],
+  #transactions form.transaction-form input[name="transactionAccount"] { width: 10ch; }
+  #transactions td, #transactions th { padding: 0.2rem 0.5rem; text-align: left; vertical-align: top; }
+  section#settings-panel summary h2 { display: inline; }
+  #chart-view-toggle { font-size: 0.88rem; margin: 0 0 0.5rem; }
+  #chart-view-toggle label { margin-right: 1rem; cursor: pointer; }
+  #compare-measure-toggle { font-size: 0.88rem; margin: 0 0 0.5rem; }
+  #compare-measure-toggle label { margin-right: 1rem; cursor: pointer; }
+  #chart-scenario-picker { font-size: 0.88rem; margin: 0 0 0.5rem; }
+  #chart-scenario-picker summary { cursor: pointer; }
+  #chart-scenario-boxes label { display: block; margin: 0.2rem 0 0 1rem; cursor: pointer; }
+  #chart-empty { color: #555; margin: 1rem 0 2rem; }
+  /* P7-6 — the month table's Household/per-Person switch. The two Persons and the Offset are three
+     blocks and not two: the Offset belongs to the Household and to neither Person, so it is given
+     its own heading rather than being folded into a column or dropped. */
+  #assets-view-toggle { font-size: 0.88rem; margin: 0 0 0.5rem; }
+  #assets-view-toggle label { margin-right: 1rem; cursor: pointer; }
+  div.assets-split p.split-shape { color: #555; font-size: 0.88rem; margin: 0.2rem 0 0.4rem; }
+  div.person-assets, div.offset-assets { border-left: 3px solid #cfd8e3; padding-left: 0.75rem; margin: 0.35rem 0; }
+  div.offset-assets { border-left: 3px dashed #a4501f; }
+  div.person-assets h4, div.offset-assets h4 { font-size: 0.9rem; margin: 0 0 0.15rem; }
+  div.offset-assets p.offset-note { color: #7a4a00; font-size: 0.85rem; margin: 0.2rem 0 0; }
+  /* plan_ai.md §9 stage 5 — the chat. Its settings box sits with the other settings; its panel is
+     empty and hidden while the chat is off (`chat/chatPanel.ts`). A chip is the engine's own figure
+     and links to its month; a figure the model wrote itself is struck through and labelled; a
+     marker that names nothing is a red chip, never text. */
+  #chat-settings-panel { border: 1px solid #ddd; padding: 0.75rem 1rem; margin: 1.5rem 0; }
+  #chat-settings-panel h2 { font-size: 1rem; margin: 0 0 0.5rem; display: inline; }
+  #chat-settings-panel summary { cursor: pointer; }
+  #chat-settings { font-size: 0.9rem; display: flex; flex-wrap: wrap; gap: 0.5rem 0.75rem; align-items: center; }
+  #chat-settings p { flex-basis: 100%; margin: 0.2rem 0; }
+  #chat-settings p.chat-notice { color: #7a3a13; }
+  #chat-settings p.chat-settings-announce:empty { display: none; }
+  #chat-settings input, #chat-settings button { font: inherit; }
+  #chat-host { border: 1px solid #cfd8e3; padding: 0.75rem 1rem; margin: 0 0 1.5rem; }
+  #chat-host[hidden] { display: none; }
+  #chat-panel h2 { font-size: 1rem; margin: 0 0 0.5rem; }
+  #chat-panel h3 { font-size: 0.95rem; margin: 1rem 0 0.35rem; }
+  #chat-panel textarea { font: inherit; width: 100%; box-sizing: border-box; }
+  #chat-panel label { display: block; margin: 0.5rem 0 0.25rem; }
+  div.chat-turn { margin: 0 0 0.75rem; }
+  p.chat-asked { font-weight: 600; margin: 0 0 0.25rem; }
+  div.chat-reply { white-space: pre-wrap; }
+  p.chat-failure { color: #a4161a; margin: 0; }
+  .figure-chip { display: inline-block; padding: 0 0.35rem; border: 1px solid #9bb5d1; border-radius: 0.6rem; background: #eef4fb; color: #123f6d; text-decoration: none; white-space: nowrap; }
+  a.figure-chip:hover, a.figure-chip:focus { background: #d9e7f6; }
+  .figure-chip .figure-basis { color: #4d6680; font-size: 0.85em; }
+  .figure-chip.no-such-figure { border-color: #a4161a; background: #fbe9e9; color: #a4161a; }
+  del.not-from-engine { text-decoration: line-through; text-decoration-color: #a4161a; text-decoration-thickness: 2px; color: #6b6b6b; }
+  span.not-from-engine-label { color: #a4161a; font-size: 0.85em; }
+  div.review-card { border: 1px solid #ddd; border-left: 4px solid #2f6f4f; padding: 0.5rem 0.75rem; margin: 0.5rem 0; }
+  div.review-card h4 { font-size: 0.9rem; margin: 0 0 0.25rem; }
+  div.review-card ul { margin: 0.25rem 0; }
+  div.review-card button { font: inherit; margin-right: 0.5rem; cursor: pointer; }
+  p.review-status { color: #a4161a; margin: 0.25rem 0 0; }
+  p.review-status:empty { display: none; }
+  /* The month-table row or line a chip was followed to. */
+  .chip-target { outline: 3px solid #f0b429; background: #fff6d6; }
+</style>
+</head>
+<body>
+<h1>enough <a class="guide-link" href="help.html" target="_blank" rel="noopener">User guide</a></h1>
+<p id="plan-status" hidden></p>
+<p id="caption">…</p>
+<!--
+  The first run, and the only thing on screen when there is no plan file. It is EMPTY here and
+  filled by `app/firstRunPanel.js`, for the reason the three panels below are: a form skeleton in
+  the HTML and a form built in the module would be two places for the field names to drift apart.
+
+  `hidden` is the default and `main.ts` removes it only when `loadPlanOrNone` reported that there
+  is no file — never when a file merely failed to load, which reaches the banner above with the
+  file untouched (`loadPlan.ts`). A first-run screen shown over a plan that exists would be a form
+  whose one button writes over it.
+-->
+<section id="first-run" hidden></section>
+<!--
+  plan_ai.md §9 stage 5 — the chat's panel. EMPTY AND HIDDEN here, and it stays so while the chat is
+  off (the default): `app/chat/chatPanel.js` puts the panel in only when the chat settings below say
+  it is on, so a page with the chat off is the page as it was.
+-->
+<section id="chat-host" hidden></section>
+<!--
+  P8-5 — the household and the settings. One box, filled by `app/settingsPanel.js`, for the reason
+  the other two editors' are (they follow, and they are filled the same way). It is COLLAPSED like
+  them and its summary states the date the whole position is stated as at, because that date is the
+  one thing that decides whether the panel needs opening. Editing anything in here recomputes EVERY
+  scenario — a household is the base position entries are applied to (ADR-0002) — and the panel says
+  so after each write.
+
+  It is FIRST of the three, and the order is the dependency order rather than a layout preference:
+  an entry is a change TO the stated position and a scenario is a selection OF entries, so both of
+  the panels below are about something this one states. Nothing reads DOM order — `main.ts` finds
+  every box by id and the CSS below selects by id — so the order carries no behaviour and moving it
+  again breaks nothing.
+-->
+<section id="settings-panel">
+  <details>
+    <summary><h2 id="settings-summary">Household and settings</h2></summary>
+    <div id="settings-form"></div>
+  </details>
+</section>
+<!--
+  P7-1 — the Scenario list. Both boxes are filled by `app/scenarioPanel.js`, for the reason the
+  entry editor's are: a skeleton here and a builder there would be two places for the same thing
+  to drift apart. The Delete beside each row removes that scenario only — the entries it listed
+  are in the shared pool and stay there. The Shortfall Age beside each scenario is text and not a chart caption, by
+  ruling: N captions on one chart collide. The hint at the top of the panel is built there too, and
+  it says the thing the radio cannot: choosing a scenario picks what is drawn and where the next
+  entry lands, but it does NOT scope an edit — switching an entry off is a change to the entry, so
+  it lands in every scenario that lists it. Sits above Change the plan (user ruling, 2026-09-25).
+-->
+<section id="scenario-panel">
+  <details>
+    <summary><h2 id="scenario-summary">Scenarios</h2></summary>
+    <div id="scenario-create"></div>
+    <div id="scenario-list"></div>
+  </details>
+</section>
+<!--
+  P6-6 — the first editor. Both boxes are filled by `app/entryForm.js`; they are empty here rather
+  than marked up, because a form skeleton in the HTML and a form built in the module would be two
+  places for the field names to drift apart. Switching an entry OFF does not remove it: it stays in
+  the plan file and can be switched back on (ADR-0002), which is why no control here says "delete".
+  Sits directly below the Scenarios panel (user ruling, 2026-09-25): the list shows the active
+  scenario's entries and a new entry lands in it — though an edit to an entry reaches every
+  scenario that lists it (see the Scenarios note above).
+-->
+<section id="entry-editor">
+  <details>
+    <summary><h2 id="entry-summary">Change the plan</h2></summary>
+    <div id="entry-form"></div>
+    <div id="entry-list"></div>
+  </details>
+</section>
+<!--
+  The three answers the page is for, in one box (Financial Situation). It encloses the income
+  headline, the home loan headline and the sustainable-spend search. Native <details>/<summary> —
+  no script, keyboard-operable for free — and OPEN by default, because these are the answers.
+  Sits below the Scenarios and Change the plan panels (user ruling, 2026-09-25): every answer in it is the
+  ACTIVE scenario's, and `main.ts` appends that scenario's name to the title.
+-->
+<section id="financial-situation">
+  <details open>
+    <summary><h2 id="financial-situation-summary">Financial Situation</h2></summary>
+    <!--
+      P16-2 — **one short sentence per life phase, each with a small coloured phase label**, filled by
+      `app/financialSituationPhases.js` through `main.ts`. EMPTY where a phase never occurs (no
+      `RETIRE` reaching anybody, or — for aged care — no `ENTER_CARE`), on the same absence rule the
+      home loan block below keeps. Placed FIRST — see `main.ts`'s own note on why this is a new box
+      rather than a takeover of the three answers beneath it, which are unchanged.
+    -->
+    <section id="phase-sentences"></section>
+    <!--
+      P4-5d — **the question the tool is for, answered in words, at the top of Financial Situation's answers.**
+      *"When does super and pension stop covering the desired income?"* Filled by
+      `app/incomeHeadline.js` through `main.ts`, and NEVER hidden: every plan has an answer here,
+      including "your own money lasts the whole way" and "this forecast cannot work it out", which are
+      different answers and must never be rendered as the same blank. It sits above the home loan block
+      because the home loan is one commitment and this is the whole plan.
+    -->
+    <section id="income-headline"></section>
+    <!--
+      P3-16 slice 3 — **the home loan answer, in words, where a headline belongs.** Filled by
+      `app/mortgageHeadline.js` through `main.ts`, and EMPTY AND HIDDEN for a plan with no loan: a
+      mortgage-free plan must look exactly as it did before this existed, which is the same rule the
+      walk keeps by omitting `Month.mortgageBalance` entirely. It is above the toggles and the chart
+      because it is the question the user asked of the page, not a gloss on the picture.
+    -->
+    <section id="mortgage-headline" hidden></section>
+    <!--
+      P10-3 — **how much this household could actually spend**, behind a button. The search calls
+      `project()` about eighteen times (~0.7s on the UI thread), so it is not run on load and not run on
+      a redraw: the user asks for it. The button and the answer are both filled by `main.ts` from
+      `app/sustainableSpendHeadline.js`, which decides every word, including the two cases where the
+      answer is REFUSED rather than given.
+    -->
+    <section id="sustainable-spend"></section>
+  </details>
+</section>
+<!--
+  P16-1 — **the "Life stages" strip: one row per Person, Working / Retired / In aged care.** Filled
+  by `app/renderLifeStages.js` from `app/lifeStages.js`'s own reading of the walk and the active
+  Scenario's entries — nothing here is stored in the plan file. Sits below the Scenarios
+  panel (user ruling, 2026-09-25): it describes the ACTIVE scenario only, so it belongs beside the
+  control that picks that scenario.
+-->
+<section id="phase-timeline">
+  <h2 id="phase-timeline-title">Life stages</h2>
+  <div id="phase-timeline-body"></div>
+</section>
+<!--
+  Two visuals for two questions (user ruling, 2026-09-19). Focused keeps the Protected/Assessable
+  stack — "what can Centrelink see". Compare drops the split entirely and draws one TOTAL-wealth
+  line per scenario — "which plan is better". Neither re-projects anything: both series are built
+  from the same walks.
+-->
+<!--
+  P2-7 — WHICH MONEY THE WHOLE PAGE IS IN. One toggle for the chart AND the table, never one each:
+  ADR-0001 ("Compute in nominal dollars internally, display in today's dollars") warns that a chart
+  whose basis disagrees with what is next to it is the most likely place to confuse yourself, and a
+  table in today's money beside a chart in future dollars is exactly that. Today's money is CHECKED
+  here and `main.ts` reads the initial mode off this attribute rather than naming the default a
+  second time; `todaysDollars.ts`'s `DEFAULT_MONEY_VIEW` is the constant it must agree with.
+  Nothing is re-projected when it flips — see `main.ts`.
+
+  The wording avoids "nominal", "real terms" and "deflate" on purpose. The full plain-English
+  explanation is the info button under the chart.
+-->
+<fieldset id="money-view-toggle">
+  <legend style="font-size: 0.88rem; padding: 0;">Money shown as</legend>
+  <label><input type="radio" name="money-view" value="todaysDollars" checked> Today’s money — what it would buy now</label>
+  <label><input type="radio" name="money-view" value="futureDollars"> The actual future amounts</label>
+</fieldset>
+<fieldset id="chart-view-toggle">
+  <legend style="font-size: 0.88rem; padding: 0;">Chart view</legend>
+  <label><input type="radio" name="chart-view" value="focused" checked> Focused — means-test split, active scenario</label>
+  <label><input type="radio" name="chart-view" value="compare"> Compare — ticked scenarios</label>
+</fieldset>
+<!-- What each Compare line is. View state only, hidden in the Focused view. Total wealth is CHECKED
+     here and `main.ts` reads the initial choice off this attribute. -->
+<fieldset id="compare-measure-toggle" hidden>
+  <legend style="font-size: 0.88rem; padding: 0;">Compare</legend>
+  <label><input type="radio" name="compare-measure" value="totalWealth" checked> Total wealth</label>
+  <label><input type="radio" name="compare-measure" value="centrelink"> What Centrelink counts</label>
+</fieldset>
+<fieldset id="chart-axis-toggle">
+  <legend style="font-size: 0.88rem; padding: 0;">Chart x-axis</legend>
+  <label><input type="radio" name="chart-axis" value="date" checked> Date</label>
+  <label><input type="radio" name="chart-axis" value="age"> Age</label>
+</fieldset>
+<!-- Which scenarios the Compare chart draws. View state only — never saved to the plan file — and
+     hidden in the Focused view, which draws the active scenario alone. Filled by `main.ts`. -->
+<details id="chart-scenario-picker" hidden>
+  <summary id="chart-scenario-summary">Scenarios shown</summary>
+  <div id="chart-scenario-boxes"></div>
+</details>
+<p id="chart-empty" hidden></p>
+<div id="chart-box"><canvas id="chart"></canvas></div>
+<!-- A <div>, not a <p>: `main.ts` puts one short sentence here and folds the rest into an info
+     button, and a <details> is not phrasing content a paragraph may hold. -->
+<div id="chart-note">…</div>
+<!--
+  the income/spend chart design gate — the second chart: "Money coming in and going out, by financial year". Always
+  the ACTIVE Scenario's own walk (never the Compare view's N scenarios — see `main.ts`), because
+  grouping by line description across several plans at once is a chart of its own and not this one.
+-->
+<div id="flow-chart-box"><canvas id="flow-chart"></canvas></div>
+<!--
+  P7-6 — what the Position section of an expanded month shows. The Household's three figures are the
+  default and are on every row either way; the split is the same three per Person, positionally, plus
+  the Offset Account, which belongs to the Household and to no Person and is shown as its own block
+  rather than folded into one of them. Nothing is re-projected when this flips.
+-->
+<!-- The month-by-month position control and the Years table, in one panel, collapsed by default
+     (user request, 2026-09-28). A chip followed into the table opens it (`monthAnchors.ts`). -->
+<section id="months-panel">
+  <details>
+    <summary><h2 id="months-summary">Years and months</h2></summary>
+    <fieldset id="assets-view-toggle">
+      <legend style="font-size: 0.88rem; padding: 0;">Position in each month</legend>
+      <label><input type="radio" name="assets-view" value="household" checked> Household total</label>
+      <label><input type="radio" name="assets-view" value="person"> Per person, plus the shared Offset Account</label>
+    </fieldset>
+    <div id="months"></div>
+  </details>
+</section>
+<!-- The chat and the comparison template sit at the BOTTOM of the page (user ruling, 2026-09-25). -->
+<!--
+  plan_ai.md §9 stage 5 — the chat's settings: on or off (off by default), the provider, the model,
+  the API key, the prices and the monthly limit. Filled by `app/chat/chatPanel.js`, which reads and
+  writes them in this browser's localStorage only, never the plan file.
+-->
+<section id="chat-settings-panel">
+  <details>
+    <summary><h2 id="chat-settings-summary">The chat</h2></summary>
+    <div id="chat-settings"></div>
+  </details>
+</section>
+<!--
+  P6-8 — the guided template: one dollar figure and a date range, generating two scenarios to
+  compare on the SAME overlay chart above (P7-1) rather than a chart of its own. Filled by
+  `app/comparisonTemplateForm.js`, on `scenario-panel`'s own pattern — a skeleton here and a
+  builder there would be two places for the field names to drift apart.
+-->
+<section id="comparison-template-panel">
+  <details>
+    <summary><h2 id="comparison-template-summary">Compare extra super vs. investing outside it</h2></summary>
+    <div id="comparison-template-form"></div>
+  </details>
+</section>
+<!--
+  P11-3 — the Transactions panel: manual entry into ledger.json, a separate file from the plan.
+  Append only: add, reverse, categorise and import a bank CSV (P11-2) each add records; nothing is edited or deleted. Filled
+  by `app/transactionsPanel.js`; nothing in the forecast reads it.
+-->
+<section id="transactions-panel">
+  <details>
+    <summary><h2 id="transactions-summary">Transactions</h2></summary>
+    <div id="transactions"></div>
+  </details>
+</section>
+<!--
+  Chart.js 4.4.4, vendored and hash-pinned — see vendor/PROVENANCE.md, which also states why this
+  is a plain <script> tag and not an `import`: the published ESM build imports a bare specifier no
+  bundler-less browser can resolve. It must load BEFORE the module below, which reads the
+  `globalThis.Chart` it sets. Nothing here is fetched from a CDN at runtime.
+-->
+<script src="./vendor/chart.umd.js"></script>
+<script type="module" src="./app/main.js"></script>
+</body>
+</html>

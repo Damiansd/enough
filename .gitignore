@@ -1,0 +1,57 @@
+# Real financial data — never commit.
+# The plan file is the source of truth and lives outside this repo.
+plan.json
+*.plan.json
+plans/
+exports/
+*.private.json
+
+# Imported transaction data — the most sensitive data in the project.
+# The ledger is a separate file from the plan and never enters the repo.
+ledger.json
+*.ledger.json
+imports/
+*.csv
+*.ofx
+*.qif
+*.qfx
+*.xls
+*.xlsx
+
+# Committed fixtures — the demo couple and the golden files (P2-8, P13-4) are
+# deliberately tracked, so they are negated back in after the rules above.
+# ⚠️ A negation cannot resurrect a file inside an excluded directory. If a
+# parent of `fixtures/` is ever added to this file, every line below silently
+# stops working and git will not warn you. Never exclude a parent of fixtures/.
+!fixtures/
+!fixtures/**
+
+# Build output
+dist/
+
+# Annual-refresh staging (P2-10). `npm run update-assumptions -- --fy YYYY-YY` writes blanked
+# worksheets here for a human to source from. It is scaffolding, not project state: the reviewed
+# commit that lands the figures edits src/data/assumptions/ by hand (P2-10b). Nothing imports it
+# and tsc does not compile it, so a run can neither change the build nor dirty the tree.
+refresh/
+
+# Local scratch
+.DS_Store
+node_modules/
+
+# Throwaway type-check sandboxes. A mutation pass that wants to know whether a change COMPILES
+# writes a one-file case into `.tsc-<kind>-<random>/` and runs `tsc` against it, rather than
+# touching the real tree — which is the right instinct, since "does not compile" is a measurement
+# and a half-reverted source file makes every later count meaningless. They are per-invocation and
+# nothing reads them afterwards, so they are debris rather than state. Ignored here because four of
+# them accumulated in one afternoon and an untracked directory nobody recognises is how a real
+# stray file comes to be scrolled past.
+.tsc-*/
+
+# Agent memory and local agent config — local scratch, not project state.
+.claude/
+
+# The Moneysmart HTML snapshot — a dead Angular SPA with no extractable data.
+# `docs/moneysmart-limb3-2026-09-18.md` records why it is not worth 13 MB of tree.
+docs/Retirement planner - Moneysmart.gov.au.html
+docs/Retirement planner - Moneysmart.gov.au_files/

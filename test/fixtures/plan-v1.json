@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "settings": {
+    "asAtDate": "2026-09-01",
+    "planningHorizonAge": 100,
+    "economicSeries": {
+      "cpi": 0.025,
+      "pblci": 0.025,
+      "awote": 0.035,
+      "mtawe": 0.035
+    },
+    "deemingRates": {
+      "lower": 0.0175,
+      "upper": 0.0375
+    },
+    "nominalReturn": 0.065
+  },
+  "household": {
+    "persons": [
+      {
+        "name": "Dana",
+        "dateOfBirth": "1968-05-14",
+        "superInterests": [
+          {
+            "phase": "accumulation",
+            "balance": 41200000
+          }
+        ],
+        "parcels": [
+          {
+            "acquired": "2014-03-11",
+            "costBase": 3800000,
+            "marketValue": 9650000
+          }
+        ],
+        "employmentIncomePerFortnight": 310000,
+        "workBonusBalance": 0
+      },
+      {
+        "name": "Ash",
+        "dateOfBirth": "1960-02-09",
+        "superInterests": [
+          {
+            "phase": "accountBasedPension",
+            "balance": 53800000,
+            "statedStreamSettings": {
+              "commencementDay": "2022-08-01"
+            }
+          }
+        ],
+        "parcels": [],
+        "employmentIncomePerFortnight": 0,
+        "workBonusBalance": 0
+      }
+    ],
+    "homeStatus": "occupied",
+    "openingOffsetBalance": 4200000
+  },
+  "entries": [
+    {
+      "id": "spend-2026",
+      "date": "2026-09-01",
+      "owner": "household",
+      "params": {
+        "annualSpend": 8400000
+      },
+      "enabled": true,
+      "createdAt": "2026-08-20",
+      "note": "The standing spending level.",
+      "type": "SPEND_CHANGE"
+    },
+    {
+      "id": "dana-retires",
+      "date": "2031-05-14",
+      "owner": "personA",
+      "params": {},
+      "enabled": true,
+      "createdAt": "2026-08-20",
+      "note": "Dana stops work at 63.",
+      "type": "RETIRE"
+    },
+    {
+      "id": "new-roof",
+      "date": "2029-11-01",
+      "owner": "household",
+      "params": {
+        "amount": 3800000
+      },
+      "enabled": true,
+      "createdAt": "2026-08-20",
+      "note": "Re-roof.",
+      "type": "ONE_OFF_EXPENSE"
+    }
+  ]
+}

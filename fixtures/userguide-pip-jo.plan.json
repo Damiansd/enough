@@ -1,0 +1,201 @@
+{
+  "version": 2,
+  "settings": {
+    "asAtDate": "2026-09-01",
+    "planningHorizonAge": 100,
+    "economicSeries": {
+      "cpi": 0.025,
+      "pblci": 0.025,
+      "awote": 0.035,
+      "mtawe": 0.035
+    },
+    "deemingRates": {
+      "lower": 0.0175,
+      "upper": 0.0375
+    },
+    "nominalReturn": 0.065
+  },
+  "household": {
+    "persons": [
+      {
+        "name": "Pip",
+        "dateOfBirth": "1971-01-01",
+        "superInterests": [
+          {
+            "phase": "accumulation",
+            "balance": 50000000,
+            "statedAdministrationFeePerYear": 5200,
+            "statedAdministrationFeeRate": 0,
+            "statedInvestmentFeeRate": 0.006
+          }
+        ],
+        "parcels": [],
+        "employmentIncomePerFortnight": 350000,
+        "workBonusBalance": 0
+      },
+      {
+        "name": "Jo",
+        "dateOfBirth": "1973-01-01",
+        "superInterests": [
+          {
+            "phase": "accumulation",
+            "balance": 5000000,
+            "statedAdministrationFeePerYear": 5200,
+            "statedAdministrationFeeRate": 0,
+            "statedInvestmentFeeRate": 0.006
+          }
+        ],
+        "parcels": [],
+        "employmentIncomePerFortnight": 150000,
+        "workBonusBalance": 0
+      }
+    ],
+    "homeStatus": "occupied",
+    "openingOffsetBalance": 1000000,
+    "mortgage": {
+      "openingBalance": 25000000,
+      "annualInterestRate": 0.05,
+      "monthlyRepayment": 230000
+    }
+  },
+  "entries": [
+    {
+      "id": "demo-now-spend",
+      "date": "2026-09-01",
+      "owner": "household",
+      "type": "SPEND_CHANGE",
+      "params": {
+        "annualSpend": 7000000
+      },
+      "enabled": true,
+      "createdAt": "2026-09-24",
+      "note": "NOW Spend $70k"
+    },
+    {
+      "id": "demo-refinance",
+      "date": "2027-04-01",
+      "owner": "household",
+      "type": "MORTGAGE_REFINANCE",
+      "params": {
+        "openingBalance": 35000000,
+        "annualInterestRate": 0.05,
+        "monthlyRepayment": 230000
+      },
+      "enabled": true,
+      "createdAt": "2026-09-24",
+      "note": "House move (+$100k)"
+    },
+    {
+      "id": "demo-retire-63",
+      "date": "2034-01-01",
+      "owner": "household",
+      "type": "RETIRE",
+      "params": {},
+      "enabled": true,
+      "createdAt": "2026-09-24",
+      "note": "Retire @ 63 (Pip's birthday)"
+    },
+    {
+      "id": "demo-payoff",
+      "date": "2038-06-30",
+      "owner": "household",
+      "type": "MORTGAGE_PAYOFF",
+      "params": {},
+      "enabled": true,
+      "createdAt": "2026-09-24",
+      "note": "Pay off mortgage"
+    },
+    {
+      "id": "demo-spend-67",
+      "date": "2038-07-01",
+      "owner": "household",
+      "type": "SPEND_CHANGE",
+      "params": {
+        "annualSpend": 7500000
+      },
+      "enabled": true,
+      "createdAt": "2026-09-24",
+      "note": "67 Spend $75k"
+    },
+    {
+      "id": "demo-spend-70",
+      "date": "2041-07-01",
+      "owner": "household",
+      "type": "SPEND_CHANGE",
+      "params": {
+        "annualSpend": 7000000
+      },
+      "enabled": true,
+      "createdAt": "2026-09-24",
+      "note": "70 Spend $70k"
+    },
+    {
+      "id": "demo-spend-75",
+      "date": "2046-07-01",
+      "owner": "household",
+      "type": "SPEND_CHANGE",
+      "params": {
+        "annualSpend": 6000000
+      },
+      "enabled": true,
+      "createdAt": "2026-09-24",
+      "note": "75 Spend $60k"
+    },
+    {
+      "id": "demo-spend-80",
+      "date": "2051-07-01",
+      "owner": "household",
+      "type": "SPEND_CHANGE",
+      "params": {
+        "annualSpend": 5500000
+      },
+      "enabled": true,
+      "createdAt": "2026-09-24",
+      "note": "80 Spend $55k"
+    },
+    {
+      "id": "demo-spend-85",
+      "date": "2056-07-01",
+      "owner": "household",
+      "type": "SPEND_CHANGE",
+      "params": {
+        "annualSpend": 5000000
+      },
+      "enabled": true,
+      "createdAt": "2026-09-24",
+      "note": "85 Spend $50k"
+    },
+    {
+      "id": "demo-spend-90",
+      "date": "2061-07-01",
+      "owner": "household",
+      "type": "SPEND_CHANGE",
+      "params": {
+        "annualSpend": 5000000
+      },
+      "enabled": true,
+      "createdAt": "2026-09-24",
+      "note": "90 Spend $50k"
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "baseline",
+      "name": "Baseline",
+      "parentId": null,
+      "entryIds": [
+        "demo-now-spend",
+        "demo-refinance",
+        "demo-retire-63",
+        "demo-payoff",
+        "demo-spend-67",
+        "demo-spend-70",
+        "demo-spend-75",
+        "demo-spend-80",
+        "demo-spend-85",
+        "demo-spend-90"
+      ]
+    }
+  ],
+  "activeScenarioId": "baseline"
+}

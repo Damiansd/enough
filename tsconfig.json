@@ -1,0 +1,25 @@
+{
+  // `tsc` emits the native ES modules the browser loads directly — there is no bundler
+  // and no resolver at runtime, so every relative import must carry a real file extension.
+  //
+  // NodeNext is chosen because it *enforces* that: `import { toCents } from './money.js'`
+  // in a `.ts` file is required and correct. The `.js` names the emitted file, not the
+  // source. It looks wrong. Do not "fix" it to './money' or './money.ts' — the first is
+  // a 404 in the browser and the second is a compile error.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "rootDir": "src",
+    "outDir": "dist",
+    "types": [],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "verbatimModuleSyntax": true,
+    "noEmitOnError": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["src"]
+}
