@@ -513,6 +513,7 @@ test('MUTATION §9 — the Franking table still declares which of its rows have 
   assert.match(flat, /no row is marked BUILT/);
   assert.match(flat, /The individual \(non-super\) side of franking is \*\*P3-22\*\*, and that module does not exist/);
   assert.match(flat, /a record is not a test, and that module has no runtime consumer at all/);
+  assert.match(flat, /True when written\. Since 2026-09-30 `src\/core\/individualFranking\.ts` reads the \$5,000/, 'the dated correction stays beside it');
   assert.match(flat, /\*\*What IS live today:\*\*/);
   assert.doesNotMatch(
     flat,

@@ -3570,7 +3570,9 @@ title bar always names the date your figures are stated as at.
 Inside: who lives in your household and their birthdays; each person's super accounts, fees and
 insurance; other investments outside super; your home loan and offset account; the date your
 figures are from; and your guesses about the future, such as investment returns and how far ahead
-to look. Right at the bottom, ruled off from everything else, is **{{name|Start again}}** — the one control
+to look. Below your guesses is **{{name|The rules in force}}**: the figures the law sets, such as tax
+rates and Age Pension rates, as they stand on the date your figures are from. You can read them but
+not change them; [Chapter 79](#rules-updates) explains what each line means. Right at the bottom, ruled off from everything else, is **{{name|Start again}}** — the one control
 that wipes your plan and starts a new one.
 
 Saving here never changes a detail the form has no box for. For example, exactly when a super
@@ -3799,12 +3801,33 @@ Pension's basic rate can rise, and how far the yearly limit on extra super contr
 *enough* is upfront about this on the little "i" buttons beside those boxes ([Chapter 67](#info-buttons)) — they say
 plainly when a figure shown is a forecast rather than the law.
 
-### What *enough* doesn't show you yet
+### Seeing the rules *enough* is using {#rules-in-force}
 
-*enough* doesn't currently have a screen that tells you, in one place, exactly which year's rules
-it's using for everything — tax scales, pension rates, super caps and all. That's a real gap, not
-a hidden one: a screen for this is planned, but it isn't built yet. Until it is, the only trace of
-a figure's vintage is the **{{name|Set by law}}** label mentioned above.
+Open **{{name|Household and settings}}**, then **{{name|The rules in force}}**, just below your
+Forecast assumptions. It lists the main figures the law sets — tax rates, the Age Pension, super
+caps, aged care fees and more — as they stand on the day your figures are from
+([Chapter 14](#as-at-date)). So they match what the Years and months table labels
+**{{name|Set by law}}** for that month. You can read them, but not change them.
+
+Each line gives the figure and the date it started. If the law has already set a new figure for a
+later date, the line also says when it changes and to what. For example, the lowest tax rate drops
+on 1 July 2027. A few lines say a little more:
+
+- **"none yet"** means the rule is law but hasn't started by your date. The line says when it starts.
+- **"the 2025-26 figure; the 2026-27 one is not published yet"** means the government hasn't
+  released this year's figure yet, so *enough* uses last year's.
+- **"the 2027-28 scale, which the law keeps for later years"** means the law sets these tax rates
+  for 2027-28 and every year after it, so a later date still shows them.
+
+The top line says when the rules were last checked against the law. That's the same date as at the
+end of [Chapter 85](#sources). Each area (Tax, Super, and so on) has its own little "i" button that
+opens the list of sources for it.
+
+Some figures aren't listed. The government raises some figures every year, like the super caps and
+the Age Pension. Those are listed only up to the last one it has published. After that, *enough*
+raises them itself using your Forecast assumptions, as the section above explains, so they aren't
+"the law" any more. Rules that are words rather than numbers, and the small steps inside a
+calculation, aren't listed either.
 
 ### Pip and Jo
 

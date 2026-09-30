@@ -874,10 +874,12 @@ test('both earnings-tax records are now consumed by src/, and by this module', (
       else if (entry.name.endsWith('.ts')) yield path;
     }
   };
+  // The rules-in-force panel (src/app/rulesInForce.ts) names every register key to classify it for
+  // display; it reads, never computes. Consumption means computation, so it is left out here.
   const declaration = join(SRC, 'data', 'assumptions', 'super.ts');
   for (const key of ['earningsTaxAccumulation', 'earningsTaxRetirement']) {
     const importers = [...sources(SRC)].filter(
-      (file) => file !== declaration && readFileSync(file, 'utf8').includes(key),
+      (file) => file !== declaration && file !== join(SRC, 'app', 'rulesInForce.ts') && readFileSync(file, 'utf8').includes(key),
     );
     assert.deepEqual(importers, [join(SRC, 'core', 'superPhase.ts')], `${key} must be consumed, and here`);
   }

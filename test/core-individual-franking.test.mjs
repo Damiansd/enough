@@ -614,17 +614,18 @@ test('MUTATION T43 — no rate-shaped literal is written in individualFranking.t
   );
 });
 
-test('MUTATION — the $5,000 ceiling appears ONCE, on its record, and no other dollar figure does', () => {
-  // The individual's relief is the one §7 franking figure this module may hold, because it is the
-  // one that decides something here (T49). It must be on the record and nowhere else — a second
-  // copy in the gate expression is what drifts when the register's boundary is re-read.
+test('MUTATION — the $5,000 ceiling is read from its assumption record, and no dollar figure is written here', () => {
+  // The individual's relief is the one §7 franking figure that decides something here (T49). Since
+  // 2026-09-30 its VALUE is read from `franking.smallShareholder.ceiling` — the record the
+  // rules-in-force panel shows — so a literal copy here is a second home that drifts when the
+  // register's figure is re-read.
   const fiveThousand = [...executable.matchAll(/(?<![\w.$])5_?000(?![\w.])/g)];
-  assert.equal(fiveThousand.length, 1, 'the $5,000 ceiling is written more than once in code');
-  assert.match(executable, /ceiling: toCents\(5_000\)/);
+  assert.equal(fiveThousand.length, 0, 'the $5,000 ceiling is written as a literal in code');
+  assert.match(executable, /ceiling: FRANKING\.smallShareholder\.ceiling\.value/);
 
-  // No other money literal. `toCents(0)` is a nil and is not a figure.
+  // No money literal. `toCents(0)` is a nil and is not a figure.
   const money = [...executable.matchAll(/toCents\(([\d_.]+)\)/g)].map(([, amount]) => amount);
-  assert.deepEqual([...new Set(money)].sort(), ['0', '5_000']);
+  assert.deepEqual([...new Set(money)].sort(), ['0']);
 });
 
 test('MUTATION — the module does not reach into incomeTax.ts for anything but the assessment', () => {

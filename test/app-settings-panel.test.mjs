@@ -1747,8 +1747,11 @@ test('the panel writes only through host.save — no transport, no validator, no
   // restated here — pure, no DOM, and it reaches no store and no engine.
   // `./displayMoney.js` is new (P3-17 slice 3 / 2026-09-25 percent ruling): the fee-rate dollar echo
   // goes through `formatDollars`, not `formatCents`, on `displayMoney.ts`'s own no-cents ruling.
+  // `./guideTitles.js` and `./rulesInForce.js` (2026-09-30) draw the read-only rules-in-force fold:
+  // the build's refresh date, and the pure module that looks the figures up. Neither writes.
   assert.deepEqual(imports(PANEL_RAW), [
-    './planEdits.js', './displayMoney.js', './infoButton.js', './ownerNames.js', './planEdits.js', '../core/parsePlan.js',
+    './planEdits.js', './displayMoney.js', './infoButton.js', './guideTitles.js', './rulesInForce.js', './rulesInForce.js',
+    './ownerNames.js', './planEdits.js', '../core/parsePlan.js',
   ]);
   // Two writes, both through `host.save`, both inside `saveAndAnnounce`.
   assert.equal([...PANEL.matchAll(/host\.save\(/g)].length, 1, 'the panel has grown a second write path');
@@ -3200,8 +3203,9 @@ const RESTATED_FIGURE = /\$\s?\d|\d(?:\.\d+)?\s?%|\b\d{2,}\b/;
 test('P17-3 — every ⓘ box on the panel names a guide page, and no box restates a figure', () => {
   const calls = [...PANEL_RAW.matchAll(/infoButton\(([A-Z_]+), ([A-Z_]+)(?:, '(guide:[a-z0-9-]+)')?\)/g)];
   // 27 since the insurance group's own box (2026-09-29); 28 with the value just before 1 July 2027.
-  // 29 with the employer-pays-into select (register O82).
-  assert.equal(calls.length, 29, 'the panel no longer has the 29 ⓘ boxes this pass covered');
+  // 29 with the employer-pays-into select (register O82). 35 with the rules-in-force fold (2026-09-30):
+  // one for the fold and one per area, each pointing at the area's sources in Chapter 85.
+  assert.equal(calls.length, 35, 'the panel no longer has the 35 ⓘ boxes this pass covered');
   assert.equal([...PANEL_RAW.matchAll(/infoButton\(/g)].length, calls.length, 'an ⓘ box is built some other way');
   for (const [, summary, notice, guide] of calls) {
     assert.ok(guide !== undefined, `${summary} links to no page of the guide`);

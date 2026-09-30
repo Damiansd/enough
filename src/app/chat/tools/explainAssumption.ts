@@ -134,6 +134,7 @@ export const MONEY_LOCATIONS = [
   'superannuation.lowIncomeSuperTaxOffset.minimum#value',
   'superannuation.lowIncomeSuperTaxOffset.incomeThreshold#value',
   'superannuation.lowIncomeSuperTaxOffset.maximum#value',
+  'superannuation.downsizer.cap#value',
   'superannuation.caps.nonConcessional#value',
   'superannuation.caps.concessional#value',
   'superannuation.caps.generalTransferBalance#value',

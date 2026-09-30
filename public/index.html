@@ -265,6 +265,11 @@
   #settings-form details.fold > summary h3 { display: inline; margin: 0; }
   #settings-form fieldset.person div.fold-body { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; padding-top: 0.5rem; }
   #settings-form > details.fold, #settings-form details.fold:has(> div > form.assumptions) { border: 1px dotted #ccc; padding: 0.4rem 0.75rem; margin-top: 2rem; }
+  /* The rules in force (2026-09-30): read only, a sub-fold per area, one line per figure. */
+  #settings-form details.fold.rules-in-force { border: 1px dotted #ccc; padding: 0.4rem 0.75rem; margin-top: 2rem; }
+  #settings-form details.fold > summary h4 { display: inline; margin: 0; font-size: 0.9rem; }
+  #settings-form details.rules-in-force details.fold { margin: 0.35rem 0 0 0.5rem; }
+  #settings-form ul.rules { margin: 0.25rem 0 0.5rem; padding-left: 1.2rem; }
   /* Visual delineation (user ruling, 2026-09-25): each person's name, and the Other investments
      group label, in bold; an extra line of space above Forecast assumptions. */
   #settings-form p.group-label { flex-basis: 100%; margin: 0.5rem 0 0; font-weight: 700; }

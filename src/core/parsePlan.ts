@@ -2331,12 +2331,10 @@ const checkBuyHomes = (scope: CareScope): void => {
   }
 };
 
-/** ITAA 1997 s 292-102(1)(a): 55 or older when the contribution is made. */
-export const DOWNSIZER_MINIMUM_AGE = 55;
-/** s 292-102(3)(a): $300,000 per Person, in dollars of the day — the Act does not index it. */
-export const DOWNSIZER_CAP = toCents(300_000);
-/** s 292-102(1)(g): within 90 days after the change of ownership. The Commissioner's extension is not modelled. */
-export const DOWNSIZER_WINDOW_DAYS = 90;
+/** ITAA 1997 s 292-102(1)(a), (3)(a) and (1)(g) — the figures live in `superannuation.downsizer`. */
+export const DOWNSIZER_MINIMUM_AGE = SUPERANNUATION.downsizer.minimumAge.value;
+export const DOWNSIZER_CAP = SUPERANNUATION.downsizer.cap.value;
+export const DOWNSIZER_WINDOW_DAYS = SUPERANNUATION.downsizer.windowDays.value;
 /** A downsizer figure stated in today's money, at its own date: the one door lens for the cap and the sale price. */
 const downsizerNominal = (settings: Settings, stated: Cents, date: IsoDate): Cents =>
   inflateStated(stated, settings.economicSeries.cpi, settings.asAtDate, date);

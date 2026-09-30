@@ -514,9 +514,11 @@ test('the floor is Schedule 7 itself — the flat 4% record is consumed by nothi
     }
   };
   const importers = [...sources(SRC)].filter(
-    (file) => file !== join(SRC, 'data', 'assumptions', 'super.ts') && readFileSync(file, 'utf8').includes('ttrMinimumDrawdown'),
+    (file) => file !== join(SRC, 'data', 'assumptions', 'super.ts') && file !== join(SRC, 'app', 'rulesInForce.ts') && readFileSync(file, 'utf8').includes('ttrMinimumDrawdown'),
   );
   assert.deepEqual(importers, []);
+  // The rules-in-force panel names it only to HIDE it, for this reason, so the flat 4% is never shown.
+  assert.match(readFileSync(join(SRC, 'app', 'rulesInForce.ts'), 'utf8'), /hidden\('[^']*understates[^']*', \['superannuation\.access\.ttrMinimumDrawdown'\]\)/);
   assert.equal(ACCESS.ttrMinimumDrawdown.value, 0.04);
   assert.match(ACCESS.ttrMinimumDrawdown.note, /Understates the rule/);
   assert.match(ACCESS.ttrMinimumDrawdown.note, /do not start/);

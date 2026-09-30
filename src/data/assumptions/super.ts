@@ -1356,6 +1356,41 @@ const ACCESS_RULES = {
   } satisfies Constant<string>,
 };
 
+// --- The downsizer contribution — ITAA 1997 s 292-102 (P9-5) --------------------------------------
+// Moved here from `core/parsePlan.ts`'s three literals (2026-09-30), unchanged in value, so the
+// rules-in-force panel can show them and a refresh finds them in the one tree.
+
+const ITAA97_292_102 = {
+  source: 'ITAA 1997 s 292-102 (ATO legal database PAC/19970038/292-102) · ATO "Downsizer super contributions" (dateModified 2026-04-23)',
+  retrieved: '2026-09-25',
+  confidence: 'primary-verified',
+  registerSection: '§3.12',
+} as const;
+
+const DOWNSIZER = {
+  minimumAge: {
+    ...ITAA97_292_102,
+    kind: 'constant',
+    everyYear: true,
+    value: 55,
+    note: 's 292-102(1)(a): 55 or older when the contribution is made.',
+  } satisfies Constant<number>,
+  cap: {
+    ...ITAA97_292_102,
+    kind: 'constant',
+    everyYear: true,
+    value: toCents(300_000),
+    note: 's 292-102(3)(a): per Person, in dollars of the day — the Act does not index it.',
+  } satisfies Money,
+  windowDays: {
+    ...ITAA97_292_102,
+    kind: 'constant',
+    everyYear: true,
+    value: 90,
+    note: 's 292-102(1)(g): within 90 days after the change of ownership. The Commissioner\'s extension is not modelled.',
+  } satisfies Constant<number>,
+};
+
 export const SUPERANNUATION = deepFreeze({
   caps: CAPS,
   capIndexation: {
@@ -1373,4 +1408,5 @@ export const SUPERANNUATION = deepFreeze({
   division296: DIVISION_296,
   fundTax: FUND_TAX,
   access: ACCESS_RULES,
+  downsizer: DOWNSIZER,
 });

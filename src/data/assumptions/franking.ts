@@ -1,7 +1,9 @@
 // Franking and dividend imputation — register §5A. P3-28.
 //
-// **Read this first: NOTHING IN THIS FILE HAS A RUNTIME CONSUMER TODAY, and that is declared here
-// rather than discovered later.** `src/core/superFranking.ts` computes the whole super side of
+// **Read this first: ONE RECORD IN THIS FILE HAS A RUNTIME CONSUMER, and that is declared here
+// rather than discovered later.** Since 2026-09-30 `src/core/individualFranking.ts` reads the VALUE
+// of `smallShareholder.ceiling` (the frozen $5,000), so the rules-in-force panel and the gate share
+// one record; nothing else below is read by a computation. `src/core/superFranking.ts` computes the whole super side of
 // §5A — gross-up, offset, refundability, the three fact gates — and it reads **not one record
 // below**. It does not import this module and must not: see "The one thing this module may never
 // become", at the foot of this header.

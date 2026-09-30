@@ -104,6 +104,9 @@ import {
 } from './planEdits.js'; // `.js` is correct in a `.ts` file — see tsconfig.json
 import { formatDollars } from './displayMoney.js';
 import { infoButton } from './infoButton.js';
+import { LAST_LEGISLATION_REFRESH } from './guideTitles.js';
+import { ruleRowText, rulesHeadline, rulesInForce } from './rulesInForce.js';
+import type { RulesArea } from './rulesInForce.js';
 // The unnamed-person wording is `ownerNames.ts`'s, imported so this page and the entry editor call
 // the same two people the same thing.
 import { UNNAMED_PERSON_LABELS } from './ownerNames.js';
@@ -502,8 +505,31 @@ export const ASSUMPTIONS_SUMMARY =
   'Your guesses, not the law. Rates are decimals: 0.025 is 2.5%.';
 
 export const ASSUMPTIONS_NOTICE =
-  'The figures set by law are built in and are not edited here. The Age Pension indexation series is not on' +
-  ' this form; whatever your plan states is kept as it is.';
+  'The figures set by law are built in and are not edited here; The rules in force, below, lists them. The Age' +
+  ' Pension indexation series is not on this form; whatever your plan states is kept as it is.';
+
+/**
+ * **"The rules in force" (2026-09-30): the legislated figures on the as-at date, read only.** The
+ * rows and their words are `rulesInForce.ts`'s; this file only draws them. Each ⓘ says where the
+ * figures come from and never restates one (P17-3).
+ */
+export const RULES_IN_FORCE_SUMMARY = 'Set by law — read only.';
+
+export const RULES_IN_FORCE_NOTICE =
+  'The legislated figures your forecast uses on your as-at date: when each took effect, and when it next' +
+  ' changes where the change is already law. Past the last published figure, the forecast raises the' +
+  ' figures that are indexed with your Forecast assumptions, so those later values are not listed.';
+
+export const RULES_TAX_SUMMARY = 'Where these come from.';
+export const RULES_TAX_NOTICE = 'The tax laws behind these figures, and when each was last checked.';
+export const RULES_SUPER_SUMMARY = 'Where these come from.';
+export const RULES_SUPER_NOTICE = 'The super laws behind these figures, and when each was last checked.';
+export const RULES_AGE_PENSION_SUMMARY = 'Where these come from.';
+export const RULES_AGE_PENSION_NOTICE = 'The Age Pension rates and rules behind these figures, and when each was last checked.';
+export const RULES_HEAS_SUMMARY = 'Where these come from.';
+export const RULES_HEAS_NOTICE = 'The scheme’s rules behind these figures, and when each was last checked.';
+export const RULES_AGED_CARE_SUMMARY = 'Where these come from.';
+export const RULES_AGED_CARE_NOTICE = 'The aged care fee schedules behind these figures, and when each was last checked.';
 
 /** The two save buttons, said as what they do rather than as “Save”. */
 export const SAVE_LABELS = {
@@ -1294,6 +1320,50 @@ const renderSettings = (box: HTMLElement, host: SettingsPanelHost, values: Setti
   box.replaceChildren(fold);
 };
 
+/** Each area's ⓘ, pointing at its table of sources in the guide's appendix. */
+const rulesAreaInfo = (area: RulesArea): HTMLDetailsElement => {
+  switch (area) {
+    case 'tax': return infoButton(RULES_TAX_SUMMARY, RULES_TAX_NOTICE, 'guide:sources-tax');
+    case 'super': return infoButton(RULES_SUPER_SUMMARY, RULES_SUPER_NOTICE, 'guide:sources-super');
+    case 'agePension': return infoButton(RULES_AGE_PENSION_SUMMARY, RULES_AGE_PENSION_NOTICE, 'guide:sources-age-pension');
+    case 'heas': return infoButton(RULES_HEAS_SUMMARY, RULES_HEAS_NOTICE, 'guide:sources-heas');
+    case 'agedCare': return infoButton(RULES_AGED_CARE_SUMMARY, RULES_AGED_CARE_NOTICE, 'guide:sources-aged-care');
+  }
+};
+
+/**
+ * **The rules in force, read only, beside the assumptions** (2026-09-30). One closed fold, a
+ * sub-fold per area; the date is the plan's as-at date, so the rows match the month table's "Set by
+ * law" figures for that month. An area with no row on that date (every figure past its last
+ * published value) is left out rather than shown empty.
+ */
+const renderRulesInForce = (box: HTMLElement, plan: PlanFile): void => {
+  const heading = document.createElement('h3');
+  heading.textContent = 'The rules in force';
+  const { fold, body } = foldBox('rules-in-force', heading);
+  fold.classList.add('rules-in-force');
+  body.append(
+    infoButton(RULES_IN_FORCE_SUMMARY, RULES_IN_FORCE_NOTICE, 'guide:rules-in-force'),
+    paragraph('caveat', rulesHeadline(plan.settings.asAtDate, LAST_LEGISLATION_REFRESH)),
+  );
+  for (const section of rulesInForce(plan.settings.asAtDate)) {
+    if (section.rows.length === 0) continue;
+    const title = document.createElement('h4');
+    title.textContent = section.title;
+    const area = foldBox(`rules-${section.area}`, title);
+    const list = document.createElement('ul');
+    list.className = 'rules';
+    for (const rule of section.rows) {
+      const item = document.createElement('li');
+      item.textContent = ruleRowText(rule);
+      list.append(item);
+    }
+    area.body.append(rulesAreaInfo(section.area), list);
+    body.append(area.fold);
+  }
+  box.replaceChildren(fold);
+};
+
 /**
  * **The hand-off, and it is the reason the walkthrough is not a dead end** (user ruling,
  * 2026-09-20). A plan built from a name and a date of birth states no home, no super and no income,
@@ -1404,19 +1474,21 @@ const renderReset = (
 export const mountSettingsPanel = (box: HTMLElement, host: SettingsPanelHost): (() => void) => {
   const positionBox = document.createElement('div');
   const settingsBox = document.createElement('div');
+  const rulesBox = document.createElement('div');
   // The reset is LAST in the panel and outside both forms: it belongs to neither set of figures,
   // and a control that replaces the whole file should not sit beside a Save that changes one box.
   const resetBox = document.createElement('div');
   resetBox.className = 'reset';
   const announce = document.createElement('p');
   announce.className = 'settings-announce';
-  box.replaceChildren(positionBox, settingsBox, resetBox, announce);
+  box.replaceChildren(positionBox, settingsBox, rulesBox, resetBox, announce);
   const show = (values: StatedPositionFormValues): void => renderPosition(positionBox, host, values, announce, show);
   const showReset = (armed: boolean): void => renderReset(resetBox, host, announce, armed, showReset);
   const redraw = (): void => {
     announce.textContent = '';
     show(positionFormValues(host.currentPlan()));
     renderSettings(settingsBox, host, settingsFormValues(host.currentPlan()), announce);
+    renderRulesInForce(rulesBox, host.currentPlan());
     // Disarmed on every redraw, so a write that landed while the confirm was on screen leaves no
     // armed control over a plan that is already gone.
     showReset(false);

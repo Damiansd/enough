@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { NAMES_THE_APP_DOES_NOT_SHOW, buildGuide, checkNames, checkTocNumbers, collectLabels, collectTags, rewriteLinks } from '../scripts/build-guide.mjs';
+import { NAMES_THE_APP_DOES_NOT_SHOW, buildGuide, checkNames, checkTocNumbers, collectLabels, collectTags, lastLegislationRefresh, rewriteLinks } from '../scripts/build-guide.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SCRIPT = join(REPO, 'scripts', 'build-guide.mjs');
@@ -76,8 +76,8 @@ test('every link in the real guide resolves, and every chapter has a label', () 
   const built = buildGuide(GUIDE, []);
   assert.deepEqual(built.errors, []);
   assert.equal(built.resolved, [...GUIDE.matchAll(/\]\(#/g)].length);
-  // P17-3a added a handful of cross-references while restoring rules into the guide (372 → 379); the Chapter 15 heading's plain number became a link (380); the 2026-09-29 plain-language pass linked the first uses of the means tests and new dictionary entries (410); the sources appendix added its contents line, its own link and each chapter's link to its appendix section (437); filling the source gaps added links to the new Capital gains and Fees in super sections and more chapter source lines (447); the appendix's jump-to-a-topic list linked each of its 13 topic tables (460); Chapter 17's Retire question links the TTR chapter (462); LR-1 slice 4 linked Chapter 30 from Chapter 12's what-if and Chapter 55's new section, and Chapter 30 to Chapter 15 (465); retire flow S4's TTR start links Chapter 17 and its own section (467); retire flow S3's "Going back to work" section is linked from Chapters 17, 25 and 64 and links Chapter 64 and its appendix section (472); the ASFA Retirement Standard yardstick in the sources appendix links Chapter 20 (473); RF-2's TTR after going back links Chapter 25 from Chapter 18 (474).
-  assert.equal(built.resolved, 474);
+  // P17-3a added a handful of cross-references while restoring rules into the guide (372 → 379); the Chapter 15 heading's plain number became a link (380); the 2026-09-29 plain-language pass linked the first uses of the means tests and new dictionary entries (410); the sources appendix added its contents line, its own link and each chapter's link to its appendix section (437); filling the source gaps added links to the new Capital gains and Fees in super sections and more chapter source lines (447); the appendix's jump-to-a-topic list linked each of its 13 topic tables (460); Chapter 17's Retire question links the TTR chapter (462); LR-1 slice 4 linked Chapter 30 from Chapter 12's what-if and Chapter 55's new section, and Chapter 30 to Chapter 15 (465); retire flow S4's TTR start links Chapter 17 and its own section (467); retire flow S3's "Going back to work" section is linked from Chapters 17, 25 and 64 and links Chapter 64 and its appendix section (472); the ASFA Retirement Standard yardstick in the sources appendix links Chapter 20 (473); RF-2's TTR after going back links Chapter 25 from Chapter 18 (474); the rules-in-force panel's section in Chapter 79 links Chapters 14 and 85, and Chapter 68 links it (477).
+  assert.equal(built.resolved, 477);
   const chapters = GUIDE.match(/^## Chapter \d+: .*$/gm);
   assert.equal(chapters.length, 85);
   assert.deepEqual(chapters.filter((h) => !/ \{#[a-z0-9-]+\}$/.test(h)), []);
@@ -240,4 +240,38 @@ test('a fenced block is shown exactly as typed, escaped, and ends at its closing
   assert.deepEqual(errors, []);
   assert.match(html, /<pre><code>Refresh &lt;the&gt; rules &amp; dates\.\n- keep this dash<\/code><\/pre>/);
   assert.match(html, /<p>After\.<\/p>/);
+});
+
+// Kills: the rules-in-force panel's "last checked" date typed into src/ (or taken from a `retrieved`
+// date) instead of read off the guide's own footnote, and the build passing without the footnote.
+test('the last legislation refresh date is read off the guide footnote, exported beside the titles, and required', async () => {
+  const refreshed = lastLegislationRefresh(GUIDE);
+  assert.match(refreshed ?? '', /^\d{4}-\d{2}-\d{2}$/, 'userguide.md has no "**Last Claude legislation refresh:**" line');
+  assert.equal(lastLegislationRefresh('**Last Claude legislation refresh:** 3 Mar 2027\n'), '2027-03-03');
+  assert.equal(lastLegislationRefresh('no footnote here\n'), undefined);
+  assert.equal(lastLegislationRefresh('**Last Claude legislation refresh:** 3 Mar 2027\n**Last Claude legislation refresh:** 4 Mar 2027\n'), undefined);
+
+  // The build writes it, and the app has no other source for it.
+  const { LAST_LEGISLATION_REFRESH } = await import(join(REPO, 'dist', 'app', 'guideTitles.js'));
+  assert.equal(LAST_LEGISLATION_REFRESH, refreshed);
+  const [year, month, day] = refreshed.split('-');
+  const typed = [refreshed, `${Number(day)} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][Number(month) - 1]} ${year}`];
+  // The code of the two files that draw the panel. (Comments carry the same calendar date as a ruling's date.)
+  for (const file of ['settingsPanel.ts', 'rulesInForce.ts']) {
+    const text = readFileSync(join(REPO, 'src', 'app', file), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    for (const date of typed) assert.ok(!text.includes(date), `src/app/${file} types the refresh date ${date}`);
+  }
+  assert.match(readFileSync(join(REPO, 'src', 'app', 'settingsPanel.ts'), 'utf8'), /import \{ LAST_LEGISLATION_REFRESH \} from '\.\/guideTitles\.js';/);
+
+  // A guide without the footnote does not build.
+  const dir = mkdtempSync(join(tmpdir(), 'build-guide-'));
+  try {
+    writeFileSync(join(dir, 'no-footnote.md'), GUIDE.replace(/^\*\*Last Claude legislation refresh:\*\*.*$/m, ''));
+    const run = spawnSync(process.execPath, [SCRIPT, join(dir, 'no-footnote.md'), join(REPO, 'src'), join(dir, 'help.html')], { encoding: 'utf8' });
+    assert.equal(run.status, 1);
+    assert.match(run.stderr, /Last Claude legislation refresh:\*\* D Mon YYYY" line is missing/);
+    assert.equal(existsSync(join(dir, 'help.html')), false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

@@ -3437,6 +3437,18 @@ called that.
   s 207-110(2)(b) and is refunded in full **under both methods**.
 - **§8** — O67–O71, U34–U37. **§9** — M-P3-25-1. **§1** — T126–T134.
 
+### 3.12 Downsizer contribution — ITAA 1997 s 292-102
+
+Three figures, `constant` for every year, read from s 292-102 on the ATO legal database
+(PAC/19970038/292-102) on 2026-09-25 (`docs/research/p9-5-downsizer-2026-09-25.md`), and moved
+from `core/parsePlan.ts` literals into `superannuation.downsizer` on 2026-09-30 with no change of value:
+
+| Key | Value | Provision |
+|---|---|---|
+| `superannuation.downsizer.minimumAge` | 55 | s 292-102(1)(a) — 55 or older when the contribution is made |
+| `superannuation.downsizer.cap` | $300,000 per Person | s 292-102(3)(a) — not indexed; the couple's total is also capped at the sale proceeds (s 292-102(3)(b)) |
+| `superannuation.downsizer.windowDays` | 90 | s 292-102(1)(g) — days after the change of ownership; the Commissioner's extension is not modelled |
+
 ---
 
 ## 4. Age Pension
@@ -5291,6 +5303,8 @@ boundary rows (no small-shareholder computation exists on either side), the indi
 T49's asymmetry row, and the P3-22g/O28 cash-timing row (there is no Income Waterfall yet). Their
 *figures* are recorded — `src/data/assumptions/franking.ts` carries §7's twelve constants, added
 2026-09-15 by P3-28 — but a record is not a test, and that module has no runtime consumer at all.
+*(True when written. Since 2026-09-30 `src/core/individualFranking.ts` reads the $5,000
+small-shareholder ceiling from `franking.smallShareholder.ceiling` rather than its own literal.)*
 **What IS live today:** T44's 2.3333 gross-up row and both T45 s 207-90/s 207-110 rows, in
 `test/core-super-franking.test.mjs`; the *super* half of T49, as `NotAQualifiedPersonError`; the
 T48 indexation row, as `test/assumptions-franking.test.mjs`'s assertion that the $5,000 carries no

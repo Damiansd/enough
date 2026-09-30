@@ -9372,15 +9372,27 @@ scratchpad of session 2026-09-25).
 
 ---
 
-## Show the rules in force (user-requested 2026-09-28, not yet scoped)
+## Show the rules in force (user-requested 2026-09-28, SHIPPED 2026-09-30)
 
-- [ ] **The app should show the current rates** — the legislated figures it is using (tax scales,
+- [x] **The app should show the current rates** — the legislated figures it is using (tax scales,
   Age Pension rates and thresholds, super caps, deeming, …) and the date they apply from. Today
   nothing on screen names the rules' vintage: the Forecast assumptions notice says the legislated
   figures "are not editable anywhere", and the only trace is the per-line `legislated` provenance
   label in the month table. Raised while building `userguide.md` (its chapter "How *enough* keeps
   up with the rules" will describe this view). Read-only; needs a gate on shape (one panel vs.
   per-area) before a build brief
+  **Done 2026-09-30:** one closed fold, **The rules in force**, below Forecast assumptions in Household
+  and settings, with a sub-fold and ⓘ (→ its Chapter 85 sources table) per area: 65 figures on the demo
+  as-at date (Tax 17, Super 24, Age Pension 16, HEAS 2, Aged care 6), each with its from-date and, where a
+  later figure is already law, "changes <date> to <figure>". `src/app/rulesInForce.ts` is pure and reads
+  only through `assumptionAt`, `taxYear`, `agePensionPeriodAt`, `deemingRatesAt` and `agedCarePeriodAt`;
+  `RULE_CLASSIFICATION` names all 308 keys shown or hidden (with a reason). The "last checked" date is the
+  guide footnote, exported by `scripts/build-guide.mjs` as `LAST_LEGISLATION_REFRESH` (build fails
+  without it). The downsizer's three figures moved into `superannuation.downsizer` (register §3.12) and
+  `individualFranking.ts` now reads the $5,000 from `franking.smallShareholder.ceiling`; demo and Pip-and-Jo
+  walks hash-identical before and after. Tests: `test/app-rules-in-force.test.mjs`, plus a refresh-date
+  test in `test/scripts-build-guide.test.mjs`. Guide: Chapter 79's "Seeing the rules *enough* is using"
+  replaces "What *enough* doesn't show you yet"; Chapter 68 names the panel
 - [x] **Stale help text: the investment payout boxes** (found writing `userguide.md` ch 30,
   2026-09-28). `INVESTMENT_PAYOUT_SUMMARY` / `INVESTMENT_PAYOUT_NOTICE` (`src/app/settingsPanel.ts`
   ~520-540) still say neither box "changes your forecast today" and that tax already paid "is not

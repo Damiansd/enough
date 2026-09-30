@@ -37,7 +37,8 @@
 //
 // The build FAILS (exit 1, every problem listed) when a label appears twice, when a guide link
 // names an unknown label, when a link is neither `#label` nor `https://`, when a `guide:` reference in `src/` names an unknown label, when a tag
-// is malformed, or when a `name` tag's text is not in the app.
+// is malformed, when a `name` tag's text is not in the app, or when the guide's one
+// "**Last Claude legislation refresh:**" line is missing (the app shows that date).
 import { readFileSync, readdirSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -110,6 +111,19 @@ export function guideTitles(md, labels) {
       : chapter ? `Chapter ${chapter.chapter}: ${plain(chapter.title)} — ${plain(h.text)}` : plain(h.text);
   }
   return titles;
+}
+
+// The date of the last legislation refresh, read off the guide's own footnote under Chapter 85
+// ("**Last Claude legislation refresh:** 29 Sep 2026") as an ISO date, or `undefined` when the line
+// is missing or malformed. The app's "The rules in force" panel shows it; it is never typed in `src/`.
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+export function lastLegislationRefresh(md) {
+  const found = [...md.matchAll(/^\*\*Last Claude legislation refresh:\*\* (\d{1,2}) ([A-Z][a-z]{2}) (\d{4})\s*$/gm)];
+  if (found.length !== 1) return undefined;
+  const [, day, month, year] = found[0];
+  const index = MONTHS.indexOf(month);
+  if (index < 0 || Number(day) < 1 || Number(day) > 31) return undefined;
+  return `${year}-${String(index + 1).padStart(2, '0')}-${day.padStart(2, '0')}`;
 }
 
 export function sourceReferences(files) {
@@ -328,6 +342,7 @@ export function buildGuide(tagged, sourceFiles, { appFiles, knownMissing = [] } 
   const { labels, errors } = collectLabels(md);
   errors.unshift(...tagErrors, ...(appFiles ? checkNames(tags, appFiles, knownMissing) : []));
   for (const l of PINNED) if (!labels.has(l)) errors.push(`userguide.md: pinned page {#${l}} is missing`);
+  const refreshed = lastLegislationRefresh(md);
   const rewritten = rewriteLinks(md, labels);
   errors.push(...rewritten.errors, ...checkSourceReferences(sourceReferences(sourceFiles), labels), ...checkTocNumbers(md, labels));
   if (errors.length) return { errors, resolved: rewritten.resolved };
@@ -354,7 +369,7 @@ ${renderBlocks(body)}
 </body>
 </html>
 `;
-  return { errors, resolved: rewritten.resolved, html, titles: guideTitles(md, labels) };
+  return { errors, resolved: rewritten.resolved, html, titles: guideTitles(md, labels), refreshed };
 }
 
 function readTree(dir) {
@@ -365,12 +380,15 @@ function readTree(dir) {
 
 // `node scripts/build-guide.mjs [guide.md] [srcDir] [out.html]` — the arguments exist for tests.
 // Beside the page it writes `app/guideTitles.js`, the label → title map `src/app/infoButton.ts`
-// imports (declared by `src/app/guideTitles.d.ts`); it is written only when the page is.
+// imports, and the last legislation refresh date the rules-in-force panel shows (both declared by
+// `src/app/guideTitles.d.ts`); it is written only when the page is.
 export function main([guide = join(REPO, 'userguide.md'), src = join(REPO, 'src'), out = join(REPO, 'dist', 'help.html')] = []) {
   const sourceFiles = readTree(src);
   const index = join(REPO, 'public', 'index.html');
   const appFiles = [...sourceFiles, { path: relative(REPO, index), text: readFileSync(index, 'utf8') }];
-  const { errors, html, resolved, titles } = buildGuide(readFileSync(guide, 'utf8'), sourceFiles, { appFiles, knownMissing: NAMES_THE_APP_DOES_NOT_SHOW });
+  const { errors, html, resolved, titles, refreshed } = buildGuide(readFileSync(guide, 'utf8'), sourceFiles, { appFiles, knownMissing: NAMES_THE_APP_DOES_NOT_SHOW });
+  // The app's rules-in-force panel shows this date and has no other source for it.
+  if (refreshed === undefined) errors.push(`${relative(REPO, guide) || guide}: the "**Last Claude legislation refresh:** D Mon YYYY" line is missing, malformed or repeated`);
   if (errors.length) {
     console.error(`build-guide: ${errors.length} problem(s), help.html not written:\n  ${errors.join('\n  ')}`);
     return 1;
@@ -379,7 +397,7 @@ export function main([guide = join(REPO, 'userguide.md'), src = join(REPO, 'src'
   writeFileSync(out, html);
   const titlesOut = join(dirname(out), 'app', 'guideTitles.js');
   mkdirSync(dirname(titlesOut), { recursive: true });
-  writeFileSync(titlesOut, `// Written by scripts/build-guide.mjs from userguide.md. Do not edit.\nexport const GUIDE_TITLES = ${JSON.stringify(titles, null, 1)};\n`);
+  writeFileSync(titlesOut, `// Written by scripts/build-guide.mjs from userguide.md. Do not edit.\nexport const GUIDE_TITLES = ${JSON.stringify(titles, null, 1)};\nexport const LAST_LEGISLATION_REFRESH = ${JSON.stringify(refreshed)};\n`);
   console.log(`build-guide: ${relative(REPO, out) || out} written, ${resolved} links resolved`);
   return 0;
 }

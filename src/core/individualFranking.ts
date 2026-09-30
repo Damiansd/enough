@@ -71,11 +71,13 @@
 // two things free to drift, and the brand is what stops a credit computed by dividing by 2.3333
 // arriving here wearing a confidence it did not earn.
 //
-// **Declared, not imported (the `superFranking.ts` convention).** The §5A records this file needs
-// are written out below with their own source, retrieval confidence and register section, rather
-// than read from `src/data/assumptions/franking.ts`. That module's header states that nothing
-// consumes it and explains why; this one stays readable without it, and the figures below are
-// checked against the register by `test/core-individual-franking.test.mjs`.
+// **Declared, not imported (the `superFranking.ts` convention) — with ONE exception.** The §5A
+// records this file needs are written out below with their own source, retrieval confidence and
+// register section, rather than read from `src/data/assumptions/franking.ts`, and are checked
+// against the register by `test/core-individual-franking.test.mjs`. The exception is the $5,000
+// ceiling's VALUE (2026-09-30, the rules-in-force panel): it is read from
+// `franking.smallShareholder.ceiling`, so the figure the panel shows and the figure this gate
+// applies are one record, and a refresh that moves it moves both.
 //
 // **Not here.** The day the refund becomes cash (P3-22g, register O28) and the 45-day count itself
 // (P3-22e).
@@ -91,8 +93,8 @@
 // or may guess (T43 again) — the one figure the Household supplies is the SHARE, and the credit
 // below is sized by that share alone, at NO implied rate.
 //
-// A rate appearing below as a literal is a bug. The one dollar figure that may appear is the
-// frozen $5,000 ceiling, and it appears exactly once, on its record.
+// A rate appearing below as a literal is a bug, and so is a dollar figure: the frozen $5,000
+// ceiling is read from its assumption record, never written here.
 import { addCents, mulCents, subCents, toCents } from './money.js'; // `.js` is correct in a `.ts` file — see tsconfig.json
 import type { Cents } from './money.js';
 import { householdIncomeTax } from './incomeTax.js';
@@ -104,6 +106,7 @@ import type { ComputedProvenance, Consumed, ProvenanceBearing } from './provenan
 import { frankedDistributionFromStatement } from './superFranking.js';
 import type { FrankedDistribution } from './superFranking.js';
 import type { Confidence, FinancialYear } from '../data/assumptions/types.js';
+import { FRANKING } from '../data/assumptions/franking.js'; // `.js` is correct in a `.ts` file — see tsconfig.json
 
 // --- P3-22h step 3 — a distribution stated as a cash figure and a SHARE, not a statement -----------
 
@@ -165,10 +168,10 @@ export const SMALL_SHAREHOLDER_RELIEF: ProvenanceBearing & {
   rule:
     'an individual whose franking credits for the income year do not exceed the ceiling is a ' +
     'qualified person for ALL of that year’s dividends without satisfying the holding period rule',
-  // The one dollar figure in this file. Aggregation is at TAXPAYER and INCOME-YEAR level across the
-  // whole portfolio — not per parcel and not per company — which is why the caller states a year's
-  // total rather than this module reading one distribution's credit.
-  ceiling: toCents(5_000),
+  // Read from `franking.smallShareholder.ceiling`, the one home of the figure. Aggregation is at
+  // TAXPAYER and INCOME-YEAR level across the whole portfolio — not per parcel and not per company —
+  // which is why the caller states a year's total rather than this module reading one distribution's credit.
+  ceiling: FRANKING.smallShareholder.ceiling.value,
   boundary: 'credits <= the ceiling qualify — the statute says "does not exceed $5000", so exactly $5,000.00 qualifies',
   source: 'ITAA 1936 (former) s 160APHT(1)(b), as in force 30 June 2002, imported by ITAA 1997 s 207-145(1)(a)',
   registerSection: '§5A.5',
