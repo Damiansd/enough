@@ -214,6 +214,8 @@ const NOTE_SENTENCES = [
   (name) => PENSION_AT_RETIREMENT_NOTE_TEXT['over the cap'](name, '$2,100,000.00', '2028-01-01', 'super account 1'),
   (name) => PENSION_AT_RETIREMENT_NOTE_TEXT.switched(name, '2028-01-01', 'super account 1', true),
   (name) => PENSION_AT_RETIREMENT_NOTE_TEXT.switched(name, '2028-01-01', 'super accounts 1 and 2', false),
+  (name) => PENSION_AT_RETIREMENT_NOTE_TEXT['stopped again, TTR converted'](name, '2028-03-01', 'super account 3', true),
+  (name) => PENSION_AT_RETIREMENT_NOTE_TEXT['stopped again, TTR converted'](name, '2028-03-01', 'super accounts 2 and 3', false),
   (name) => superWithdrawalTaxNote(name, 65, true),
   (name) => superWithdrawalTaxNote(name, 65, false),
 ];

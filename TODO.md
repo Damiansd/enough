@@ -9619,8 +9619,23 @@ guide Chapter 85.
   uncapped (M6), set on a stop before 60 (M7), not re-set at the next stop (M8), growth to the
   return released (M9). Words: the `back at work` note, the guide's back-to-work chapter, the
   register (conditionOfRelease section, RF-1 paragraph).
-- [ ] **RF-2 `TTR_START` after a return to work refuses by name (open).** Lawful (Sch 1 item 110);
-  unbuilt because which later stop converts it is not decided.
+- [x] **RF-2 `TTR_START` after a return to work (DONE 2026-09-30).** Lawful (Sch 1 item 110). Built
+  per the rulings: refused only while stopped (the latest `workSpells` change on or before the start
+  is a stop), in `parsePlan` `checkTtrStarts`, the walk and `ttrRefusal` (the form counts its own
+  cutting-down change as the return); then a new refusal, after the old ones, for an account the
+  first stop switched. It converts at the NEXT stop after its start or at 65, whichever is first, and
+  that stop converts only the TTR (new note outcome `stopped again, TTR converted`, registered in chat
+  identity). Cap-tested with its own balance as a TTR at its Retire is; over it, it runs to 65. A stop
+  that is also the first switch names it in `switched`. `ttrStartNeeded` writes a new start after a
+  stop unless one exists since it. Limb 5 no longer says "released in part" for such a TTR. A start
+  with no earlier stop is untouched (a kept TTR started before the first stop runs to 65, pinned).
+  Evidence: `core-projection-return-to-work.test.mjs` RF-2 tests (e.g. $50,000 TTR from 2027-09-01:
+  six $138.33 payments, converted 2028-03-01, $830.02 of the year's minimum paid in June 2028; to 65
+  with no later stop, 16 payments to 2028-12), `app-retire-choice.test.mjs`; 13 mutations each fail
+  a test (first/last stop, no guard, no 65 backstop, any-Retire refusal at the door and in the form,
+  no switched refusal x3, every kept account converting, old note text, TTR left out of the cap,
+  "released in part" on a TTR). Guide Chapters 18 and 25, register (conditionOfRelease section,
+  RF-2 paragraph).
 - [ ] **RF-3 A TTR needs a second accumulation account split by hand.** The walk cannot open or
   split an account mid-walk; guide Chapter 25 tells the user. Revisit if the walk ever can.
 - [ ] **RF-4 Life stages "Retires ·" label reads a pre-plan stop's plan-start month** (existing

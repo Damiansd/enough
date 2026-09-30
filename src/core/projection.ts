@@ -4512,8 +4512,14 @@ export const PENSION_AT_RETIREMENT_NOTE_TEXT = Object.freeze({
     `${name} retires on ${retireDay}, before turning 60. Retiring before 60 does not release super, so ${accounts} stay as they are and do not become a pension.`,
   'prior pension': (name: string, stated: boolean, accounts: Fact, retireDay: Fact): string =>
     `${stated ? `${name} already had a super pension before this plan` : `${name} already has an account-based pension`}, so how much of the transfer balance cap is left is not known. ${accounts} stay in accumulation at retirement on ${retireDay}.`,
-  'over the cap': (name: string, credit: Fact, retireDay: Fact, accounts: Fact): string =>
-    `${name}'s super comes to ${credit} at retirement on ${retireDay}, over the ${formatCents(PUBLISHED_TRANSFER_BALANCE_CAP)} transfer balance cap, so ${accounts} stay in accumulation: splitting an account between a pension and accumulation is not modelled.`,
+  'over the cap': (name: string, credit: Fact, retireDay: Fact, accounts: Fact, ttr: 'none' | 'all' | 'some' = 'none'): string =>
+    `${name}'s super comes to ${credit} at retirement on ${retireDay}, over the ${formatCents(PUBLISHED_TRANSFER_BALANCE_CAP)} transfer balance cap, so ` +
+    (ttr === 'all'
+      ? `the transition to retirement pension in ${accounts} keeps paying until ${name} turns 65`
+      : ttr === 'some'
+        ? `${accounts} stay as they are: a transition to retirement pension keeps paying until ${name} turns 65, and any other account stays in accumulation`
+        : `${accounts} stay in accumulation`) +
+    ': splitting an account between a pension and accumulation is not modelled.',
   switched: (name: string, retireDay: Fact, accounts: Fact, oneAccount: boolean): string =>
     `At retirement on ${retireDay}, ${name}'s ${accounts} became an account-based pension, so ${oneAccount ? 'its' : 'their'} earnings are no longer taxed. Each year's minimum is paid, and what is not spent goes to cash. The pension counts in the Age Pension assets test.`,
   'back at work': (name: string, freed: boolean, returnDay: Fact, stopDay: Fact): string =>
@@ -4523,6 +4529,8 @@ export const PENSION_AT_RETIREMENT_NOTE_TEXT = Object.freeze({
       : `${name} stopped before 60, which freed no super, so it stays locked until ${name} stops work again at 60 or older, or turns 65.`),
   'stopped again': (name: string, stopDay: Fact): string =>
     `${name} stops work again on ${stopDay}. At 60 or older this frees the super paid in since going back to work. The forecast doesn't turn any super into a pension at this stop: each super account stays as it is.`,
+  'stopped again, TTR converted': (name: string, stopDay: Fact, accounts: Fact, oneAccount: boolean): string =>
+    `${name} stops work again on ${stopDay}. At 60 or older this frees the super paid in since going back to work. The transition to retirement pension in ${name}'s ${accounts} becomes a full account-based pension on this day, so ${oneAccount ? 'its' : 'their'} earnings are no longer taxed and the 10% yearly limit on payments ends. Every other super account stays as it is.`,
 } satisfies { readonly [O in PensionAtRetirementNote['outcome']]: (name: string, ...facts: never[]) => string });
 
 /**
@@ -5954,6 +5962,15 @@ export const project = (
   // stated TTR does (item 106 at 65 below, or the RETIRE day in the switch after). Keyed by (Person,
   // interest), `conversionDay`'s reason. The door refuses the rest; the two refusals that need the
   // Scenario are repeated here for a direct `project()` caller.
+  //
+  // **RF-2: a start after a return to work (SISR Sch 1 item 110 turns on age, not work).** Refused
+  // only while stopped: the latest stop or return on or before the day is a stop. It converts at the
+  // NEXT stop after it, or at 65, whichever is first, and that stop converts only this account
+  // (`ttrConvertsAtStop`). An account the first stop already switched is a pension, so it is refused.
+  const switches = retirementSwitches(household, entries, settings.asAtDate);
+  const spells = workSpells(household, entries);
+  const ttrConvertsAtStop: (IsoDate | undefined)[][] = household.persons.map((person) => person.superInterests.map(() => undefined));
+  const ttrAt65: (IsoDate | undefined)[][] = household.persons.map((person) => person.superInterests.map(() => undefined));
   const ttrStartDay: (IsoDate | undefined)[][] = household.persons.map((person) => person.superInterests.map(() => undefined));
   const ttrStartRate: (number | undefined)[][] = household.persons.map((person) => person.superInterests.map(() => undefined));
   for (const entry of entries) {
@@ -5968,9 +5985,13 @@ export const project = (
     if (row[slot] !== undefined) {
       throw new RangeError(`entry ${entry.id} (TTR_START) is a second start for ${person.name}'s super account ${slot + 1} in this scenario. An account starts its transition to retirement pension once`);
     }
-    const retired = entries.find((other) => other.enabled && other.type === 'RETIRE' && (other.owner === 'household' || other.owner === entry.owner) && other.date <= entry.date);
-    if (retired !== undefined) {
-      throw new RangeError(`entry ${entry.id} (TTR_START) starts ${person.name}'s transition to retirement pension on ${entry.date}, on or after their Retire entry dated ${retired.date}. Stopping work already turns the super into a full pension, so the pension can't start after it. That holds after going back to work too: the law would allow one then, but the forecast doesn't model it`);
+    const latest = (spells[personIndex] ?? []).filter((change) => change.date <= entry.date).at(-1);
+    if (latest?.kind === 'stopped') {
+      throw new RangeError(`entry ${entry.id} (TTR_START) starts ${person.name}'s transition to retirement pension on ${entry.date}, on or after their Retire entry dated ${latest.date}. Stopping work already turns the super into a full pension, so the pension can't start after it. After going back to work one can start again: date it on or after the return`);
+    }
+    const decided = switches[personIndex];
+    if (decided?.kind === 'switches' && decided.slots.includes(slot) && decided.retireDay <= entry.date) {
+      throw new RangeError(`entry ${entry.id} (TTR_START) starts a transition to retirement pension from ${person.name}'s super account ${slot + 1} on ${entry.date}, and that account already became a full pension when ${person.name} stopped work on ${decided.retireDay}. Choose an account kept in accumulation at retirement`);
     }
     row[slot] = entry.date;
     (ttrStartRate[personIndex] as (number | undefined)[])[slot] = entry.params.drawdownRate;
@@ -5980,7 +6001,17 @@ export const project = (
       const startsOn = ttrStartDay[personIndex]?.[slot];
       if (startsOn !== undefined) {
         // R13's backstop for a started TTR: the 65th birthday, read off the day it started.
-        (conversionDay[personIndex] as (IsoDate | undefined)[])[slot] = trisConversionDayUnderItem106(person.dateOfBirth, { commencementDay: startsOn });
+        const at65 = trisConversionDayUnderItem106(person.dateOfBirth, { commencementDay: startsOn });
+        const changes = spells[personIndex] ?? [];
+        // RF-2: after a stop, the next stop after the start converts it, where that is before 65.
+        const nextStop = changes.some((change) => change.kind === 'stopped' && change.date < startsOn)
+          ? changes.find((change) => change.kind === 'stopped' && change.date > startsOn)?.date
+          : undefined;
+        if (nextStop !== undefined && nextStop < at65) {
+          (ttrConvertsAtStop[personIndex] as (IsoDate | undefined)[])[slot] = nextStop;
+          (ttrAt65[personIndex] as (IsoDate | undefined)[])[slot] = at65;
+        }
+        (conversionDay[personIndex] as (IsoDate | undefined)[])[slot] = nextStop !== undefined && nextStop < at65 ? nextStop : at65;
         return;
       }
       if (interest.phase !== 'ttr') return; // never asked: not a TTR today, so nothing to convert
@@ -6003,12 +6034,10 @@ export const project = (
   // expression the notice on the page reads. The transfer balance cap is the one test it cannot
   // make, because it needs the balance on the day: the tick for the RETIRE month makes it below and
   // puts the day back where it was (`beforeSwitch`) if the balance is over.
-  const switches = retirementSwitches(household, entries, settings.asAtDate);
   // **Stops and returns to work (retire flow S3, user ruling 2026-09-29).** A second stop does not
   // switch anything: `switches` reads the first `RETIRE`, an account kept in accumulation stays kept
   // out, and no new account is opened. A return in the same month as the stop is refused: the month
-  // would have to pay part of itself on each side of the break.
-  const spells = workSpells(household, entries);
+  // would have to pay part of itself on each side of the break. `spells` is read above.
   spells.forEach((changes, personIndex) => {
     changes.forEach((change, at) => {
       const stop = changes[at - 1];
@@ -6027,7 +6056,11 @@ export const project = (
     }
     return undefined;
   };
-  const beforeSwitch: readonly (readonly (IsoDate | undefined)[])[] = conversionDay.map((row) => [...row]);
+  // Over the cap, a TTR_START after a return (RF-2) goes back to its 65th birthday, not its stop.
+  const beforeSwitch: readonly (readonly (IsoDate | undefined)[])[] = conversionDay.map((row, personIndex) => row.map((day, slot) => ttrAt65[personIndex]?.[slot] ?? day));
+  /** RF-2: the accounts a TTR_START after a return started converts on this stop. */
+  const ttrConvertingOn = (personIndex: number, stopDay: IsoDate): readonly number[] =>
+    (ttrConvertsAtStop[personIndex] ?? []).flatMap((day, slot) => (day === stopDay ? [slot] : []));
   switches.forEach((decided, personIndex) => {
     if (decided.kind !== 'switches') return;
     const row = conversionDay[personIndex] as (IsoDate | undefined)[];
@@ -7054,7 +7087,12 @@ export const project = (
       if (person === undefined || decided.kind === 'notRetiring' || decided.kind === 'nothingToSwitch') return;
       if ((decided.kind === 'retiredBeforeThePlan' ? first : monthOf(decided.retireDay)) !== month) return;
       const held = balances[personIndex]?.superInterestBalances ?? [];
-      const slots = decided.kind === 'retiredBeforeThePlan' ? [] : decided.slots;
+      // RF-2: a TTR converting on the day of the switch switches with it, and counts toward the cap.
+      const slots = decided.kind === 'retiredBeforeThePlan'
+        ? []
+        : decided.kind === 'switches'
+          ? [...decided.slots, ...ttrConvertingOn(personIndex, decided.retireDay).filter((slot) => !decided.slots.includes(slot))].sort((a, b) => a - b)
+          : decided.slots;
       const accounts = `${slots.length === 1 ? 'super account' : 'super accounts'} ${slots.map((slot) => slot + 1).join(' and ')}`;
       const report = (outcome: PensionAtRetirementNote['outcome'], note: string): void => {
         retirementNotes.push(Object.freeze({
@@ -7084,7 +7122,8 @@ export const project = (
       if (credit > PUBLISHED_TRANSFER_BALANCE_CAP) {
         const row = conversionDay[personIndex] as (IsoDate | undefined)[];
         for (const slot of slots) row[slot] = beforeSwitch[personIndex]?.[slot];
-        report('over the cap', PENSION_AT_RETIREMENT_NOTE_TEXT['over the cap'](person.name, formatCents(credit), decided.retireDay, accounts));
+        const ttrs = decided.kind === 'switches' ? slots.filter((slot) => !decided.slots.includes(slot)) : [];
+        report('over the cap', PENSION_AT_RETIREMENT_NOTE_TEXT['over the cap'](person.name, formatCents(credit), decided.retireDay, accounts, ttrs.length === 0 ? 'none' as const : ttrs.length === slots.length ? 'all' as const : 'some' as const));
         return;
       }
       report('switched', PENSION_AT_RETIREMENT_NOTE_TEXT.switched(person.name, decided.retireDay, accounts, slots.length === 1));
@@ -7097,9 +7136,37 @@ export const project = (
         const stop = changes[at - 1];
         if (person === undefined || stop === undefined) return;
         if ((monthOf(change.date) < first ? first : monthOf(change.date)) !== month) return;
-        // A stop that is itself the switch (the first was before 60) is reported by the switch above.
+        // A stop that is itself the switch (the first was before 60) is reported by the switch above,
+        // and so is a TTR converting with it (RF-2).
         const decided = switches[personIndex];
-        if (change.kind === 'stopped' && decided !== undefined && decided.kind !== 'notRetiring' && decided.retireDay === change.date) return;
+        const converting = change.kind === 'stopped' ? ttrConvertingOn(personIndex, change.date) : [];
+        const isSwitch = change.kind === 'stopped' && decided !== undefined && decided.kind !== 'notRetiring' && decided.retireDay === change.date;
+        if (isSwitch && (decided?.kind === 'switches' || converting.length === 0)) return;
+        if (converting.length > 0) {
+          // RF-2: the TTR converting at this stop is tested against the cap as the switch is, its
+          // own balance included; over it, it stays a TTR until 65.
+          const held = balances[personIndex]?.superInterestBalances ?? [];
+          const accounts = `${converting.length === 1 ? 'super account' : 'super accounts'} ${converting.map((slot) => slot + 1).join(' and ')}`;
+          const alreadyCredited = (creditedAtConversion[personIndex] ?? []).reduce<number>((total, credit) => total + (credit ?? 0), 0);
+          const credit = converting.reduce<number>((total, slot) =>
+            total + (creditedAtConversion[personIndex]?.[slot] === undefined ? (held[slot] ?? 0) : 0), alreadyCredited) as Cents;
+          const over = credit > PUBLISHED_TRANSFER_BALANCE_CAP;
+          if (over) {
+            const row = conversionDay[personIndex] as (IsoDate | undefined)[];
+            for (const slot of converting) row[slot] = beforeSwitch[personIndex]?.[slot];
+          }
+          retirementNotes.push(Object.freeze({
+            subject: 'pension at retirement' as const,
+            person: person.name,
+            retireDay: change.date,
+            outcome: over ? 'over the cap' as const : 'stopped again, TTR converted' as const,
+            interestIndexes: Object.freeze([...converting]),
+            note: over
+              ? PENSION_AT_RETIREMENT_NOTE_TEXT['over the cap'](person.name, formatCents(credit), change.date, accounts, 'all')
+              : PENSION_AT_RETIREMENT_NOTE_TEXT['stopped again, TTR converted'](person.name, change.date, accounts, converting.length === 1),
+          }));
+          return;
+        }
         const locked = person.superInterests.flatMap((_interest, slot) => (effectivePhaseFor(personIndex, slot, date) === 'accumulation' ? [slot] : []));
         retirementNotes.push(Object.freeze({
           subject: 'pension at retirement' as const,
@@ -9952,16 +10019,18 @@ export const project = (
       person.superInterests.forEach((_interest, slot) => {
         const partly = releasedWhileBackAtWork(personIndex, slot);
         const heldInSlot = balances[personIndex]?.superInterestBalances[slot] as Cents;
+        const phase = effectivePhaseFor(personIndex, slot, date);
         const offer = releasedSuperannuationOffer({
           personName: person.name,
           dateOfBirth: person.dateOfBirth,
           on: date,
           gainfulEmployment: partly?.gainfulEmployment ?? gainfulEmploymentAsAt(personIndex),
           slot,
-          phase: effectivePhaseFor(personIndex, slot, date),
+          phase,
           balance: partly === undefined ? heldInSlot : Math.min(partly.released, heldInSlot) as Cents,
         });
-        const note = partly === undefined || offer.note === underTaxFreeAgeClaimNote(person.name) ? offer.note : releasedInPartClaimNote(person.name, slot);
+        // RF-2: a TTR started after the return is offered nothing, and its own note says why.
+        const note = partly === undefined || phase === 'ttr' || offer.note === underTaxFreeAgeClaimNote(person.name) ? offer.note : releasedInPartClaimNote(person.name, slot);
         releasedSuperClaims.push({ personIndex, slot, available: offer.available, note });
       });
     });

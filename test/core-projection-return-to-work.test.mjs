@@ -18,7 +18,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { toCents } from '../dist/core/money.js';
-import { AGE_PENSION_LINE, PENSION_MINIMUM_LINE, project } from '../dist/core/projection.js';
+import { AGE_PENSION_LINE, PENSION_MINIMUM_LINE, TTR_PAYMENT_LINE, project } from '../dist/core/projection.js';
+import { releasedInPartClaimNote, ttrNotSweptClaimNote } from '../dist/core/superLumpSum.js';
 import { PlanFileEntryError, parsePlan } from '../dist/core/parsePlan.js';
 import { DEMO_PLAN } from '../dist/app/demoHousehold.js';
 
@@ -287,21 +288,138 @@ test('a return in the same month as the stop is refused by name', () => {
   assert.throws(() => project(settings(), KEPT, [work('2027-01-20'), retire('2027-01-05')]), /same month as stopping work/);
 });
 
-test('a transition to retirement pension after a return is refused: lawful, not modelled', () => {
-  const two = couple([account(300_000, { statedEmployerContributionDestination: 'superannuationGuarantee' }), account(100_000, { keepInAccumulationAtRetirement: true }), account(50_000, { keepInAccumulationAtRetirement: true })]);
-  const ttr = entry('ttr', '2027-09-01', 'TTR_START', { interestIndex: 2 });
-  assert.throws(() => project(settings(), two, [...RETURNS, ttr]), /after going back to work too: the law would allow one then, but the forecast doesn't model it/);
+// --- RF-2: a TTR_START after a return to work ---------------------------------------------------
+//
+// Lawful (SISR Sch 1 item 110 turns on age, not work). It converts at the NEXT stop after its start,
+// or at 65 (2029-01-01 for Lee), whichever is first, and that stop converts only the TTR account.
+// A start with no stop before it takes today's path. Account 3 (index 2) is the TTR: kept in
+// accumulation at the first stop, as account 2 is.
+const THREE = (ttrDollars = 50_000, second = { keepInAccumulationAtRetirement: true }, dateOfBirth = '1964-01-01') => couple([
+  account(300_000, { statedEmployerContributionDestination: 'superannuationGuarantee' }),
+  account(100_000, second),
+  account(ttrDollars, { keepInAccumulationAtRetirement: true }),
+], dateOfBirth);
+const ttrStart = (date, interestIndex = 2) => entry('ttr', date, 'TTR_START', { interestIndex });
+const ttrMonths = (months) => months.filter((m) => amounts(m, `${TTR_PAYMENT_LINE}, Lee`).length > 0).map((m) => m.month);
+const pensionPaid = (months, isoMonth) => amounts(at(months, isoMonth), 'Account-Based Pension payment, Lee');
+const indexesOf = (months) => months.flatMap((m) => m.notes.filter((n) => n.subject === 'pension at retirement').map((n) => [m.month, n.outcome, [...n.interestIndexes]]));
+const limb5 = (month) => month.notes.find((n) => n.subject === 'waterfall limb' && n.limb === 'releasedSuperannuation');
+
+test('RF-2: a TTR started after a return converts at the next stop, and only that account', () => {
+  const months = project(settings(), THREE(), [...RETURNS, ttrStart('2027-09-01'), retire('2028-03-01')]);
+  // Six payments of the minimum (4% of $50,000 over the part-year), then none: a full pension.
+  assert.deepEqual(ttrMonths(months), ['2027-09', '2027-10', '2027-11', '2027-12', '2028-01', '2028-02']);
+  assert.deepEqual(between(months, '2027-09', '2028-02').flatMap((m) => amounts(m, `${TTR_PAYMENT_LINE}, Lee`)), Array(6).fill(toCents(138.33)));
+  // The rest of the year's minimum comes out of the converted account in June, beside account 1's.
+  assert.deepEqual(pensionPaid(months, '2028-06'), [toCents(11_950), toCents(830.02)]);
+  assert.deepEqual(indexesOf(months), [['2027-01', 'switched', [0]], ['2027-07', 'back at work', [1, 2]], ['2028-03', 'stopped again, TTR converted', [2]]]);
+  const note = at(months, '2028-03').notes.find((n) => n.subject === 'pension at retirement');
+  assert.equal(note.retireDay, '2028-03-01');
+  assert.equal(note.note, "Lee stops work again on 2028-03-01. At 60 or older this frees the super paid in since going back to work. The transition to retirement pension in Lee's super account 3 becomes a full account-based pension on this day, so its earnings are no longer taxed and the 10% yearly limit on payments ends. Every other super account stays as it is.");
+  // Account 2, kept in accumulation, stays so: the assets test adds nothing at the stop (Lee is
+  // under Age Pension age, so accumulation is not counted and the TTR already was).
+  assert.deepEqual(['2028-02', '2028-03', '2028-04'].map((m) => at(months, m).assessableAssets), [44_236_061, 44_716_217, 44_924_803]);
+  // Limb 5 while back at work: the TTR is offered nothing, and says so, not "released in part".
+  // Account 2 held nothing at the stop, so nothing is offered at all and every reason is shown.
+  const empty = couple([account(300_000, { statedEmployerContributionDestination: 'superannuationGuarantee' }), account(0, { keepInAccumulationAtRetirement: true }), account(50_000, { keepInAccumulationAtRetirement: true })]);
+  const claim = limb5(at(project(settings(), empty, [...RETURNS, ttrStart('2027-09-01')]), '2027-10')).note;
+  assert.ok(claim.includes(ttrNotSweptClaimNote('Lee', 2)), claim);
+  assert.ok(!claim.includes(releasedInPartClaimNote('Lee', 2)), claim);
+  assert.ok(claim.includes(releasedInPartClaimNote('Lee', 1)), claim);
+});
+
+test('RF-2: with no later stop, or one after 65, it converts at 65', () => {
+  for (const later of [[], [retire('2029-06-01')]]) {
+    const months = project(settings(), THREE(), [...RETURNS, ttrStart('2027-09-01'), ...later]);
+    const paid = ttrMonths(months);
+    assert.deepEqual([paid[0], paid.at(-1), paid.length], ['2027-09', '2028-12', 16]);
+    assert.deepEqual(pensionPaid(months, '2028-06'), [toCents(11_950)]);
+    assert.ok(!indexesOf(months).some(([, outcome]) => outcome === 'stopped again, TTR converted'));
+  }
+});
+
+test('RF-2: two returns: the stop after the start converts it, not the first stop or the last', () => {
+  const months = project(settings(), THREE(), [
+    retire('2027-01-15'), work('2027-04-01'), retire('2027-06-15'), work('2027-09-01'),
+    ttrStart('2027-10-01'), retire('2028-03-01'), work('2028-06-01'), retire('2028-09-01'),
+  ]);
+  assert.deepEqual(ttrMonths(months), ['2027-10', '2027-11', '2027-12', '2028-01', '2028-02']);
+  assert.deepEqual(pensionPaid(months, '2028-06'), [toCents(11_950), toCents(875)]);
+  assert.deepEqual(indexesOf(months).filter(([, outcome]) => outcome.startsWith('stopped again')), [
+    ['2027-06', 'stopped again', []], ['2028-03', 'stopped again, TTR converted', [2]], ['2028-09', 'stopped again', []],
+  ]);
+});
+
+test('RF-2: a return and a start on the same day', () => {
+  const months = project(settings(), THREE(), [...RETURNS, ttrStart('2027-07-01'), retire('2028-03-01')]);
+  assert.deepEqual([ttrMonths(months)[0], ttrMonths(months).at(-1)], ['2027-07', '2028-02']);
+  assert.deepEqual(indexesOf(months).at(-1), ['2028-03', 'stopped again, TTR converted', [2]]);
+});
+
+test('RF-2: its stop tests the transfer balance cap with the TTR in it, as the switch does', () => {
+  // $300,000 switched at the first stop plus the $1,900,000 TTR is over $2,100,000: it stays a TTR
+  // until 65. $1,700,000 is under it with the $300,000, and converts.
+  const over = project(settings(), THREE(1_900_000), [...RETURNS, ttrStart('2027-09-01'), retire('2028-03-01')]);
+  assert.deepEqual([ttrMonths(over)[0], ttrMonths(over).at(-1)], ['2027-09', '2028-12']);
+  const note = at(over, '2028-03').notes.find((n) => n.subject === 'pension at retirement');
+  assert.deepEqual([note.outcome, [...note.interestIndexes]], ['over the cap', [2]]);
+  assert.match(note.note, /^Lee's super comes to \$2,1\d\d,\d{3}\.\d\d at retirement on 2028-03-01/);
+  // It says what really happens: the TTR keeps paying, it does not go back to building up.
+  assert.match(note.note, /so the transition to retirement pension in super account 3 keeps paying until Lee turns 65/);
+  assert.doesNotMatch(note.note, /stay in accumulation/);
+  const under = project(settings(), THREE(1_700_000), [...RETURNS, ttrStart('2027-09-01'), retire('2028-03-01')]);
+  assert.deepEqual(ttrMonths(under).at(-1), '2028-02');
+  assert.deepEqual(indexesOf(under).at(-1), ['2028-03', 'stopped again, TTR converted', [2]]);
+});
+
+test('RF-2: where the next stop is the first to free super, the TTR switches with the rest and is named', () => {
+  // Born 1967-03-01: the first stop is at 59 and switches nothing; the stop on 2028-03-01 is the switch.
+  const months = project(settings(), THREE(50_000, { keepInAccumulationAtRetirement: true }, '1967-03-01'), [retire('2026-10-15'), work('2027-01-01'), ttrStart('2027-06-01'), retire('2028-03-01')]);
+  assert.deepEqual(indexesOf(months), [['2027-01', 'back at work', [0, 1, 2]], ['2028-03', 'switched', [0, 2]]]);
+  assert.match(at(months, '2028-03').notes.find((n) => n.subject === 'pension at retirement').note, /Lee's super accounts 1 and 3 became an account-based pension/);
+  assert.equal(ttrMonths(months).at(-1), '2028-02');
+});
+
+test('RF-2: a Person holding a pension from before the plan still converts the TTR at its stop', () => {
+  const prior = couple([
+    account(300_000, { statedEmployerContributionDestination: 'superannuationGuarantee', keepInAccumulationAtRetirement: true }),
+    { phase: 'accountBasedPension', balance: toCents(100_000), statedStreamSettings: { commencementDay: '2025-07-01' } },
+    account(50_000, { keepInAccumulationAtRetirement: true }),
+  ]);
+  const months = project(settings(), prior, [...RETURNS, ttrStart('2027-09-01'), retire('2028-03-01')]);
+  assert.equal(ttrMonths(months).at(-1), '2028-02');
+  assert.deepEqual(indexesOf(months).at(-1), ['2028-03', 'stopped again, TTR converted', [2]]);
+  assert.deepEqual(pensionPaid(months, '2028-06'), [toCents(3_840), toCents(830.02)]);
+});
+
+test('RF-2: refused in the break, and from an account the first stop already switched', () => {
+  assert.throws(() => project(settings(), THREE(), [...RETURNS, ttrStart('2027-03-01')]), /on 2027-03-01, on or after their Retire entry dated 2027-01-15/);
+  assert.throws(() => project(settings(), THREE(50_000, {}), [...RETURNS, ttrStart('2027-09-01', 1)]), /super account 2 on 2027-09-01, and that account already became a full pension when Lee stopped work on 2027-01-15/);
   const plan = structuredClone(DEMO_PLAN);
   plan.household.persons[0].superInterests = [
     { ...plan.household.persons[0].superInterests[0], statedEmployerContributionDestination: 'superannuationGuarantee' },
-    { phase: 'accumulation', balance: toCents(50_000), keepInAccumulationAtRetirement: true },
+    { phase: 'accumulation', balance: toCents(50_000) },
+    { phase: 'accumulation', balance: toCents(20_000), keepInAccumulationAtRetirement: true },
   ];
-  plan.entries.push(
-    { id: 'back', date: '2032-01-01', owner: 'personA', type: 'WORK_PATTERN_CHANGE', params: { daysPerWeek: 3, annualSalary: toCents(40_000) }, enabled: true, createdAt: '2026-09-29' },
-    { id: 'ttr', date: '2032-03-01', owner: 'personA', type: 'TTR_START', params: { interestIndex: 1 }, enabled: true, createdAt: '2026-09-29' },
-  );
-  plan.scenarios[0].entryIds.push('back', 'ttr');
-  assert.throws(() => parsePlan(plan), (error) => error instanceof PlanFileEntryError && /after going back to work too/.test(error.message));
+  const push = (...added) => {
+    const copy = structuredClone(plan);
+    copy.entries.push(...added);
+    copy.scenarios[0].entryIds.push(...added.map((e) => e.id));
+    return copy;
+  };
+  const back = { id: 'back', date: '2032-01-01', owner: 'personA', type: 'WORK_PATTERN_CHANGE', params: { daysPerWeek: 3, annualSalary: toCents(40_000) }, enabled: true, createdAt: '2026-09-29' };
+  const doorTtr = (date, interestIndex) => ({ id: 'ttr', date, owner: 'personA', type: 'TTR_START', params: { interestIndex }, enabled: true, createdAt: '2026-09-29' });
+  // Dana stops on 2031-05-14 in the demo. After the return, the kept account may start one.
+  assert.doesNotThrow(() => parsePlan(push(back, doorTtr('2032-03-01', 2))));
+  assert.throws(() => parsePlan(push(back, doorTtr('2031-09-01', 2))), (error) => error instanceof PlanFileEntryError && /on or after Dana's Retire entry dated 2031-05-14/.test(error.message));
+  assert.throws(() => parsePlan(push(back, doorTtr('2032-03-01', 1))), (error) => error instanceof PlanFileEntryError && /already became a full pension when Dana stopped work on 2031-05-14/.test(error.message));
+});
+
+test('RF-2 leaves this alone: a TTR started before the first stop on a kept account runs to 65', () => {
+  const months = project(settings(), THREE(), [ttrStart('2026-10-01'), ...RETURNS, retire('2028-03-01')]);
+  const paid = ttrMonths(months);
+  assert.deepEqual([paid[0], paid.at(-1), paid.length], ['2026-10', '2028-12', 27]);
+  assert.deepEqual(indexesOf(months), [['2027-01', 'switched', [0]], ['2027-07', 'back at work', [1]], ['2028-03', 'stopped again', []]]);
 });
 
 test('a work pattern dated before the stop, on it, or with zero days does not bring the salary back', () => {

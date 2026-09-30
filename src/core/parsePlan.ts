@@ -52,6 +52,7 @@ import type { ComputedProvenance } from './provenance.js';
 import type { Cents } from './money.js';
 import { addCents, mulCents, subCents, toCents } from './money.js'; // `.js` is correct in a `.ts` file — see tsconfig.json
 import { ENTRY_TYPES, effectiveEntryIds, resolvedEntryEnabled } from './plan.js';
+import { retirementSwitches, workSpells } from './retirementPension.js'; // `.js` is correct in a `.ts` file — see tsconfig.json
 import type { Entry, EntryOrigin, EntryOverrides, EntryOwner, EntryType, ParcelSelection, Scenario, Settings } from './plan.js';
 import type {
   AgePensionIndexationSeries,
@@ -2606,16 +2607,20 @@ const checkTtrStartTargets = (entries: readonly Entry[], household: Household, s
 };
 
 /**
- * **A `TTR_START` in its own Scenario** (retire flow S4): one start per account, and no start on or
- * after that Person's `RETIRE`. Stopping work on or before the day turns the account into a full
- * pension already (the switch at retirement), so a transition to retirement pension after it states
- * something that cannot happen. After a return to work (retire flow S3) the law WOULD allow one from
- * an account still in accumulation (SISR Sch 1 item 110 turns on preservation age, not on work), but
- * which later stop converts it is not modelled, so it stays refused. A `RETIRE` after the start is
+ * **A `TTR_START` in its own Scenario** (retire flow S4): one start per account, and no start while
+ * that Person is stopped (the latest stop or return on or before the day is a `RETIRE`). Stopping
+ * work turns the account into a full pension already (the switch at retirement), so a transition to
+ * retirement pension after it states something that cannot happen. After a return to work (RF-2)
+ * one is allowed (SISR Sch 1 item 110 turns on preservation age, not on work), from an account the
+ * first stop did not switch; it converts at the next stop, or at 65. A `RETIRE` after the start is
  * the ordinary case and converts the pension that day.
  */
-const checkTtrStarts = (scope: CareScope, household: Household): void => {
+const checkTtrStarts = (scope: CareScope, household: Household, settings: Settings): void => {
   const started = new Map<string, string>();
+  // `enabled` is the Scenario's own switch here, already applied by the scope.
+  const scoped = scope.map(({ entry }) => ({ ...entry, enabled: true }));
+  const spells = workSpells(household, scoped);
+  const switches = retirementSwitches(household, scoped, settings.asAtDate);
   for (const { index, entry } of scope) {
     if (entry.type !== 'TTR_START') continue;
     const path = `entries[${index}]`;
@@ -2627,10 +2632,14 @@ const checkTtrStarts = (scope: CareScope, household: Household): void => {
       fail(PlanFileEntryError, `${path}.type`, `is a SECOND TTR_START for super account ${entry.params.interestIndex + 1} of ${person.name}'s in the same scenario (the first is "${first}"). An account starts its transition to retirement pension once. Remove one`);
     }
     started.set(key, entry.id);
-    const retired = scope.find(({ entry: other }) =>
-      other.type === 'RETIRE' && (other.owner === 'household' || other.owner === entry.owner) && other.date <= entry.date);
-    if (retired !== undefined) {
-      fail(PlanFileEntryError, `${path}.date`, `is ${entry.date}, on or after ${person.name}'s Retire entry dated ${retired.entry.date} (id ${retired.entry.id}) in the same scenario. Stopping work already turns the super into a full pension, so a transition to retirement pension can't start after it. That holds after going back to work too: the law would allow one then, but the forecast doesn't model it. Date the pension before ${retired.entry.date}, or remove one of the two`);
+    const personIndex = entry.owner === 'personA' ? 0 : 1;
+    const latest = (spells[personIndex] ?? []).filter((change) => change.date <= entry.date).at(-1);
+    if (latest?.kind === 'stopped') {
+      fail(PlanFileEntryError, `${path}.date`, `is ${entry.date}, on or after ${person.name}'s Retire entry dated ${latest.date} (id ${latest.entryId}) in the same scenario. Stopping work already turns the super into a full pension, so a transition to retirement pension can't start after it. After going back to work one can start again: date the pension before ${latest.date} or on or after the return, or remove one of the two`);
+    }
+    const decided = switches[personIndex];
+    if (decided?.kind === 'switches' && decided.slots.includes(entry.params.interestIndex) && decided.retireDay <= entry.date) {
+      fail(PlanFileEntryError, `${path}.params.interestIndex`, `is ${entry.params.interestIndex}, and that super account of ${person.name}'s already became a full pension when ${person.name} stopped work on ${decided.retireDay}. A transition to retirement pension starts from an account still building up: choose an account kept in accumulation at retirement`);
     }
   }
 };
@@ -2880,7 +2889,7 @@ export const parsePlan = (value: unknown): PlanFile => {
     // Scenario scopes only: a purchase switched off everywhere has no sale to be checked against.
     if (index < scenarios.length) checkBuyHomes(scope);
     if (index < scenarios.length) checkDownsizerContributions(scope, settings);
-    checkTtrStarts(scope, household);
+    checkTtrStarts(scope, household, settings);
   });
   // Membership, not switches: the stop's ruling reads `date`, never `enabled`.
   careCheckScopes(entries, scenarios, false)

@@ -99,7 +99,9 @@ const MONEY_TEMPLATES: readonly MoneyTemplate[] = [
   moneyTemplate((name, distribution, payoutRate, frankedShare) => investmentDistributionNoteText(name, distribution, payoutRate, frankedShare), { 0: 'cents' }),
   // The credit is the walk's; the transfer balance cap beside it is the helper's own literal, a
   // published figure in no basis, and is left for `FIGURE_OMITTED`.
-  moneyTemplate(PENSION_AT_RETIREMENT_NOTE_TEXT['over the cap'], { 0: 'formatted' }),
+  moneyTemplate((name, credit, retireDay, accounts) => PENSION_AT_RETIREMENT_NOTE_TEXT['over the cap'](name, credit, retireDay, accounts, 'none'), { 0: 'formatted' }),
+  moneyTemplate((name, credit, retireDay, accounts) => PENSION_AT_RETIREMENT_NOTE_TEXT['over the cap'](name, credit, retireDay, accounts, 'all'), { 0: 'formatted' }),
+  moneyTemplate((name, credit, retireDay, accounts) => PENSION_AT_RETIREMENT_NOTE_TEXT['over the cap'](name, credit, retireDay, accounts, 'some'), { 0: 'formatted' }),
 ];
 
 const rebuilt = (text: string, figure: (cents: Cents) => string): string => {

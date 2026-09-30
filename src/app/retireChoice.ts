@@ -15,7 +15,8 @@
 import { conditionOfRelease } from '../core/conditionOfRelease.js'; // `.js` is correct in a `.ts` file — see tsconfig.json
 import type { Household } from '../core/household.js';
 import type { Entry, EntryOwner } from '../core/plan.js';
-import { retirementSwitches } from '../core/retirementPension.js';
+import { retirementSwitches, workSpells } from '../core/retirementPension.js';
+import { toCents } from '../core/money.js'; // `.js` is correct in a `.ts` file — see tsconfig.json
 import type { IsoDate } from '../data/assumptions/types.js';
 import type { LabelledOption } from './entryLabels.js';
 import { ownerLabel } from './ownerNames.js';
@@ -49,16 +50,36 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const PERSON_OWNERS: readonly EntryOwner[] = ['personA', 'personB'];
 
 /**
+ * The TTR answer's own `WORK_PATTERN_CHANGE`, as the spells read it: someone cutting down keeps
+ * working, so it is a return to work on the date after a stop.
+ */
+const withCandidate = (entries: readonly Entry[], owner: string, date: IsoDate): readonly Entry[] => [
+  ...entries,
+  { id: '', date, owner: owner as EntryOwner, type: 'WORK_PATTERN_CHANGE', params: { daysPerWeek: 1, annualSalary: toCents(0) }, enabled: true, createdAt: date },
+];
+
+/** The owner's latest stop on or before `date`, with the candidate included; `undefined` for none. */
+const latestStop = (household: Household, entries: readonly Entry[], owner: string, date: IsoDate): IsoDate | undefined => {
+  const index = PERSON_OWNERS.indexOf(owner as EntryOwner);
+  return (workSpells(household, withCandidate(entries, owner, date))[index] ?? []).filter((change) => change.kind === 'stopped' && change.date <= date).at(-1)?.date;
+};
+
+/**
  * Whether the TTR answer must also start the pension: nothing stated as a `ttr` account that had
  * started by the plan's date, and no `TTR_START` of the owner's dated on or before `date` in
- * `entries` (the active Scenario's).
+ * `entries` (the active Scenario's). After a stop (RF-2) only a start since the latest stop counts,
+ * and a stated one only where the switch at that stop did not convert it.
  */
 export const ttrStartNeeded = (household: Household, entries: readonly Entry[], owner: string, date: string, asAtDate: IsoDate): boolean => {
-  const person = household.persons[PERSON_OWNERS.indexOf(owner as EntryOwner)];
+  const index = PERSON_OWNERS.indexOf(owner as EntryOwner);
+  const person = household.persons[index];
   if (person === undefined) return false;
-  const stated = person.superInterests.some((interest) =>
-    interest.phase === 'ttr' && interest.statedStreamSettings !== undefined && interest.statedStreamSettings.commencementDay <= asAtDate);
-  const started = entries.some((entry) => entry.enabled && entry.type === 'TTR_START' && entry.owner === owner && entry.date <= date);
+  const stopped = ISO_DATE.test(date) ? latestStop(household, entries, owner, date as IsoDate) : undefined;
+  const decided = stopped === undefined ? undefined : retirementSwitches(household, entries, asAtDate)[index];
+  const stated = person.superInterests.some((interest, slot) =>
+    interest.phase === 'ttr' && interest.statedStreamSettings !== undefined && interest.statedStreamSettings.commencementDay <= asAtDate &&
+    !(decided?.kind === 'switches' && decided.slots.includes(slot) && decided.retireDay <= date));
+  const started = entries.some((entry) => entry.enabled && entry.type === 'TTR_START' && entry.owner === owner && entry.date <= date && (stopped === undefined || entry.date > stopped));
   return !stated && !started;
 };
 
@@ -66,9 +87,10 @@ export const ttrStartNeeded = (household: Household, entries: readonly Entry[], 
  * Why the TTR answer cannot be taken for this owner on this date, or `undefined` when it can. The
  * two ages are `conditionOfRelease`'s own: stopping work on the date would release super (60 or
  * older), and super is not already free without stopping (under 65). Where the answer must start
- * the pension (`ttrStartNeeded`), the three things `parsePlan` would refuse the `TTR_START` for that
- * the page can see first: a date before the plan's, a Retire already on or before the date, and no
- * second account still building up.
+ * the pension (`ttrStartNeeded`), the things `parsePlan` would refuse the `TTR_START` for that the
+ * page can see first: a date before the plan's, being stopped on the date (this answer's own work
+ * change counts as a return after a stop, RF-2), no second account still building up, and no second
+ * account left once the first stop's switch is taken out.
  */
 export const ttrRefusal = (household: Household, entries: readonly Entry[], owner: string, date: string, asAtDate: IsoDate): string | undefined => {
   const index = PERSON_OWNERS.indexOf(owner as EntryOwner);
@@ -83,13 +105,21 @@ export const ttrRefusal = (household: Household, entries: readonly Entry[], owne
   if (alreadyFree) return `${name} is 65 or older on this date, so their super is already free to use. Choose Stopping work for good, or Change work hours and pay.`;
   if (!ttrStartNeeded(household, entries, owner, date, asAtDate)) return undefined;
   if (on < asAtDate) return `This date is before the plan starts. A transition to retirement pension ${name} already has goes under Household and settings.`;
-  const retired = entries.find((entry) => entry.enabled && entry.type === 'RETIRE' && (entry.owner === 'household' || entry.owner === owner) && entry.date <= on);
-  if (retired !== undefined) {
-    return `${name} already stops work for good on ${retired.date} in this plan, which turns their super into a full pension. A transition to retirement pension can’t start after that.`;
+  // RF-2: with this answer's own return included, refused only while stopped on the date.
+  const spells = workSpells(household, withCandidate(entries.filter((entry) => entry.enabled), owner, on))[index] ?? [];
+  const latest = spells.filter((change) => change.date <= on).at(-1);
+  if (latest?.kind === 'stopped') {
+    return `${name} already stops work for good on ${latest.date} in this plan, which turns their super into a full pension. A transition to retirement pension can’t start after that.`;
   }
   const building = person.superInterests.filter((interest) => interest.phase === 'accumulation').length;
   if (building < 2) {
     return `${name}’s employer keeps paying into their super account, so the pension needs a second one. Add a second super account under Household and settings, holding the money that will move into the pension, then choose it here.`;
+  }
+  const decided = retirementSwitches(household, entries, asAtDate)[index];
+  const kept = person.superInterests.filter((interest, slot) =>
+    interest.phase === 'accumulation' && !(decided?.kind === 'switches' && decided.slots.includes(slot) && decided.retireDay <= on)).length;
+  if (kept < 2) {
+    return `${name}’s super became a full pension when ${name} stopped work on ${(decided as { readonly retireDay: IsoDate }).retireDay}, so no account is left to start a transition to retirement pension from. It needs a second account kept in accumulation at retirement.`;
   }
   return undefined;
 };

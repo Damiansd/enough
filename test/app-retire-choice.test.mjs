@@ -93,9 +93,37 @@ test('a start is refused by name: one account only, on or after a Retire, before
   assert.match(ttrRefusal(DANA_TWO, DEMO_PLAN.entries, 'personA', '2031-05-14', AS_AT), /Dana already stops work for good on 2031-05-14/);
   // A household Retire reaches her too.
   const householdRetire = [{ ...DEMO_PLAN.entries[1], owner: 'household', date: '2030-01-01' }];
-  assert.match(ttrRefusal(DANA_TWO, householdRetire, 'personA', '2030-06-01', AS_AT), /already stops work for good on 2030-01-01/);
+  assert.match(ttrRefusal(DANA_TWO, householdRetire, 'personA', '2030-01-01', AS_AT), /already stops work for good on 2030-01-01/);
+  // RF-2: a later date is this answer's own return to work, so it is not refused for the stop; but
+  // both her accounts became a pension at it, so none is left to start one from.
+  assert.match(ttrRefusal(DANA_TWO, householdRetire, 'personA', '2030-06-01', AS_AT), /Dana’s super became a full pension when Dana stopped work on 2030-01-01, so no account is left/);
   const later = { ...DANA_TWO, persons: [{ ...DANA_TWO.persons[0] }, DANA_TWO.persons[1]] };
   assert.match(ttrRefusal(later, [], 'personA', '2028-06-01', '2028-07-01'), /before the plan starts/);
+});
+
+// RF-2 (2026-09-30): after a return to work a TTR may start, from an account kept in accumulation.
+const DANA_KEPT = {
+  ...DEMO_PLAN.household,
+  persons: [{ ...DEMO_PLAN.household.persons[0], superInterests: [{ phase: 'accumulation', balance: 31_200_000 }, { phase: 'accumulation', balance: 10_000_000, keepInAccumulationAtRetirement: true }, { phase: 'accumulation', balance: 5_000_000, keepInAccumulationAtRetirement: true }] }, DEMO_PLAN.household.persons[1]],
+};
+
+test('RF-2: after a stop, cutting down is its own return, and starts a TTR unless one started since the stop', () => {
+  // Dana stops on 2031-05-14 in the demo.
+  assert.equal(ttrRefusal(DANA_KEPT, DEMO_PLAN.entries, 'personA', '2031-09-01', AS_AT), undefined);
+  assert.equal(ttrStartNeeded(DANA_KEPT, DEMO_PLAN.entries, 'personA', '2031-09-01', AS_AT), true);
+  const chosen = retireChoiceEntries(DANA_KEPT, DEMO_PLAN.entries, AS_AT, 'ttr', { ...startValues('2031-09-01'), ttrInterestIndex: '3' }, ids(), '2026-09-30');
+  assert.deepEqual(chosen.entries.map((entry) => [entry.type, entry.date]), [['WORK_PATTERN_CHANGE', '2031-09-01'], ['TTR_START', '2031-09-01']]);
+  // A start before the stop was converted or runs on its own; only one since the stop counts.
+  const before = { id: 't', date: '2029-01-01', owner: 'personA', type: 'TTR_START', params: { interestIndex: 2 }, enabled: true, createdAt: 'x' };
+  assert.equal(ttrStartNeeded(DANA_KEPT, [...DEMO_PLAN.entries, before], 'personA', '2031-09-01', AS_AT), true);
+  const since = { ...before, date: '2031-08-01' };
+  assert.equal(ttrStartNeeded(DANA_KEPT, [...DEMO_PLAN.entries, since], 'personA', '2031-09-01', AS_AT), false);
+  // With no stop, today's rule: the earlier start is running.
+  assert.equal(ttrStartNeeded(DANA_KEPT, [before], 'personA', '2031-09-01', AS_AT), false);
+  // A TTR stated as running before the plan was switched at the stop, so a new one is needed.
+  const statedTtr = { ...DANA_KEPT, persons: [{ ...DANA_KEPT.persons[0], superInterests: [{ phase: 'ttr', balance: 31_200_000, statedStreamSettings: { commencementDay: '2025-07-01' } }, ...DANA_KEPT.persons[0].superInterests.slice(1)] }, DANA_KEPT.persons[1]] };
+  assert.equal(ttrStartNeeded(statedTtr, [], 'personA', '2031-09-01', AS_AT), false);
+  assert.equal(ttrStartNeeded(statedTtr, DEMO_PLAN.entries, 'personA', '2031-09-01', AS_AT), true);
 });
 
 test('TTR is one person’s: the household owner and a blank date are refused', () => {

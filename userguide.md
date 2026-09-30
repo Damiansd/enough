@@ -1255,7 +1255,17 @@ What happens to super:
 To stop again, add another **{{name|Retire}}** entry after the return. Pay stops on that date and the new
 money is freed if you are 60 or older. Nothing becomes a pension a second time, unless the first time
 you stopped was before 60 (which freed nothing): then this later stop is the one that turns your
-super into a pension.
+super into a pension. The one other exception is a transition to retirement pension started after
+going back (below).
+
+**A transition to retirement pension after going back.** Once you are back at work you can start one
+again ([Chapter 25](#ttr-start)), dated on or after the day you went back. It has to come from an
+account that stayed as it was when you stopped, not one that became a pension then. Answering
+**{{name|Cutting down, with a transition to retirement (TTR) pension}}** on a Retire entry dated after
+the break counts as going back by itself. The next time you stop work, that pension becomes a full
+pension, and nothing else changes at that stop. It first has to fit under the transfer balance cap
+together with what already became a pension; if it doesn't, it stays as it is until 65. If you don't
+stop again before 65, it becomes a full pension on your 65th birthday.
 
 A change dated on the Retire day itself, or before it, doesn't count as going back: the Retire entry
 wins. So does **0** days. A return in the same month as the Retire is refused; date it in a later
@@ -1628,9 +1638,17 @@ income) whatever your age. Its earnings are taxed as before.
 
 **It becomes a full pension** on the day you stop work for good (a later Retire entry), or on your
 65th birthday, whichever comes first. The form refuses a start before 60, on or after 65, before the
-plan's start date, or on or after your own Retire entry. That includes after going back to work
-([Chapter 18](#back-to-work)): the law would let you start one then, but *enough* doesn't work out
-which later stop would turn it into a full pension, so it says no rather than guess.
+plan's start date, or while you have stopped work: on or after your own Retire entry, until you go
+back.
+
+**After going back to work** ([Chapter 18](#back-to-work)) you can start one again. It becomes a full
+pension the next time you stop, or on your 65th birthday, whichever comes first, and that stop changes
+only this account. It has to come from an account that stayed as it was when you stopped: one that
+became a pension then can't start another, and the form says so.
+
+**One case works differently.** A pension started *before* you first stop, from an account you set to
+stay as it is at retirement, is not turned into a full pension by that stop, or by any later one. It
+runs until your 65th birthday.
 
 ### Changing the rate later {#ttr-rate-change}
 

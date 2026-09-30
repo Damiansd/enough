@@ -2391,8 +2391,12 @@ export interface PensionAtRetirementNote {
   readonly person: string;
   /** The RETIRE entry's date: the day the accounts switch, or would have. For `back at work`, the stop it follows; for `stopped again`, the new stop. */
   readonly retireDay: IsoDate;
-  /** `back at work` and `stopped again` are retire flow S3's (2026-09-29): a return to work after a `RETIRE`, and a stop after that. */
-  readonly outcome: 'switched' | 'under 60' | 'over the cap' | 'prior pension' | 'retired before the plan' | 'back at work' | 'stopped again';
+  /**
+   * `back at work` and `stopped again` are retire flow S3's (2026-09-29): a return to work after a
+   * `RETIRE`, and a stop after that. `stopped again, TTR converted` is RF-2's: a stop that turns a
+   * transition to retirement pension started after the return into a full pension (only that account).
+   */
+  readonly outcome: 'switched' | 'under 60' | 'over the cap' | 'prior pension' | 'retired before the plan' | 'back at work' | 'stopped again' | 'stopped again, TTR converted';
   /** The accounts the outcome is about, by position in `superInterests`; for `back at work`, the accumulation accounts whose money paid in since, and earnings, it locks. */
   readonly interestIndexes: readonly number[];
   /** What happened, in plain words. */

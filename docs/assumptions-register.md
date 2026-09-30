@@ -2448,6 +2448,22 @@ on the cap-at-balance precedent. **Residual, the safe direction:** a stop before
 return before it, releases nothing here (all of it locked while back at work), and growth between the
 stop and the return is read as preserved on the strict reading.
 
+**RF-2 (built 2026-09-30): a transition to retirement pension started after a return to work.** Lawful:
+SISR Sch 1 item 110 turns on preservation age, not on work, so a `TTR_START` is refused only while the
+Person is stopped (the latest `workSpells` change on or before its day is a stop), and, after those,
+from an account the first stop already switched (`retirementSwitches`' `switches` slots, `retireDay` on
+or before the start). Rulings: it converts at the NEXT stop after its start, or at 65, whichever is
+first, and that stop converts only the TTR account. `keepInAccumulationAtRetirement` governs the first
+switch only; such a TTR converts at its stop regardless, including for a Person who holds a pension from
+before the plan. The conversion is tested against the transfer balance cap exactly as a TTR converting at
+its Retire is: the TTR's own balance plus what earlier conversions in the walk credited; over the cap it
+stays a TTR until 65. Where that stop is itself the first switch (an earlier stop before 60), the TTR
+switches with the other accounts and is named in the `switched` note. **Left as it was:** a start with
+no stop before it takes the old path, so a TTR started before the first stop on an account kept in
+accumulation ignores every stop and runs to 65. **Residual:** the page cannot check which account a
+cutting-down answer names against the switch, only that one is left; the door refuses a switched one by
+name.
+
 **Everything reachable through this module now has a row, and the list of what does not is worth
 keeping.** `ttrPaymentRange` calls `conditionOfRelease` and then `minimumDrawdown`, and both can
 refuse on their own grounds. Until 2026-09-10 four of those refusals were in the P3-26 quarantine
