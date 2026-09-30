@@ -23,6 +23,8 @@ import {
   CAPITAL_GAINS_TAX_LINE,
   GROWTH_LINE,
   PORTFOLIO_POOL,
+  SUPER_EARNINGS_TAX_LINE,
+  SUPER_FRANKING_CREDIT_REFUND_LINE,
   TAX_TRUE_UP_LINE,
   distributionFromPortfolio,
   parcelsAfterDistribution,
@@ -507,4 +509,79 @@ test('P3-22h step 3 — a plan with the rate stated and the share ABSENT reprodu
   const julyWithShare = trueUpFor(monthAt(withShare, '2028-07'), 'Sol');
   assert.equal(julyWithShare[0].amount, toCents(400.04));
   assert.notEqual(julyMissing[0].amount, julyWithShare[0].amount);
+});
+
+// --- P6-8d. FRANKING ON BOTH SIDES, IN ONE WALK -----------------------------------------------------
+
+test('P6-8d — the SAME 50% franked share inside super AND outside it: both credits land, each once, each in its own place', () => {
+  // Sol, 47, no salary (so no Guarantee moves the super balance and no monthly tax is accrued),
+  // holds a $500,000 portfolio paying 4% and a $300,000 Accumulation Phase interest with a 3%
+  // income share. Both sides carry the SAME 50% franked share.
+  //
+  // OUTSIDE SUPER — Sol's own year-end true-up (`frankingForIndividual`):
+  //   distribution $20,000.00, credit 50% = $10,000.00, grossed up to taxable income $30,000
+  //   brackets ($30,000 − $18,200) × 14% = $1,652.00; LITO −$700 (full, under $37,500); no WATO
+  //   Medicare shade-in 10% × ($30,000 − $28,011) = $198.90 (below 2% × $30,000 = $600)
+  //   ⇒ tax $1,150.90, accrued nil, offset $10,000.00 ⇒ $8,849.10 INFLOW, cash
+  //   Unfranked, the same $20,000 is taxable at $252 − $700 LITO ⇒ nil, and levy-free: NO line.
+  //
+  // INSIDE SUPER — the fund's earnings tax (`frankingInSuper`):
+  //   income share $300,000 × 3% = $9,000.00, credit 50% = $4,500.00, grossed up to $13,500.00
+  //   15% = $2,025.00 against a $4,500.00 offset ⇒ no tax line, $2,475.00 REFUNDED, wealth
+  //   Unfranked, the same $9,000 is taxed 15% = $1,350.00: a tax line and no refund.
+  assert.equal(((30_000_00 - 18_200_00) * 14) / 100, 1_652_00);
+  assert.equal((30_000_00 - 28_011_00) / 10, 198_90);
+  assert.equal(1_652_00 - 700_00 + 198_90, 1_150_90);
+  assert.equal(10_000_00 - 1_150_90, 8_849_10);
+  assert.equal((13_500_00 * 15) / 100, 2_025_00);
+  assert.equal(4_500_00 - 2_025_00, 2_475_00);
+  assert.equal((9_000_00 * 15) / 100, 1_350_00);
+
+  const sol = () => ({
+    persons: [
+      person('Sol', '1980-03-15', 0, {
+        superInterests: [{ phase: 'accumulation', balance: toCents(300_000) }],
+        parcels: [parcel('2020-01-01', 300_000, 500_000)],
+      }),
+    ],
+    homeStatus: 'occupied',
+  });
+  const RATES = { ...FROM_JULY, planningHorizonAge: 49, investmentPayoutRate: 0.04, superIncomeYieldRate: 0.03 };
+  const walk = (shares) => project({ ...RATES, ...shares }, sol(), []);
+  const sides = (months) => {
+    const july = monthAt(months, '2028-07');
+    const fy = (d) => months.flatMap((m) => linesOf(m, d)).filter((l) => l.description.endsWith('2027-28'));
+    return {
+      individual: trueUpFor(july, 'Sol').map((l) => `${l.direction} ${l.effect} ${l.amount}`),
+      superTax: fy(SUPER_EARNINGS_TAX_LINE).map((l) => l.amount),
+      superRefund: fy(SUPER_FRANKING_CREDIT_REFUND_LINE).map((l) => `${l.direction} ${l.effect} ${l.amount}`),
+      superBalance: july.superBalance,
+    };
+  };
+
+  const both = walk({ investmentPayoutFrankedShare: 0.5, superIncomeYieldFrankedShare: 0.5 });
+  reconciles(both);
+  assert.deepEqual(sides(both), {
+    individual: [`inflow cash ${toCents(8_849.1)}`],
+    superTax: [],
+    superRefund: [`inflow wealth ${toCents(2_475)}`],
+    superBalance: toCents(302_475),
+  });
+
+  // NEITHER CREDIT IS ZERO: against the same walk unfranked, each side moves by its own credit's worth.
+  const neither = walk({});
+  assert.deepEqual(sides(neither), { individual: [], superTax: [toCents(1_350)], superRefund: [], superBalance: toCents(298_650) });
+
+  // NEITHER IS COUNTED TWICE OR IN THE OTHER'S PLACE: each side franked ALONE gives exactly its own
+  // half of the combined walk, and leaves the other side at its unfranked figure. The super credit
+  // ($4,500) reaching Sol's assessment would have moved $8,849.10; the individual credit ($10,000)
+  // reaching the fund would have moved $2,475.00.
+  const individualOnly = sides(walk({ investmentPayoutFrankedShare: 0.5 }));
+  const superOnly = sides(walk({ superIncomeYieldFrankedShare: 0.5 }));
+  assert.deepEqual(individualOnly, { ...sides(neither), individual: sides(both).individual });
+  assert.deepEqual(superOnly, { ...sides(both), individual: [] });
+  // And the cash side carries ONLY the individual credit: July 2028's cash movement is the $8,849.10
+  // true-up, the fund's $2,475.00 refund staying inside super as wealth.
+  const july = monthAt(both, '2028-07');
+  assert.equal(july.closingBalance - july.openingBalance, toCents(8_849.1));
 });

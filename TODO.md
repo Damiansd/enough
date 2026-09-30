@@ -5774,7 +5774,13 @@ Working task list for `enough`. Maintained throughout the build.
     distinctness assertion killed it. **More of these exist**; the fix is the working order already
     recorded in `CONTEXT.md` — find the PROPERTY the pin defends, replace, prove the new pin fails on
     empty text, and only then touch the prose.
-- [ ] **P4-9** The income-tax **concavity through `project()`**, now that it is reachable.
+- [x] **P4-9** The income-tax **concavity through `project()`**, now that it is reachable.
+  ✅ 2026-09-30 — `test/core-projection-true-up.test.mjs`, "P4-9 — THE CONCAVITY THROUGH `project()`: a
+  mid-year pay rise is UNDER-accrued, and July collects $14.98". `WORK_PATTERN_CHANGE` $45,000 from
+  2027-07-01, $78,000 from 2028-01-01: accruals 6 × $322.25 + 6 × $1,220.17 = $9,254.52; the year's
+  actual $61,500 assessed once = $9,269.50; July 2028 OUTFLOW $14.98 = the $15.00 concavity less
+  $0.02 rounding. Mutants killed: true-up assessing the year-end salary annualised; accrual sum
+  replaced by June's alone.
   `test/core-projection-true-up.test.mjs`'s hand-worked $15.00 residual is pinned against
   `householdIncomeTax` alone, with a comment explaining that no entry could state a salary and that
   "the day an entry states a salary, this becomes a `project()` fixture and the figure above is what
@@ -6949,7 +6955,12 @@ Working task list for `enough`. Maintained throughout the build.
       already used — zero new drawing code — in a colour (`CROSSOVER_RULE_COLOUR`, black) disjoint
       from every Scenario's own palette and every focused-chart marker colour. No caption, matching
       this module's own `notes` ruling that a marker that IS drawn gets no duplicate sentence.
-  - [ ] **P6-8d** ⬜ *(Reconciled 2026-09-23. **The condition is MET:** both sides are live, since
+  - [x] **P6-8d** ✅ 2026-09-30 — `test/core-investment-distribution.test.mjs`, "P6-8d — the SAME 50%
+    franked share inside super AND outside it: both credits land, each once, each in its own place".
+    One Person, one walk: individual true-up $8,849.10 cash inflow (nil unfranked), fund refund
+    $2,475.00 wealth (a $1,350.00 tax line unfranked); each side franked alone reproduces its own
+    half. Mutants killed: individual offset omitted; super side reading the individual's share.
+    *(Reconciled 2026-09-23. **The condition is MET:** both sides are live, since
     `59d9ae5` for the individual and `a0fc0c9` for super, and the third-pass gate recorded under
     P6-8 confirmed it. The 2026-09-22 NO-GO below ("`grep frankingInSuper` returns NOTHING") is
     superseded. **The box stays open for one piece of work: the direct assertion this item asks

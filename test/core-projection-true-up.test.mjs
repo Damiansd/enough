@@ -327,13 +327,72 @@ test('⚠️ THE RATE SCALE IS LOCALLY CONCAVE AT $66,667 — the accrual can UN
   //
   // ⚠️ **That ground went on 2026-09-19**: `WorkPatternChangeParams.annualSalary` states a salary,
   // so a mid-year move between two POSITIVE incomes is now expressible and this IS reachable
-  // through `project()`. The figure above is what such a fixture must produce. It is not built
-  // here — the slice that added the field did not widen this test — and it is recorded in TODO.md
-  // rather than left as a prediction in a comment. The assertion below is untouched and still
-  // stands on `householdIncomeTax`.
+  // through `project()`. The figure above is what such a fixture must produce, and P4-9's test
+  // immediately below is that fixture. The assertion here is untouched and still stands on
+  // `householdIncomeTax`.
   // (Twelve ROUNDED twelfths make it $14.98 rather than $15.00: $1,220.17 × 6 + $322.25 × 6
   // is four cents above the annual figure on one side and two cents below on the other.)
   assert.equal(toCents(1_220.17) * 6 + toCents(322.25) * 6 - T(61_500), toCents(-14.98));
+});
+
+test('P4-9 — THE CONCAVITY THROUGH `project()`: a mid-year pay rise is UNDER-accrued, and July collects $14.98', () => {
+  // Sol's pay is set by two `WORK_PATTERN_CHANGE`s: $45,000 from 1 July 2027 and $78,000 from
+  // 1 January 2028 — the test above's two endpoint years, half a year each, through the walk.
+  //
+  // WHAT THE WALK ACCRUED. Each month annualises the salary in force and charges a twelfth:
+  //   July–December   T($45,000) = $3,867.00 ÷ 12 = $322.25 exactly,      × 6 = $1,933.50
+  //   January–June    T($78,000) = $14,642.00 ÷ 12 = $1,220.1666… → $1,220.17, × 6 = $7,321.02
+  //   ⇒ $9,254.52 accrued — the average of the two endpoint years' tax ($9,254.50) plus two cents
+  //     of rounding.
+  //
+  // WHAT THE YEAR OWED. The year's ACTUAL salary is 6 × $3,750 + 6 × $6,500 = $61,500, assessed
+  // ONCE: taxable $60,500 → $8,402 brackets − $92.50 LITO − $250 WATO + $1,210 levy = $9,269.50.
+  //
+  // THE TRUE-UP: $9,254.52 accrued − $9,269.50 owed = −$14.98, an OUTFLOW in July 2028. A convex
+  // scale could only refund here; the LITO taper's end at $66,667 makes the household owe.
+  const work = (id, date, salary) =>
+    entry(id, 'WORK_PATTERN_CHANGE', date, 'personA', { daysPerWeek: 5, annualSalary: toCents(salary) });
+  const months = project(FROM_JULY, SOLO, [work('w1', '2027-07-01', 45_000), work('w2', '2028-01-01', 78_000)]);
+  const fy = months.filter((m) => m.month >= '2027-07' && m.month <= '2028-06');
+  const perMonth = (description) => fy.map((m) => m.lines.filter((l) => l.description === description).reduce((t, l) => t + l.amount, 0));
+
+  // The inputs the walk actually used, month by month.
+  assert.deepEqual(perMonth('Salary, Sol'), [...Array(6).fill(toCents(3_750)), ...Array(6).fill(toCents(6_500))]);
+  assert.deepEqual(perMonth('Income tax, Sol'), [...Array(6).fill(toCents(322.25)), ...Array(6).fill(toCents(1_220.17))]);
+  const yearSalary = perMonth('Salary, Sol').reduce((t, a) => t + a, 0);
+  assert.equal(yearSalary, toCents(61_500));
+  assert.equal(accruedIn(months, 'Sol', '2027-28'), toCents(9_254.52));
+  assert.equal(toCents(322.25) * 6 + toCents(1_220.17) * 6, toCents(9_254.52));
+
+  // The year assessed ONCE, on the ACTUAL $61,500 — one line, in July, and never again.
+  const T = (dollars) => annualAssessment('single', [['X', dollars]]).X;
+  assert.equal(T(yearSalary / 100), toCents(9_269.5));
+  assert.deepEqual(trueUps(months), ['2028-07 outflow Income tax year-end true-up, Sol, 2027-28 1498']);
+  const line = months.find((m) => m.month === '2028-07').lines.find((l) => l.description.startsWith(TAX_TRUE_UP_LINE));
+  assert.deepEqual([...line.provenance.determination], ['assessed once on the twelve months of FY2027-28']);
+  // The line IS (tax on the actual year) − (sum of the accruals), to the cent.
+  assert.equal(line.amount, T(61_500) - accruedIn(months, 'Sol', '2027-28'));
+  assert.equal(toCents(9_269.5) - toCents(9_254.52), toCents(14.98));
+  // Not the year-end salary annualised ($78,000 → $14,642.00 − $9,254.52 = $5,387.48), and not the
+  // opening one ($45,000 → a $5,387.52 refund): the assessment reads the year, not a month of it.
+  assert.notEqual(line.amount, T(78_000) - toCents(9_254.52));
+  assert.notEqual(line.amount, toCents(9_254.52) - T(45_000));
+
+  // THE CONCAVITY, FROM THE WALK'S OWN INPUTS. The accrual is, up to rounding, the average of the
+  // tax on each half's annualised salary; the assessment is the tax on the average salary. The two
+  // differ by the $15.00 the test above decomposes (+$80.00 brackets, −$95.00 LITO), and the line
+  // is that $15.00 less the two cents twelve rounded twelfths ran over by.
+  const halves = [...new Set(fy.map((m) => m.lines.find((l) => l.description === 'Salary, Sol').amount * 12))];
+  assert.deepEqual(halves, [toCents(45_000), toCents(78_000)]);
+  const averageOfTaxes = halves.reduce((t, s) => t + T(s / 100), 0) / halves.length;
+  const taxOfAverage = T(halves.reduce((t, s) => t + s, 0) / halves.length / 100);
+  assert.equal(averageOfTaxes, toCents(9_254.5));
+  assert.equal(taxOfAverage, toCents(9_269.5));
+  assert.equal(taxOfAverage - averageOfTaxes, toCents(15));
+  assert.equal(accruedIn(months, 'Sol', '2027-28') - averageOfTaxes, toCents(0.02));
+  assert.equal(line.amount, taxOfAverage - averageOfTaxes - toCents(0.02));
+
+  reconciles(months);
 });
 
 test('⚠️ THE UNDER-CHARGE, REACHED THROUGH THE WALK — Tom OWES $633.30 while Rae is refunded $8,161.10', () => {
