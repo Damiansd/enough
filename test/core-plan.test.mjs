@@ -247,6 +247,8 @@ const pinned: { [K in MonthKeys]-?: true } = {
   assessableAssets: true,
   accessibleAssets: true,
   assetsByPerson: true,
+  // P3-4b, 2026-09-30: each Person's concessional cap headroom for the month's year — every month.
+  concessionalCapByPerson: true,
   mortgageBalance: true,
   // P12-1, 2026-09-24: who has died by this month — OMITTED while nobody has, so no walk moves.
   died: true,

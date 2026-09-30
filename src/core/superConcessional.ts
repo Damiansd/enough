@@ -400,8 +400,10 @@ export const applyConcessional = (input: {
 // a field which can be left out is a field that disappears from the calculation.
 //
 // ⚠️ **IT STILL CANNOT PROVE COMPLIANCE, FOR A SMALLER REASON, AND SO IT STILL RETURNS NOTHING.**
-// Two limbs remain outside what the walk can see — s 291-20(4) carry-forward headroom is not run
-// (it needs a contribution history the plan file has no field for) and any employer contribution
+// Two limbs remain outside what the walk can see — ~~s 291-20(4) carry-forward headroom is not run
+// (it needs a contribution history the plan file has no field for)~~ **narrowed by P3-4b
+// (2026-09-30): the walk now passes `carryForwardAvailable`, but a year before the plan counts as
+// fully used unless `Person.statedUnusedConcessionalCap` states it** — and any employer contribution
 // beyond the Guarantee, or any personal deductible contribution, is nil because this model holds no
 // field for either. The first makes the CAP larger than the general cap and the second makes the
 // TOTAL larger, so the residual now runs in BOTH directions and the function is one-directional for
@@ -479,7 +481,8 @@ const labelledCapSource = (cap: CapResult<ConcessionalCap>): string => {
 
 /**
  * A year's concessional contributions — the sacrifice and the employer Superannuation Guarantee
- * together — exceeding the general concessional cap for the year the arrangement takes effect in.
+ * together — exceeding the TOTAL concessional cap (the general cap plus any unused cap carried
+ * forward, P3-4b) for the year the arrangement takes effect in.
  * Division 291's treatment of the excess is not modelled, so the arrangement is refused rather than
  * walked at the fund's 15% and no more.
  */
@@ -489,6 +492,8 @@ export class ExcessConcessionalContributionsNotModelledError extends RangeError 
     readonly components: ConcessionalContributionComponents;
     readonly total: Cents;
     readonly generalCap: Cents;
+    /** s 291-20(3)–(4): unused cap carried forward into this year; nil where none or the $500,000 test closed it. */
+    readonly carryForwardAvailable: Cents;
     readonly statedBy: string;
     /** Where the cap in the message came from: published, or derived from the plan's own wage assumption. */
     readonly capSource: string;
@@ -498,9 +503,13 @@ export class ExcessConcessionalContributionsNotModelledError extends RangeError 
       `${input.statedBy} would have ${input.total} cents of concessional contributions in FY${input.fy} — ` +
         `${salarySacrificed} cents salary sacrificed, ${employerContributions} cents of employer ` +
         `Superannuation Guarantee, ${personalDeductible} cents of personal deductible contributions ` +
-        `and ${otherConcessional} cents of other concessional contributions. The general ` +
-        `concessional contributions cap for FY${input.fy} is ${input.generalCap} cents ` +
-        `(ITAA 1997 s 291-20(2)), and ${input.capSource} The total exceeds it, so ` +
+        `and ${otherConcessional} cents of other concessional contributions. The total ` +
+        `concessional cap for FY${input.fy} is ${addCents(input.generalCap, input.carryForwardAvailable)} cents, ` +
+        `including unused amounts carried forward: the general cap of ${input.generalCap} cents ` +
+        `(ITAA 1997 s 291-20(2)), and ${input.capSource} Plus ${input.carryForwardAvailable} cents of ` +
+        'unused cap carried forward from the five years before (s 291-20(3)–(4)) — nil unless this ' +
+        'plan states it or the forecast walked a whole earlier year under the cap, and nil in any year ' +
+        'the Total Super Balance at the prior 30 June was $500,000 or more. The total exceeds it, so ' +
         `${EXCESS_CAVEAT}. This build would tax the whole amount at ` +
         'the fund\'s 15% and stop there, which understates the tax and overstates the Household. ' +
         'Refusing to walk it. The Guarantee counts towards the cap and is not optional, so the room ' +
@@ -527,6 +536,8 @@ export const refuseConcessionalContributionsOverGeneralCap = (input: {
   /** Who stated it, for the message: an entry id and a Person, never a figure. */
   readonly statedBy: string;
   readonly indexNumbers?: IndexNumbers;
+  /** See `concessionalContributionsOverGeneralCap`. */
+  readonly carryForwardAvailable?: Cents;
 }): void => {
   const over = concessionalContributionsOverGeneralCap(input);
   if (over !== undefined) {
@@ -535,6 +546,7 @@ export const refuseConcessionalContributionsOverGeneralCap = (input: {
       components: input.components,
       total: over.total,
       generalCap: over.cap.amount,
+      carryForwardAvailable: over.carryForwardAvailable,
       // **HALF THE RULING OF 2026-09-21 IS THE LABEL, AND THIS IS THE LABEL ON A REFUSAL.** A cap
       // computed from a forecast wage level is not the law, and a refusal that quoted it as though
       // it were would be telling the Person that a figure they could move by editing one box is a
@@ -556,7 +568,22 @@ export const concessionalContributionsOverGeneralCap = (input: {
   readonly fy: FinancialYear;
   readonly components: ConcessionalContributionComponents;
   readonly indexNumbers?: IndexNumbers;
-}): { readonly total: Cents; readonly cap: CapResult<ConcessionalCap>; readonly excess: Cents } | undefined => {
+  /**
+   * **P3-4b — the s 291-20(4) increase, so the comparison is against the TOTAL cap.** The walk
+   * passes `CarryForwardHeadroom.unusedAvailable` for the Person's year (nil where the $500,000
+   * test closed the window). Absent is nil: a caller with no history measures against the general
+   * cap alone, which over-refuses and never under-refuses.
+   */
+  readonly carryForwardAvailable?: Cents;
+}):
+  | {
+      readonly total: Cents;
+      readonly cap: CapResult<ConcessionalCap>;
+      readonly carryForwardAvailable: Cents;
+      readonly totalCap: Cents;
+      readonly excess: Cents;
+    }
+  | undefined => {
   const total = concessionalContributions(input.components);
   // **THE FLOOR, AND IT IS WHY THIS IS USABLE PAST FY2026-27 AT ALL.** s 960-285 indexes the cap
   // cumulatively from its own base amount, and where the factor is not greater than 1 the base
@@ -577,6 +604,8 @@ export const concessionalContributionsOverGeneralCap = (input: {
   // year's figure. That refusal is the honest one: the register publishes ONE concessional cap and
   // above the floor this build cannot say whether the arrangement breaches a later year's.
   const cap = concessionalContributionsCap(input.fy, input.indexNumbers ?? []);
-  if (total <= cap.amount) return undefined;
-  return { total, cap, excess: subCents(total, cap.amount) };
+  const carryForwardAvailable = input.carryForwardAvailable ?? toCents(0);
+  const totalCap = addCents(cap.amount, carryForwardAvailable);
+  if (total <= totalCap) return undefined;
+  return { total, cap, carryForwardAvailable, totalCap, excess: subCents(total, totalCap) };
 };

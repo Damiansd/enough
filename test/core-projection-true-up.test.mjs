@@ -239,6 +239,9 @@ test('the DESCRIPTION names the financial year, and `Month` still has no financi
     'closingBalance',
     // 2026-09-24: the Non-Super Portfolio at the close. A balance, not a year.
     'closingNonSuperPortfolio',
+    // 2026-09-30 (P3-4b): each Person's concessional cap headroom. Per-Person figures for the
+    // month's year; the one year it names is when the oldest unused amount EXPIRES, not the month's.
+    'concessionalCapByPerson',
     // 2026-09-23: cash paid out of super this month. A sum of lines, not a year.
     'incomeFromSuper',
     'lines',

@@ -28,7 +28,7 @@ import { AGE_PENSION } from '../data/assumptions/agePension.js';
 // most exposed to — one register row, two incompatible types, and nothing to say which is meant.
 import type { Schedule1ItemIdentification } from './conditionOfRelease.js';
 import type { WithdrawalCharacterisation } from './transferBalanceAccount.js';
-import type { IsoDate } from '../data/assumptions/types.js';
+import type { FinancialYear, IsoDate } from '../data/assumptions/types.js';
 
 /** Register §4.9 — 67, and a policy risk rather than an indexed parameter (register O3). */
 export const AGE_PENSION_AGE: number = AGE_PENSION.qualification.qualifyingAge.value;
@@ -758,6 +758,19 @@ export interface Person {
    * synonym for either answer, which is asserted in `core-transfer-balance-account-settings.test.mjs`.
    */
   readonly statedPriorRetirementPhase?: StatedPriorRetirementPhase;
+  /**
+   * **P3-4b — the unused concessional cap myGov shows for each of the five years before the plan's
+   * first financial year**, keyed by financial year (`'2024-25'`), in cents. What is left of each
+   * year's cap, not what was contributed.
+   *
+   * **Why OPTIONAL, and what absence means.** `statedPriorRetirementPhase`'s device: a year that is
+   * not stated is read as FULLY USED — nil carried forward — by the walk, and so is the plan's own
+   * first year when it opens after 1 July, because the months before the plan are not known either.
+   * That over-refuses a Person who really has headroom and never invents headroom they lack, which
+   * is the direction `MissingContributionHistoryError` was built to hold. `parsePlan` refuses a year
+   * outside the window, a negative amount, and an amount above a cap this build can state.
+   */
+  readonly statedUnusedConcessionalCap?: Readonly<Record<FinancialYear, Cents>>;
 }
 
 /**

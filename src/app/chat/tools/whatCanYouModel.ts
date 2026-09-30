@@ -48,9 +48,10 @@ export const NOT_MODELLED: readonly Limit[] = Object.freeze([
   {
     limit: 'Carry-forward of unused concessional cap',
     reason:
-      'The plan holds no history of past contributions, so unused cap from earlier years cannot be worked out. ' +
+      'The plan holds no history of past contributions, so every year before the plan starts, and its first year if it opens after 1 July, counts as fully used unless the plan states the unused amount for it. ' +
+      'Unused cap from the whole years the forecast walks itself is carried forward. ' +
       `The law allows carry-forward only for someone whose total super balance was under ${legislatedFigure(CARRY_FORWARD_BALANCE_TEST.value, CARRY_FORWARD_BALANCE_TEST)} on the 30 June before the year. ` +
-      "A contribution above the year's general cap is refused by name, even for someone whose unused cap would lawfully allow it. " +
+      "A contribution above the year's general cap and the unused cap carried forward is refused by name, even for someone whose unused cap from before the plan would lawfully allow it. " +
       `That cap is ${legislatedFigure(CONCESSIONAL_CAP.value, CONCESSIONAL_CAP)}; a later year's cap is a forecast, indexed to wages, and not the law.`,
     recorded: 'register §8 O78; plan_ai.md §12.11',
   },

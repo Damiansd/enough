@@ -150,7 +150,7 @@ test('the copied fixture is the fd02679 fixture', () => {
   // sales from 2033-03 — the mechanism and figures are in `app-chat-identity.test.mjs`'s copy.
   const sha256 = (value) =>
     createHash('sha256')
-      .update(JSON.stringify(value, (key, field) => (key === 'closingNonSuperPortfolio' || key === 'assetsTestThresholds' ? undefined : field)))
+      .update(JSON.stringify(value, (key, field) => (key === 'closingNonSuperPortfolio' || key === 'assetsTestThresholds' || key === 'concessionalCapByPerson' ? undefined : field)))
       .digest('hex');
   // RE-PINNED 2026-09-29 (LR-1 slice 3, Div 119's minimum tax): RICH moved only in the limb-3
   // `available` probe again, DOWN in 36 months from 2028-01 (after Wilhelmina's RETIRE, selling
@@ -159,7 +159,8 @@ test('the copied fixture is the fd02679 fixture', () => {
   // 81000 cents for FY2027-28, and her only account is a pension by July 2028 (her RETIRE), so one
   // `low income super tax offset not paid` note is inserted in 2028-07; a whole-walk diff finds that note
   // (and the later notes of that month shifted one place) and nothing else.
-  assert.equal(sha256(RICH_WALK), 'b91c6e5cadb86c4c8914c9f38191ddfc233c3781af9156bec2b85d88479bbead');
+  // RE-PINNED 2026-09-30 (P3-4b): caveat text only on RICH's sacrifice credit lines; proved in `app-chat-identity.test.mjs`.
+  assert.equal(sha256(RICH_WALK), 'c3f7baeaaf79630cee30383e43d37b3687910e3d031d8a87af36a3db81fc5c0b');
   // RE-PINNED 2026-09-29 (LR-1 slice 4): no figure moved. Dana's 11 `Income tax on capital gain` lines (2033-03 to 2035-05) each gained one `determination` entry, `CGT_MINIMUM_TAX_DETERMINATION`; a whole-walk diff finds those 11 and nothing else.
   assert.equal(sha256(project(DEMO_SETTINGS, DEMO_HOUSEHOLD, DEMO_ENTRIES)), '806fab4f7571820896d81b56900400b22494a361327855fb0c3b271e2e0ecc81');
 });

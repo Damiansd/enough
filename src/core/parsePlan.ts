@@ -32,7 +32,7 @@
 // This module is `core/`: pure, no I/O, no clock, no knowledge that a file or a server exists.
 // `app/loadPlan.ts` is what puts it together with the transport.
 import { ageAt, assertIsoDate, hasReachedAgePensionAge, homeTreatment, mortgageMonth, offsetSharesOf } from './household.js'; // `.js` is correct in a `.ts` file — see tsconfig.json
-import { daysInclusive, nthBirthday } from './financialYear.js'; // `.js` is correct in a `.ts` file — see tsconfig.json
+import { daysInclusive, financialYearContaining, financialYearStartYear, financialYearsBefore, nthBirthday } from './financialYear.js'; // `.js` is correct in a `.ts` file — see tsconfig.json
 import { inflateStated, monthsBetween } from './priceLevel.js'; // `.js` is correct in a `.ts` file — see tsconfig.json
 import { HEAS, heasAdvanceCap, heasFortnightlyCap } from '../data/assumptions/heas.js'; // `.js` is correct in a `.ts` file — see tsconfig.json
 import { agePensionPeriodAt, maximumPaymentRate } from '../data/assumptions/agePension.js'; // `.js` is correct in a `.ts` file — see tsconfig.json
@@ -63,6 +63,7 @@ import type {
 } from '../data/assumptions/settings.js';
 import type { Confidence, FinancialYear, IsoDate } from '../data/assumptions/types.js';
 import { SUPERANNUATION } from '../data/assumptions/super.js';
+import { MissingIndexNumberError, concessionalContributionsCap, forecastAwoteIndexNumbers } from './superCaps.js'; // `.js` is correct in a `.ts` file — see tsconfig.json
 import { CGT_REFORM_START } from '../data/assumptions/tax.js';
 import {
   INCOME_PROTECTION_BENEFIT_PERIODS,
@@ -933,6 +934,7 @@ const parsePerson = (value: unknown, path: string): Person => {
     'employmentIncomePerFortnight',
     'workBonusBalance',
     'statedPriorRetirementPhase',
+    'statedUnusedConcessionalCap',
   ]);
   return {
     name: string(PlanFileHouseholdError, record['name'], `${path}.name`),
@@ -945,7 +947,64 @@ const parsePerson = (value: unknown, path: string): Person => {
     workBonusBalance: cents(PlanFileHouseholdError, record['workBonusBalance'], `${path}.workBonusBalance`),
     ...optionally('statedPriorRetirementPhase', optional(record, 'statedPriorRetirementPhase', (raw) =>
       member(PlanFileHouseholdError, raw, `${path}.statedPriorRetirementPhase`, PRIOR_RETIREMENT_PHASES))),
+    ...optionally('statedUnusedConcessionalCap', optional(record, 'statedUnusedConcessionalCap', (raw) =>
+      parseStatedUnusedConcessionalCap(raw, `${path}.statedUnusedConcessionalCap`))),
   };
+};
+
+/**
+ * **P3-4b — the unused concessional cap myGov shows per year: keyed by financial year, whole
+ * non-negative cents.** The shape is checked here; which years may be stated, and the ceiling on
+ * each, need the plan's first year and so are `checkStatedUnusedConcessionalCaps`'.
+ */
+const parseStatedUnusedConcessionalCap = (value: unknown, path: string): Readonly<Record<FinancialYear, Cents>> => {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    fail(PlanFileHouseholdError, path, `is ${describe(value)}, and an object keyed by financial year ("2024-25") was required`);
+  }
+  const stated: Record<FinancialYear, Cents> = {};
+  for (const [year, amount] of Object.entries(value as Record<string, unknown>)) {
+    try {
+      financialYearStartYear(year as FinancialYear);
+    } catch {
+      fail(PlanFileHouseholdError, `${path}["${year}"]`, 'is not a financial year: the form is 2024-25');
+    }
+    stated[year as FinancialYear] = nonNegativeCents(amount, `${path}["${year}"]`,
+      'an unused cap is what was left of a year\'s cap, and a negative one would be a contribution over it. State nil as 0, or leave the year out');
+  }
+  return stated;
+};
+
+/**
+ * **P3-4b — which years an unused cap may be stated for, and how much.** Only the five years before
+ * the plan's first financial year (s 291-20(3)–(4)'s window, read off the register): an earlier year
+ * has expired before the forecast begins, and the plan's own years are walked, so a stated figure
+ * there would be a second answer to a question the forecast answers. And never more than that
+ * year's general cap where this build can state it — FY2026-27's published $32,500, or a later
+ * year's derived from this plan's wage rate. A year before FY2026-27 has no cap in the register,
+ * so its figure is taken as myGov states it.
+ */
+const checkStatedUnusedConcessionalCaps = (household: Household, settings: Settings): void => {
+  const firstYear = financialYearContaining(settings.asAtDate);
+  const window = financialYearsBefore(firstYear, SUPERANNUATION.carryForward.lookBackYears.value);
+  household.persons.forEach((person, personIndex) => {
+    for (const [year, amount] of Object.entries(person.statedUnusedConcessionalCap ?? {})) {
+      const path = `household.persons[${personIndex}].statedUnusedConcessionalCap["${year}"]`;
+      if (!window.includes(year as FinancialYear)) {
+        fail(PlanFileHouseholdError, path,
+          `is outside the carry-forward window. The plan starts in FY${firstYear}, so an unused cap can be stated for FY${window[0]} to FY${window[window.length - 1]} only: an earlier year's has expired before the forecast begins, and a later one is walked by the forecast itself`);
+      }
+      let cap: Cents | undefined;
+      try {
+        cap = concessionalContributionsCap(year as FinancialYear, forecastAwoteIndexNumbers(year as FinancialYear, settings.economicSeries.awote)).amount;
+      } catch (error) {
+        if (!(error instanceof MissingIndexNumberError)) throw error;
+      }
+      if (cap !== undefined && amount > cap) {
+        fail(PlanFileHouseholdError, path,
+          `is ${amount} cents, more than FY${year}'s whole general concessional cap of ${cap} cents. What is left of a cap cannot be more than the cap: state the unused amount myGov shows for that year`);
+      }
+    }
+  });
 };
 
 /**
@@ -2865,6 +2924,7 @@ export const parsePlan = (value: unknown): PlanFile => {
   checkEmployerContributionDestinations(household);
   checkInsuranceAges(household, settings);
   checkParcelValuesJustBefore1July2027(household, settings);
+  checkStatedUnusedConcessionalCaps(household, settings);
   checkReleaseAuthorityDestinations(household);
   checkContributionTargets(entries, household);
   checkSpouseContributionTargets(entries, household);

@@ -763,6 +763,25 @@ Working task list for `enough`. Maintained throughout the build.
       implementation still summed each year's gross `cap − contributions` — which keeps offering
       headroom that an over-cap year inside the window has already spent. Fixed. The remaining
       P3-4b work is the display and the offered catch-up entry, not the rule
+    - **2026-09-30 — slice 1, THE ENGINE, done; slice 2 (display, offered catch-up entry, input
+      box) open.** `project()` now runs carry-forward: each Person's total concessional cap per
+      year (general + unused of the five years before, oldest first, $500,000 at the prior 30 June,
+      never indexed), on every `Month` as `concessionalCapByPerson` — `generalCap`,
+      `carriedForwardAvailable`, `usedSoFar`, `remaining`, `totalSuperBalance`,
+      `closedByTotalSuperBalance`, `oldestUnusedUsableUntil`, or `null` in a year with no general cap
+      (before FY2026-27). Both cap checks (stated-month refusal, year-to-date note) measure against
+      the total cap; Div 293 unchanged. Years before the plan and the plan's first year opened after
+      1 July count as FULLY USED; `Person.statedUnusedConcessionalCap` (plan file only until slice 2)
+      takes myGov's unused amount per year, checked at the door. The walk keeps a ledger of what is
+      unused and spends it at each year's end through `applyConcessional` — its first walk caller —
+      because `carryForwardHeadroom`'s own over-cap loop cannot reach a year that has just left the
+      window and so charged its spend to a younger year ($5,000 low on the fixture that found it).
+      Register §3.4 "How the walk runs it", O78 narrowed. `test/core-projection-carry-forward.test.mjs`,
+      12 mutations killed.
+      - **Open, for a ruling: the first year's Total Super Balance is the plan's stated balance as at
+        `asAtDate`, not 30 June.** The forecast holds no earlier figure. Mostly conservative (balances
+        usually grow over a year) but not always; the alternative is a stated 30 June balance or
+        closing the window in the first year whenever the plan opens after 1 July.
 - [x] **P3-5** Div 293 and Div 296 — ✅ 2026-09-08, both computed
   - [x] **P3-5a** Div 296 is two proportions of **one** earnings base taxed at 15% and 10%; the 2026-27 TSB test is **closing balance only**; CGT phase-in factors 0.2 / 0.4 / 0.6 / 0.8 (T15, T16)
     — ✅ 2026-09-08. `core/div296.ts`, 28 tests. T15 is answered by shape where shape reaches:

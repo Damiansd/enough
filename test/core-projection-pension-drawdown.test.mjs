@@ -1169,7 +1169,8 @@ test('A PLAN STATED AS AT 1 JULY IS UNCHANGED BY P10-5, TO THE BYTE — the comm
   // 2026-09-24: `closingNonSuperPortfolio` is stripped on the same terms — a balance the walk
   // already held at the close, which cannot move a figure.
   // 2026-09-25: `assetsTestThresholds` too — read off the entitlement the walk already computed.
-  const added = new Set(['note', 'superBalance', 'incomeFromSuper', 'closingNonSuperPortfolio', 'assetsTestThresholds']);
+  // 2026-09-30 (P3-4b): `concessionalCapByPerson` too — the year's cap, read off the contributions already walked.
+  const added = new Set(['note', 'superBalance', 'incomeFromSuper', 'closingNonSuperPortfolio', 'assetsTestThresholds', 'concessionalCapByPerson']);
   const withoutNotes = unrenamed(JSON.stringify(months, (key, value) => (added.has(key) ? undefined : value)));
   const switched = unrenamed(JSON.stringify(project(settings, DEMO_HOUSEHOLD, DEMO_ENTRIES), (key, value) => (added.has(key) ? undefined : value)));
   assert.notEqual(createHash('sha256').update(switched).digest('hex'), 'd30ef222d0be6fa644124049a940f7bd86a3c6ca990b1f2ca6b86a5842cc21d5', 'the switch at retirement moved nothing on the demo plan');

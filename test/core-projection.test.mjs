@@ -578,7 +578,9 @@ test('a Household with no income and no spending level invents no number — and
     // the cash paid out of it; both nil here, and both present.
     // **`assetsTestThresholds` (2026-09-25)** — the assets test's free area and cut-off, present
     // because an entitlement was computed this month (nil as it is).
-    ['accessibleAssets', 'appliedEntryIds', 'assessableAssets', 'assetsByPerson', 'assetsTestThresholds', 'closingBalance', 'closingNonSuperPortfolio', 'incomeFromSuper', 'lines', 'month', 'notes', 'openingBalance', 'protectedAssets', 'provenance', 'superBalance'],
+    // **`concessionalCapByPerson` (P3-4b, 2026-09-30)** — each Person's concessional cap headroom
+    // for the year, present every month.
+    ['accessibleAssets', 'appliedEntryIds', 'assessableAssets', 'assetsByPerson', 'assetsTestThresholds', 'closingBalance', 'closingNonSuperPortfolio', 'concessionalCapByPerson', 'incomeFromSuper', 'lines', 'month', 'notes', 'openingBalance', 'protectedAssets', 'provenance', 'superBalance'],
   );
   // Month 0 is still wholly empty, and the walk's first months still carry nothing at all: the
   // pension is a fact about 2029 onward and not a figure sprayed over the fixture.

@@ -405,7 +405,7 @@ test('without a DEATH the demo walk is byte-identical — and with one switched 
   // The full walk's own digest is pinned in `app-month-to-rows.test.mjs`.
   const sha256 = (value) =>
     createHash('sha256')
-      .update(JSON.stringify(value, (key, field) => (key === 'closingNonSuperPortfolio' || key === 'assetsTestThresholds' ? undefined : field)))
+      .update(JSON.stringify(value, (key, field) => (key === 'closingNonSuperPortfolio' || key === 'assetsTestThresholds' || key === 'concessionalCapByPerson' ? undefined : field)))
       .digest('hex');
   // RE-PINNED 2026-09-24 (T135): the demo couple's assets excess now floors to the nearest $500
   // (SSA 1991 s1064 point 1064-G7), a few cents to a few dollars of Age Pension higher in a

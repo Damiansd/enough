@@ -488,7 +488,17 @@ test('the cap is the YEAR\'s, and the room a later year leaves is a different fi
   const room2028 = 35_000_00 - guaranteeAfter(21);
   assert.equal(room2028, 22_892_61);
   assert.ok(amountOf(atLevel(room2028, '2028-07-01'), '2028-07', CREDIT_LINE) > 0);
-  assert.throws(() => atLevel(room2028 + 1, '2028-07-01'), { name: 'ExcessConcessionalContributionsNotModelledError' });
+  // ⚠️ **P3-4b (2026-09-30): FY2028-29's boundary is no longer `room2028`, it is `room2028` plus
+  // FY2027-28's unused cap.** The walk opens in October 2026, so FY2026-27 counts as fully used, but
+  // FY2027-28 is walked whole with only the Guarantee going in — $11,884.45 against $32,500 — and
+  // the $20,615.55 left is carried forward (s 291-20(3)–(4); Nell's balance is far under $500,000).
+  // The year's own cap is still what the carry-forward is added to: the pair is a cent wide at the
+  // TOTAL cap, and `room2028 + 1` walks.
+  const carried = asymmetryPlain().find((m) => m.month === '2028-06').concessionalCapByPerson[0].remaining;
+  assert.equal(carried, 20_615_55);
+  assert.equal(atLevel(room2028 + carried, '2028-07-01').find((m) => m.month === '2028-07').concessionalCapByPerson[0].carriedForwardAvailable, carried);
+  assert.ok(amountOf(atLevel(room2028 + carried, '2028-07-01'), '2028-07', CREDIT_LINE) > 0);
+  assert.throws(() => atLevel(room2028 + carried + 1, '2028-07-01'), { name: 'ExcessConcessionalContributionsNotModelledError' });
   // The two years disagree, which is the whole point: $22,892.61 is inside FY2028-29's cap and over
   // FY2027-28's.
   assert.throws(() => atLevel(room2028, '2027-07-01'), { name: 'ExcessConcessionalContributionsNotModelledError' });

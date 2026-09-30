@@ -2392,7 +2392,12 @@ export interface ConcessionalCapExceededNote {
   readonly contributedThisYear: Cents;
   /** The year's general concessional cap (ITAA 1997 s 291-20(2)), published or derived. */
   readonly generalCap: Cents;
-  /** `contributedThisYear` less `generalCap`, so far; the rest of the year's contributions add to it. */
+  /**
+   * P3-4b: the general cap plus the unused cap carried forward into the year (s 291-20(3)–(4)) —
+   * `Month.concessionalCapByPerson`'s `generalCap + carriedForwardAvailable` for the same Person.
+   */
+  readonly totalCap: Cents;
+  /** `contributedThisYear` less `totalCap`, so far; the rest of the year's contributions add to it. */
   readonly excessSoFar: Cents;
   readonly note: string;
 }
@@ -2563,6 +2568,42 @@ export interface PersonAssetFigures {
 }
 
 /**
+ * **P3-4b — one Person's concessional cap for the month's financial year, and what is left of it.**
+ * Computed by the walk (`project()`), once per Person per year from the Total Super Balance at the
+ * prior 30 June and the five years before, and read here as it stands after this month's
+ * contributions. The screen reads these figures and never recomputes them.
+ */
+export interface ConcessionalCapHeadroom {
+  /** ITAA 1997 s 291-20(2): the year's general cap, published or derived from the plan's wage rate. */
+  readonly generalCap: Cents;
+  /**
+   * s 291-20(3)–(4): the unused cap of the five years before that this year may use. Nil where the
+   * Total Super Balance test closed it. A year before the plan counts as fully used unless
+   * `Person.statedUnusedConcessionalCap` states it, and so does the plan's first year when it
+   * opens after 1 July.
+   */
+  readonly carriedForwardAvailable: Cents;
+  /** Concessional contributions so far this year: the employer Guarantee and any salary sacrifice. */
+  readonly usedSoFar: Cents;
+  /** `generalCap + carriedForwardAvailable − usedSoFar`, and nil rather than negative once over it. */
+  readonly remaining: Cents;
+  /**
+   * The Total Super Balance the $500,000 test read: every super interest of the Person at the close
+   * of the prior 30 June, before the July settlement credits. In the plan's first year it is the
+   * balance the plan states, as at `settings.asAtDate`, because the forecast holds no earlier one.
+   */
+  readonly totalSuperBalance: Cents;
+  /** s 291-20(3): true where `totalSuperBalance` was $500,000 or more, so nothing carried forward is usable this year. */
+  readonly closedByTotalSuperBalance: boolean;
+  /**
+   * The last financial year the oldest unused amount still left can be used in (five years after
+   * the year it arose), after this year's contributions have used the oldest first. `null` where
+   * nothing unused is left.
+   */
+  readonly oldestUnusedUsableUntil: FinancialYear | null;
+}
+
+/**
  * One monthly tick of the projection. `project(settings, entries) → Month[]` returns these in
  * ascending `month` order.
  *
@@ -2662,6 +2703,14 @@ export interface Month {
    * Household may be given the same name and a name match would silently pool them.
    */
   readonly assetsByPerson: readonly [PersonAssetFigures] | readonly [PersonAssetFigures, PersonAssetFigures];
+  /**
+   * **P3-4b — each Person's concessional cap headroom for this month's financial year**, positionally
+   * as `assetsByPerson`. `null` for a Person in a year whose general cap this build cannot state
+   * (a year before FY2026-27, where no published figure and no wage level stands behind one).
+   */
+  readonly concessionalCapByPerson:
+    | readonly [ConcessionalCapHeadroom | null]
+    | readonly [ConcessionalCapHeadroom | null, ConcessionalCapHeadroom | null];
   /**
    * **The Household's combined superannuation, at this month's CLOSE** — every interest of every
    * Person, whatever its phase (accumulation, TTR, Account-Based Pension), preserved or not and

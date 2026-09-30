@@ -414,7 +414,7 @@ test('the forecast did not move when its descriptions moved into helpers', () =>
   // moved.
   const sha256 = (value) =>
     createHash('sha256')
-      .update(JSON.stringify(value, (key, field) => (key === 'closingNonSuperPortfolio' || key === 'assetsTestThresholds' ? undefined : field)))
+      .update(JSON.stringify(value, (key, field) => (key === 'closingNonSuperPortfolio' || key === 'assetsTestThresholds' || key === 'concessionalCapByPerson' ? undefined : field)))
       .digest('hex');
   // RE-PINNED 2026-09-29 (LR-1 slice 4): no figure moved. Dana's 11 `Income tax on capital gain` lines (2033-03 to 2035-05) each gained one `determination` entry, `CGT_MINIMUM_TAX_DETERMINATION`; a whole-walk diff finds those 11 and nothing else.
   assert.equal(sha256(project(DEMO_SETTINGS, DEMO_HOUSEHOLD, DEMO_ENTRIES)), '806fab4f7571820896d81b56900400b22494a361327855fb0c3b271e2e0ecc81');
@@ -425,7 +425,15 @@ test('the forecast did not move when its descriptions moved into helpers', () =>
   // 81000 cents for FY2027-28, and her only account is a pension by July 2028 (her RETIRE), so one
   // `low income super tax offset not paid` note is inserted in 2028-07; a whole-walk diff finds that note
   // (and the later notes of that month shifted one place) and nothing else.
-  assert.equal(sha256(RICH_WALK), 'b91c6e5cadb86c4c8914c9f38191ddfc233c3781af9156bec2b85d88479bbead');
+  // RE-PINNED 2026-09-30 (P3-4b): no figure moved. RICH's sacrifice credit line (12 of them) says the
+  // cap it was measured against is now the TOTAL cap and no longer that carry-forward is not run; put
+  // the old sentence back and the walk is the one pinned before, to the byte.
+  const NOW = 'against the total concessional cap for the year it started in, the general cap plus any unused cap carried forward (P3-4b) — so this figure is not an unchecked one. It is still not a finding that the Person has no excess: a year before the plan counts as fully used unless its unused cap is stated, and';
+  const BEFORE = 'against the general concessional cap for the year it started in — so this figure is not an unchecked one. It is still not a finding that the Person has no excess: carry-forward headroom is not run, and';
+  const richJson = JSON.stringify(RICH_WALK, (key, field) => (key === 'closingNonSuperPortfolio' || key === 'assetsTestThresholds' || key === 'concessionalCapByPerson' ? undefined : field));
+  assert.equal(richJson.split(NOW).length - 1, 12);
+  assert.equal(createHash('sha256').update(richJson.replaceAll(NOW, BEFORE)).digest('hex'), 'b91c6e5cadb86c4c8914c9f38191ddfc233c3781af9156bec2b85d88479bbead');
+  assert.equal(sha256(RICH_WALK), 'c3f7baeaaf79630cee30383e43d37b3687910e3d031d8a87af36a3db81fc5c0b');
 });
 
 test('the financial-year summary goes out through the guard', () => {

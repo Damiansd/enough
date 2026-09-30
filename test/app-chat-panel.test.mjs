@@ -61,7 +61,7 @@ const DEMO_DIGEST = '806fab4f7571820896d81b56900400b22494a361327855fb0c3b271e2e0
 // 2026-09-25: and without `assetsTestThresholds`, read off the entitlement the walk already computed — no figure.
 const sha256 = (value) =>
   createHash('sha256')
-    .update(JSON.stringify(value, (key, field) => (key === 'closingNonSuperPortfolio' || key === 'assetsTestThresholds' ? undefined : field)))
+    .update(JSON.stringify(value, (key, field) => (key === 'closingNonSuperPortfolio' || key === 'assetsTestThresholds' || key === 'concessionalCapByPerson' ? undefined : field)))
     .digest('hex');
 
 const SPEND_2060 = { date: '2060-01-01', owner: 'household', type: 'SPEND_CHANGE', params: { annualSpend: 5_500_000 }, enabled: true, createdAt: '2026-09-24' };

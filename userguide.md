@@ -1546,9 +1546,11 @@ removes it from every year it ever ran.
 The fund takes its usual 15% out of what's sacrificed. Your employer's own compulsory super payments —
 called the **Superannuation Guarantee** — count towards the same yearly limit as your sacrifice. So a large
 sacrifice on top of a decent salary can be refused outright if the two together are over the year's
-cap, currently $32,500. Being under the cap isn't proof you have room to spare: unused cap from
-earlier years isn't counted, and personal contributions you claim a deduction for aren't held at
-all. If your combined income and contributions are over $250,000, an extra tax applies — see
+cap, currently $32,500, plus any cap left unused in the five years before — but only if your total
+super was under $500,000 on the 30 June before the year. Being under the cap isn't proof you have
+room to spare: unused cap from earlier years isn't counted for any year before your plan starts —
+only for whole years the forecast walks itself — so it can refuse a catch-up contribution you're
+actually allowed to make; and personal contributions you claim a deduction for aren't held at all. If your combined income and contributions are over $250,000, an extra tax applies — see
 [Chapter 27](#division-293). And more than your pay can never be sacrificed: the excess is simply dropped, so the
 arrangement forecast is never bigger than what you actually earn. Sacrificing never shrinks the
 Superannuation Guarantee itself — it's always worked out on your salary **before** the sacrifice

@@ -49,7 +49,7 @@ const CHAT_ON = {
 // 2026-09-25: and without `assetsTestThresholds`, read off the entitlement the walk already computed — no figure.
 const sha256 = (value) =>
   createHash('sha256')
-    .update(JSON.stringify(value, (key, field) => (key === 'closingNonSuperPortfolio' || key === 'assetsTestThresholds' ? undefined : field)))
+    .update(JSON.stringify(value, (key, field) => (key === 'closingNonSuperPortfolio' || key === 'assetsTestThresholds' || key === 'concessionalCapByPerson' ? undefined : field)))
     .digest('hex');
 // RE-PINNED 2026-09-24 (T135): the demo couple's assets excess now floors to the nearest $500
 // (SSA 1991 s1064 point 1064-G7), so the Age Pension in a handful of the demo walk's months is a
@@ -228,7 +228,8 @@ RICH.activeScenarioId = 'base';
 // 81000 cents for FY2027-28, and her only account is a pension by July 2028 (her RETIRE), so one
 // `low income super tax offset not paid` note is inserted in 2028-07; a whole-walk diff finds that note
 // (and the later notes of that month shifted one place) and nothing else.
-const RICH_DIGEST = 'b91c6e5cadb86c4c8914c9f38191ddfc233c3781af9156bec2b85d88479bbead';
+// RE-PINNED 2026-09-30 (P3-4b): caveat text only on RICH's sacrifice credit lines; proved in `app-chat-identity.test.mjs`.
+const RICH_DIGEST = 'c3f7baeaaf79630cee30383e43d37b3687910e3d031d8a87af36a3db81fc5c0b';
 
 /** The plan loaded as the page loads it, with the chat as `settings` says, a conversation made and never asked, then walked. */
 const forecastWith = async (stored, settings) => {

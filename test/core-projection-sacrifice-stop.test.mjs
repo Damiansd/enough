@@ -417,7 +417,16 @@ test('a restart is measured against the cap on ITS OWN amount — the stopped ar
   ];
   const months = project(SETTINGS, HOUSEHOLD, restart(toCents(23_000)));
   assert.equal(amountIn(at(months, '2029-07'), CREDIT), Math.round(Math.round(23_000_00 / 12) * 0.85));
+  // ⚠️ **P3-4b (2026-09-30): FY2029-30's cap is now the TOTAL cap.** The walk opens on 1 July 2026,
+  // so FY2026-27 to FY2028-29 are walked whole, each under its cap, and their unused amounts carry
+  // forward (Dana's balance is far under $500,000) — $26,000 is inside it now. Both amounts are
+  // shifted by exactly what was carried, so the pair still straddles the cap by this restart's own
+  // amount: the stopped $15,000 added back would still be over it.
+  const carried = at(STOPPED, '2029-07').concessionalCapByPerson[0].carriedForwardAvailable;
+  assert.ok(carried > toCents(15_000), String(carried));
+  const shifted = project(SETTINGS, HOUSEHOLD, restart(toCents(23_000) + carried));
+  assert.equal(at(shifted, '2029-07').concessionalCapByPerson[0].carriedForwardAvailable, carried);
   // **And the control, which is what stops this being a test that the cap is switched off:** $3,000
   // more is refused by name in the month it is stated.
-  assert.throws(() => project(SETTINGS, HOUSEHOLD, restart(toCents(26_000))), /concessional contributions/i, 'the restart is not measured against the cap at all');
+  assert.throws(() => project(SETTINGS, HOUSEHOLD, restart(toCents(26_000) + carried)), /concessional contributions/i, 'the restart is not measured against the cap at all');
 });

@@ -1543,18 +1543,22 @@ test('the new Month field is ADDED and moves nothing: without it the demo digest
   // June 2035. Each sale grows by exactly its tax, so the portfolio runs out a month sooner (2037-05),
   // and lower assets raise the Age Pension in 417 months from 2033-09. The limb-3 probe moved again,
   // DOWN in 55 months from 2031-06, once her salary stops.
-  const without = MONTHS.map(({ closingNonSuperPortfolio: _p, assetsTestThresholds: _t, ...rest }) => rest);
+  const without = MONTHS.map(({ closingNonSuperPortfolio: _p, assetsTestThresholds: _t, concessionalCapByPerson: _c, ...rest }) => rest);
   // RE-PINNED 2026-09-29 (LR-1 slice 4): no figure moved. Dana's 11 `Income tax on capital gain` lines (2033-03 to 2035-05) each gained one `determination` entry, `CGT_MINIMUM_TAX_DETERMINATION`; a whole-walk diff finds those 11 and nothing else.
   assert.equal(createHash('sha256').update(JSON.stringify(without)).digest('hex'), '806fab4f7571820896d81b56900400b22494a361327855fb0c3b271e2e0ecc81');
   // And the whole walk, new key and all — the pin the stripped digests elsewhere leave to this one.
   // 2026-09-25: `assetsTestThresholds` was ADDED; without it the walk is the one pinned before, to the byte.
-  const withoutThresholds = MONTHS.map(({ assetsTestThresholds: _t, ...rest }) => rest);
+  const withoutThresholds = MONTHS.map(({ assetsTestThresholds: _t, concessionalCapByPerson: _c, ...rest }) => rest);
   // RE-PINNED 2026-09-29 (LR-1 slice 4), both: the 11 minimum-tax determinations, 11 × 377 = 4,147 bytes, and nothing else.
   assert.equal(createHash('sha256').update(JSON.stringify(withoutThresholds)).digest('hex'), '8bc912e0b0ac57128b1d51ddccb7e5da759c873c58e541ca01db7af86cf59fbc');
-  assert.equal(createHash('sha256').update(JSON.stringify(MONTHS)).digest('hex'), 'd73b27b0a9d520d4ef38da00ce082131a08a8d7cf43352f627de81836f410de5');
+  // P3-4b (2026-09-30): `concessionalCapByPerson` was ADDED, 200,812 bytes, and both stripped digests
+  // above (which now strip it too) are unchanged: no figure moved. The old full digest is the new
+  // walk without it.
+  assert.equal(createHash('sha256').update(JSON.stringify(MONTHS.map(({ concessionalCapByPerson: _c, ...rest }) => rest))).digest('hex'), 'd73b27b0a9d520d4ef38da00ce082131a08a8d7cf43352f627de81836f410de5');
+  assert.equal(createHash('sha256').update(JSON.stringify(MONTHS)).digest('hex'), '99b663af8dfd7dd4eb4a37d6cab18eef401fe60a0afbf07dde162e8bd82fb918');
   // O90 (2026-09-30): the SAPTO caveat names `baseRebateAmount.coupleEach`, the record actually read,
   // not the non-existent `.couple`: 4 bytes per caveat, no figure moved. Both digests above re-pinned for it.
   const renamed = JSON.stringify(MONTHS).split('baseRebateAmount.coupleEach is stamped').length - 1;
-  assert.equal(JSON.stringify(MONTHS).length, 3_623_969 + 11 * 377 + renamed * 4);
-  assert.equal(JSON.stringify(MONTHS).replaceAll('baseRebateAmount.coupleEach is stamped', 'baseRebateAmount.couple is stamped').length, 3_623_969 + 11 * 377);
+  assert.equal(JSON.stringify(MONTHS).length, 3_623_969 + 11 * 377 + renamed * 4 + 200_812);
+  assert.equal(JSON.stringify(MONTHS).replaceAll('baseRebateAmount.coupleEach is stamped', 'baseRebateAmount.couple is stamped').length, 3_623_969 + 11 * 377 + 200_812);
 });

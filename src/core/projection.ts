@@ -226,7 +226,7 @@ import { ttrAnnualCeiling } from './ttrPaymentRange.js';
 import { accumulationInterest, fundEarningsTax, phaseHeldForTheWholeYear, phaseHeldFrom, retirementPhaseInterest } from './superPhase.js';
 import type { EarningsPhase, PhaseYearFraction, SuperInterest as FundEarningsSuperInterest } from './superPhase.js';
 import { COMPLYING_RESIDENT_QUALIFIED_FUND, frankedDistributionFromStatement, frankingInSuper } from './superFranking.js';
-import { compareFinancialYears, daysInFinancialYear, daysInclusive, endOfFinancialYear, financialYearContaining, nthBirthday, startOfFinancialYear } from './financialYear.js';
+import { compareFinancialYears, daysInFinancialYear, daysInclusive, endOfFinancialYear, financialYearContaining, financialYearsBefore, justBeforeFinancialYear, nthBirthday, startOfFinancialYear } from './financialYear.js';
 import { trisConversionDayUnderItem106 } from './trisConversionDay.js';
 import { PUBLISHED_TRANSFER_BALANCE_CAP, retirementSwitches, workSpells } from './retirementPension.js';
 import type { WorkSpellChange } from './retirementPension.js';
@@ -247,19 +247,19 @@ import { ENTRY_KIND } from './plan.js';
 import { householdIncomeTax } from './incomeTax.js';
 import { frankedDistributionFromShare, frankingForIndividual, qualifiedResidentIndividual } from './individualFranking.js';
 import { div293Income, netLabourIncomeFromSalary, rebateIncome, reportableSuperannuationContributions, taxableIncome, totalNetInvestmentLoss } from './incomeBases.js';
-import { concessionalContributions, concessionalContributionsOverGeneralCap, contributionsTax, personalDeductibleContributions, refuseConcessionalContributionsOverGeneralCap } from './superConcessional.js';
+import { applyConcessional, concessionalContributions, concessionalContributionsOverGeneralCap, contributionsTax, personalDeductibleContributions, refuseConcessionalContributionsOverGeneralCap } from './superConcessional.js';
 import { ACCUMULATION_INTEREST_ONLY, division293Tax, lowTaxContributionsFromComponents } from './div293.js';
 import { division293ReleaseDestination, refuseReleaseAboveBalance } from './division293Release.js';
 import { SuperGuaranteeEarningsBaseError, qualifyingEarnings, superGuarantee, superGuaranteeBelowTheFloor } from './superContributions.js';
-import { MissingIndexNumberError, forecastAwoteIndexNumbers } from './superCaps.js';
-import type { IndexNumbers } from './superCaps.js';
+import { MissingIndexNumberError, carryForwardHeadroom, concessionalContributionsCap, forecastAwoteIndexNumbers, totalSuperBalance } from './superCaps.js';
+import type { CarryForwardHeadroom, ConcessionalCap, ConcessionalYearHistory, IndexNumbers } from './superCaps.js';
 import { CGT_REFORM_START, INDEXATION_FACTOR_DECIMAL_PLACES, PRE_CGT_CUTOFF, standardDeductionAmountFor, taxYearAvailable } from '../data/assumptions/tax.js';
-import { lowIncomeSuperTaxOffset } from '../data/assumptions/super.js';
+import { SUPERANNUATION, lowIncomeSuperTaxOffset } from '../data/assumptions/super.js';
 import type { Cents } from './money.js';
 import type { AssetSplit, Household, HomeStatus, Mortgage, MortgageMonth, Parcel, Person, PersonAssetSplit, SuperInterest } from './household.js';
 import type { QualifyingEarnings } from './superContributions.js';
 import type { ConcessionalContributionComponents, ContributionsTax } from './superConcessional.js';
-import type { Entry, FigureProvenance, HeasCapacityCapNote, IsoMonth, LineAttribution, Month, MonthLine, MonthNote, MonthProvenance, ParameterWindowNote, ParcelSelection, PensionAtRetirementNote, ProvenanceRegister, Settings, StandingParametersNote, StatedByEntries, SuperGuaranteeNote, UncarriedProvenance, UnattributedFigure, UnlegislatedFigure, UnstatedFigure, WaterfallLimbNote } from './plan.js';
+import type { ConcessionalCapHeadroom, Entry, FigureProvenance, HeasCapacityCapNote, IsoMonth, LineAttribution, Month, MonthLine, MonthNote, MonthProvenance, ParameterWindowNote, ParcelSelection, PensionAtRetirementNote, ProvenanceRegister, Settings, StandingParametersNote, StatedByEntries, SuperGuaranteeNote, UncarriedProvenance, UnattributedFigure, UnlegislatedFigure, UnstatedFigure, WaterfallLimbNote } from './plan.js';
 import type { ComputedProvenance, Consumed, ProvenanceBearing } from './provenance.js';
 import type { AgePensionEntitlement } from './agePension.js';
 import type { MinimumTaxFacts, SaptoPerson } from './incomeTax.js';
@@ -809,6 +809,89 @@ const concessionalComponentsOf = (
   personalDeductible: personalDeductibleContributions(toCents(0), { noticeOfIntentAcknowledged: false }),
   otherConcessional: toCents(0),
 });
+
+/**
+ * **P3-4b — one Person's TOTAL concessional cap for a financial year: the general cap plus the
+ * unused cap of the five years before (ITAA 1997 s 291-20(3)–(7)).** Computed once per Person per
+ * year, at the top of the year's first walked month, and read by the stated-month refusal, the
+ * year-to-date note and `Month.concessionalCapByPerson` alike, so the three cannot disagree.
+ *
+ * **What is still unused of each earlier year is a LEDGER the walk keeps, not a history it
+ * re-derives** (`unusedConcessionalCap` in `project()`). A year is never MISSING from the window,
+ * because a missing year is not an empty one (`MissingContributionHistoryError`): a year the ledger
+ * holds nothing for is supplied as nil unused — FULLY USED. The ledger holds:
+ *
+ *   * a year before the plan: what `Person.statedUnusedConcessionalCap` states is left of it, else
+ *     nothing. The plan knows what is left and neither of the two figures it is the difference of;
+ *   * a financial year the walk walked WHOLE, from 1 July: its general cap less what the Guarantee
+ *     and sacrifice actually put in, where that was less. The only amounts the walk computes;
+ *   * nothing for the plan's first year when it opens after 1 July. The months before the plan paid
+ *     into that year's cap too, and they are not known: counting the walked months as the year
+ *     would manufacture the unused cap of months nobody told us about.
+ *
+ * At each year's end the year's contributions above its general cap are taken out of the ledger
+ * by `applyConcessional`, earliest year first (s 291-20(7)) — including a year that expires with
+ * that one, which `carryForwardHeadroom` alone could not see once it had left the window. A year
+ * whose Total Super Balance closed the window takes nothing from it: its excess was an excess.
+ *
+ * Each window year is filed with the amount left as its `cap` and nil contributions, because that
+ * is the one figure the ledger holds and the arithmetic reads only the difference. Every rule here
+ * errs toward LESS headroom: an over-refusal forecasts nothing, and an invented headroom invites a
+ * deduction the Person is not entitled to.
+ *
+ * `null` where the year's general cap cannot be stated (a year before FY2026-27): the walk then
+ * measures against the general cap as it always did, and the year adds nothing to the ledger.
+ */
+const concessionalHeadroomFor = (input: {
+  readonly fy: FinancialYear;
+  readonly indexNumbers: IndexNumbers;
+  /** The Person's super, every interest, at the close of the prior 30 June (the walk's first year: as stated). */
+  readonly balance: Cents;
+  readonly unused: ReadonlyMap<FinancialYear, Cents>;
+}): CarryForwardHeadroom | null => {
+  let cap;
+  try {
+    cap = concessionalContributionsCap(input.fy, input.indexNumbers);
+  } catch (error) {
+    if (error instanceof MissingIndexNumberError) return null;
+    throw error;
+  }
+  return carryForwardHeadroom({
+    fy: input.fy,
+    cap,
+    totalSuperBalance: totalSuperBalance(justBeforeFinancialYear(input.fy), input.balance),
+    priorYears: financialYearsBefore(input.fy, SUPERANNUATION.carryForward.lookBackYears.value).map(
+      (year): ConcessionalYearHistory => ({
+        fy: year,
+        cap: (input.unused.get(year) ?? toCents(0)) as ConcessionalCap,
+        concessionalContributions: toCents(0),
+      }),
+    ),
+  });
+};
+
+/**
+ * **`Month.concessionalCapByPerson`'s figures for one Person, after the month's contributions.**
+ * The oldest-first order is `applyConcessional`'s, consumed rather than restated: the unused amount
+ * left in each window year is its `remaining` less what this year has drawn from it.
+ */
+const concessionalCapFigures = (
+  headroom: CarryForwardHeadroom | null,
+  components: ConcessionalContributionComponents,
+): ConcessionalCapHeadroom | null => {
+  if (headroom === null) return null;
+  const assessed = applyConcessional({ fy: headroom.fy, contributions: concessionalContributions(components), headroom });
+  const oldest = headroom.window.find((year, index) => year.remaining > (assessed.carryForward[index]?.applied ?? 0));
+  return Object.freeze({
+    generalCap: headroom.generalCap,
+    carriedForwardAvailable: headroom.unusedAvailable,
+    usedSoFar: assessed.contributions,
+    remaining: assessed.contributions >= headroom.headroom ? toCents(0) : subCents(headroom.headroom, assessed.contributions),
+    totalSuperBalance: headroom.totalSuperBalance,
+    closedByTotalSuperBalance: !headroom.eligible,
+    oldestUnusedUsableUntil: oldest?.lastYearUsable ?? null,
+  });
+};
 
 // --- Chunk 4: the Income Waterfall, the spending target, and the balances ------------------------
 
@@ -4490,8 +4573,8 @@ export const concessionalCapExceededNoteText = (
 ): string =>
   `${name}'s concessional contributions in FY${fy} reached ${total} cents by ${month} — ` +
   `${guarantee} cents of employer Superannuation Guarantee and ${sacrificed} cents salary sacrificed — ` +
-  `${excess} cents over the year's general concessional cap of ${cap} cents ` +
-  `(ITAA 1997 s 291-20(2); ${capSource}). A salary sacrifice is checked against the cap in the month it ` +
+  `${excess} cents over the year's total concessional cap (including unused amounts carried forward) of ${cap} cents ` +
+  `(ITAA 1997 s 291-20; the general cap within it is ${capSource}). A salary sacrifice is checked against the cap in the month it ` +
   'is stated, at that month\'s pay; this is what the year actually contributed, and pay rising with ' +
   'wages lifts the Guarantee while the sacrifice stays fixed. ' +
   'Division 291 is not modelled: it would put the excess into assessable income with a 15% offset, and this ' +
@@ -6692,6 +6775,16 @@ export const project = (
   const releasedSuper: (Cents | undefined)[][] = household.persons.map((person) => person.superInterests.map(() => undefined));
   const releasedBy: (IsoDate | undefined)[] = household.persons.map(() => undefined);
   const atStop: ({ readonly by: IsoDate | undefined; readonly released: (Cents | undefined)[] } | undefined)[] = household.persons.map(() => undefined);
+  // **P3-4b — the concessional cap each Person has in the year being walked, and what is left
+  // unused of the years behind it.** `unusedConcessionalCap[i]` is the ledger `concessionalHeadroomFor`
+  // describes; `concessionalHeadroom` is the current year's, rebuilt at the top of each year's first
+  // month.
+  const unusedConcessionalCap: Map<FinancialYear, Cents>[] = household.persons.map(
+    (person) => new Map(Object.entries(person.statedUnusedConcessionalCap ?? {}) as [FinancialYear, Cents][]),
+  );
+  let concessionalHeadroom: { readonly fy: FinancialYear; readonly byPerson: readonly (CarryForwardHeadroom | null)[] } | undefined;
+  const concessionalSoFar: ConcessionalContributionComponents[] = [];
+  const firstYearIsWhole = settings.asAtDate === startOfFinancialYear(financialYearContaining(settings.asAtDate));
   const months: Month[] = [];
   for (let month = first; month <= last; month = nextMonth(month)) {
     const date = firstDayOf(month);
@@ -6725,6 +6818,51 @@ export const project = (
     // year before FY2026-27 still gets nothing, because compounding a rate backwards would invent a
     // past the ABS has already published.
     const awoteIndexNumbers = forecastAwoteIndexNumbers(fy, settings.economicSeries.awote);
+    // **P3-4b — a new financial year's concessional cap, measured HERE, at the top of its first
+    // month, and nowhere later.** Growth, the Guarantee and every other credit of June were written
+    // back at the end of June's tick, and nothing of July's has happened yet — in particular not the
+    // July settlement (LISTO, a franking refund, the earnings tax), which lands further down this
+    // tick. So `balances` here is the close of 30 June: s 291-20(3)'s Total Super Balance "just
+    // before the start of the financial year". In the walk's first month it is the balance the plan
+    // states, the only one the forecast holds.
+    //
+    // The year just ended is settled into the ledger first: what it took from the window above its
+    // general cap, earliest year first, and — only if it was walked WHOLE — what it left unused of
+    // its own. The walk's first year, opened after 1 July, leaves nothing: its earlier months are
+    // not known.
+    if (concessionalHeadroom?.fy !== fy) {
+      const ended = concessionalHeadroom;
+      const year = taxYearToDate;
+      if (ended !== undefined && year !== undefined && year.fy === ended.fy && concessionalSoFar.length > 0) {
+        const whole = ended.fy !== financialYearContaining(settings.asAtDate) || firstYearIsWhole;
+        household.persons.forEach((_person, index) => {
+          const headroom = ended.byPerson[index];
+          const ledger = unusedConcessionalCap[index];
+          if (headroom === null || headroom === undefined || ledger === undefined) return;
+          const assessed = applyConcessional({
+            fy: ended.fy,
+            contributions: concessionalContributions(concessionalSoFar[index] as ConcessionalContributionComponents),
+            headroom,
+          });
+          headroom.window.forEach((windowYear, k) =>
+            ledger.set(windowYear.fy, subCents(windowYear.remaining, assessed.carryForward[k]?.applied ?? toCents(0))),
+          );
+          if (whole) ledger.set(ended.fy, assessed.unusedGeneralCapGenerated);
+        });
+      }
+      concessionalHeadroom = {
+        fy,
+        byPerson: household.persons.map((_person, index) =>
+          concessionalHeadroomFor({
+            fy,
+            indexNumbers: awoteIndexNumbers,
+            balance: (balances[index]?.superInterestBalances ?? []).reduce<Cents>((total, held) => addCents(total, held), toCents(0)),
+            unused: unusedConcessionalCap[index] ?? new Map(),
+          }),
+        ),
+      };
+    }
+    const carryForwardAvailableFor = (index: number): Cents => concessionalHeadroom?.byPerson[index]?.unusedAvailable ?? toCents(0);
     const entriesThisMonth = applied.get(month) ?? [];
     // **WHICH PERSON STATED A SACRIFICE THIS MONTH, and it is an entry id rather than a boolean.**
     // The concessional cap is checked ONCE, in the month the level is stated, and the check needs
@@ -8241,6 +8379,7 @@ export const project = (
           components,
           statedBy: `entry ${entryId} (SUPER_CONTRIBUTION), ${person.name}`,
           indexNumbers: awoteIndexNumbers,
+          carryForwardAvailable: carryForwardAvailableFor(index),
         });
       }
       lowTaxContributionsForTheYear[index] = lowTaxContributionsFromComponents({
@@ -9341,12 +9480,21 @@ export const project = (
     // the forecast is flattering from here and by how much. The first year of a walk opening after
     // 1 July holds only the months walked, so its total is a LOWER bound: a note is a breach, and
     // no note is not a finding of compliance.
+    // P3-4b: the same components are what `Month.concessionalCapByPerson` reports as used so far,
+    // and, as last written in a year's final month, what the year's end settles into the ledger.
     household.persons.forEach((person, index) => {
       const year = taxYearToDate as NonNullable<typeof taxYearToDate>;
-      if (year.capExceeded[index] === true) return;
       const guarantee = year.guarantee[index] ?? toCents(0);
       const sacrificed = year.sacrificed[index] ?? toCents(0);
-      const over = concessionalContributionsOverGeneralCap({ fy: year.fy, components: concessionalComponentsOf(guarantee, sacrificed), indexNumbers: awoteIndexNumbers });
+      const soFar = concessionalComponentsOf(guarantee, sacrificed);
+      concessionalSoFar[index] = soFar;
+      if (year.capExceeded[index] === true) return;
+      const over = concessionalContributionsOverGeneralCap({
+        fy: year.fy,
+        components: soFar,
+        indexNumbers: awoteIndexNumbers,
+        carryForwardAvailable: carryForwardAvailableFor(index),
+      });
       if (over === undefined) return;
       year.capExceeded[index] = true;
       const capSource =
@@ -9362,8 +9510,9 @@ export const project = (
           financialYear: year.fy,
           contributedThisYear: over.total,
           generalCap: over.cap.amount,
+          totalCap: over.totalCap,
           excessSoFar: over.excess,
-          note: concessionalCapExceededNoteText(person.name, year.fy, over.total, month, guarantee, sacrificed, over.excess, over.cap.amount, capSource),
+          note: concessionalCapExceededNoteText(person.name, year.fy, over.total, month, guarantee, sacrificed, over.excess, over.totalCap, capSource),
         }),
       );
     });
@@ -11642,7 +11791,7 @@ export const project = (
           // here, and for a Person over the threshold the fund's charge is not the whole tax.
           provenance: taxProvenance('superannuation contributions tax', tax.provenance, [
             `${tax.assessableContributions} cents sacrificed, less ${tax.amount} cents of contributions tax at ${tax.rate}`,
-            'this Person’s Superannuation Guarantee is contributed on its own line and taxed on its own dollars (P6-8 brief 3, chunk 2b); the 15% is flat, so the charge on the sacrificed amount is the same either way. The CAP is measured on the two TOGETHER (brief 3, final chunk) — this arrangement plus the Guarantee, against the general concessional cap for the year it started in — so this figure is not an unchecked one. It is still not a finding that the Person has no excess: carry-forward headroom is not run, and a personal deductible contribution is a limb this model holds no field for',
+            'this Person’s Superannuation Guarantee is contributed on its own line and taxed on its own dollars (P6-8 brief 3, chunk 2b); the 15% is flat, so the charge on the sacrificed amount is the same either way. The CAP is measured on the two TOGETHER (brief 3, final chunk) — this arrangement plus the Guarantee, against the total concessional cap for the year it started in, the general cap plus any unused cap carried forward (P3-4b) — so this figure is not an unchecked one. It is still not a finding that the Person has no excess: a year before the plan counts as fully used unless its unused cap is stated, and a personal deductible contribution is a limb this model holds no field for',
           ]),
           attribution: statedBy(entryId),
         }),
@@ -11818,6 +11967,13 @@ export const project = (
             }),
           ),
         ) as Month['assetsByPerson'],
+        // **P3-4b — each Person's concessional cap for the year, after this month's contributions.**
+        // The year's accumulators are the ones the cap note just read, so the two cannot disagree.
+        concessionalCapByPerson: Object.freeze(
+          household.persons.map((_person, personIndex) =>
+            concessionalCapFigures(concessionalHeadroom?.byPerson[personIndex] ?? null, concessionalSoFar[personIndex] as ConcessionalContributionComponents),
+          ),
+        ) as Month['concessionalCapByPerson'],
         // **Every interest of every Person, on the SAME closing balances `householdAtClose` was built
         // from** — so this total and `accessibleAssets` cannot disagree about which super is there.
         superBalance: superAtClose.flat().reduce((total, balance) => addCents(total, balance), toCents(0)),

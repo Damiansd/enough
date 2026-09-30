@@ -379,7 +379,7 @@ const digestOf = (household, settings = BYTE_SETTINGS, entries = BYTE_ENTRIES) =
   // **The strip is DELETIONS and one derivation, and that is deliberate.** Nothing here recomputes a
   // figure: a strip that rebuilt a balance could hide the very cent it was written to find.
   const bare = JSON.stringify(
-    months.map(({ accessibleAssets, assetsByPerson, mortgageBalance, notes, provenance, superBalance, incomeFromSuper, closingNonSuperPortfolio, assetsTestThresholds, ...rest }, index) => ({
+    months.map(({ accessibleAssets, assetsByPerson, mortgageBalance, notes, provenance, superBalance, incomeFromSuper, closingNonSuperPortfolio, assetsTestThresholds, concessionalCapByPerson, ...rest }, index) => ({
       ...rest,
       lines: rest.lines
         .filter((line) => line.effect !== 'wealth')
@@ -392,7 +392,7 @@ const digestOf = (household, settings = BYTE_SETTINGS, entries = BYTE_ENTRIES) =
     bytes: json.length,
     // 2026-09-25: the full walk with `assetsTestThresholds` stripped — must be the pre-thresholds digest.
     withoutThresholds: createHash('sha256')
-      .update(beforeTheRename(JSON.stringify(months, (key, field) => (key === 'assetsTestThresholds' ? undefined : field))))
+      .update(beforeTheRename(JSON.stringify(months, (key, field) => (key === 'assetsTestThresholds' || key === 'concessionalCapByPerson' ? undefined : field))))
       .digest('hex'),
     withoutAccessible: { sha256: createHash('sha256').update(beforeTheRename(bare)).digest('hex'), bytes: bare.length },
     months: JSON.parse(JSON.stringify(months)),
@@ -548,7 +548,10 @@ test('P3-21f chunk 6 — a FUNDED Household no longer projects byte-identically,
   assert.notEqual(funded.withoutThresholds, '52c0d89761b3a8b1d13919a574f6449495d2fa99f7f436229bfbe18b3e19775f'); // pre-Div 119
   assert.notEqual(funded.sha256, '02487f24f1f671fef0d717143763f0603aae5c094bc12fdbeac6ab403f9e356b'); // pre-Div 119
   assert.equal(funded.withoutThresholds, '2aa741d3e84b6e00411d49db2be1b2c7f48362ce845219d552eb7fefdff721b4');
-  assert.equal(funded.sha256, 'e74464fcb98711d9972590b4faa49597694425a5aaadbaad0439fac0650e20f1');
+  assert.notEqual(funded.sha256, 'e74464fcb98711d9972590b4faa49597694425a5aaadbaad0439fac0650e20f1'); // pre-P3-4b
+  // **P3-4b (2026-09-30) ADDED `concessionalCapByPerson`, 89,373 bytes over 221 months, and moved no
+  // figure: the stripped digest above (which now strips it too) is unchanged.**
+  assert.equal(funded.sha256, 'abc5d147131c1905d5a19390f8868b8b27b4f3c6f13a411ee3802687a7c710c0');
   // **P5-3's line → entry attribution (2026-09-18) moved it a FIFTH time, and this widening has a
   // PRICE too — a smaller one than the record it sits beside.** 702,218 bytes to 850,554, a 21.1%
   // rise on a 221-month walk, and the empty Household's 566,571 to 663,031 (17.0%). It is cheaper
@@ -599,7 +602,7 @@ test('P3-21f chunk 6 — a FUNDED Household no longer projects byte-identically,
   assert.equal(1_212_385, 1_212_385, 'the pre-thresholds full length, kept beside the new one');
   // 2026-09-25: plus `,"assetsTestThresholds":{"fullPensionUpTo":<8 digits>,"noPensionAbove":<9 digits>}`,
   // 79 bytes in each of the 221 months.
-  assert.equal(funded.bytes, 1_212_385 + 221 * 79 - 11);
+  assert.equal(funded.bytes, 1_212_385 + 221 * 79 - 11 + 89_373);
   assert.equal(495_717, 495_717, 'the pre-P5-3 length, kept beside the new one');
   assert.equal(702_218, 702_218, 'the pre-attribution length, kept beside the new one');
   assert.ok(funded.bytes > 176_166, 'the widening is an addition, so the bytes can only grow');
@@ -744,7 +747,9 @@ test('P3-21f chunk 1 — and an EMPTY one no longer does either, and WATERFALL L
   assert.notEqual(empty.sha256, 'df0512de9652f6f5ce1711e532347142858aa0408bd280f456662991bc68cdfb'); // pre-T135
   // 2026-09-25: plus `assetsTestThresholds` a month; stripped, it is the pre-thresholds walk to the byte.
   assert.equal(empty.withoutThresholds, '2db28bc82cdb9fcd93addd7f5723bfed77fae49dad0ecc40fd16be4b5b7479c4'); // pre-thresholds
-  assert.equal(empty.sha256, 'e44199835ff40d37cfe9f93a642d476532f6276a19309d121575ca872e2cffec');
+  assert.notEqual(empty.sha256, 'e44199835ff40d37cfe9f93a642d476532f6276a19309d121575ca872e2cffec'); // pre-P3-4b
+  // P3-4b (2026-09-30): plus `concessionalCapByPerson` a month, 89,096 bytes; the stripped digest did not move.
+  assert.equal(empty.sha256, 'd4f9a1b258f413646d92c8f1cb7e825367078e2dc69d0723a175bd2a939947eb');
   assert.equal(663_031, 663_031, 'the pre-limb-5 length, kept beside the new one');
   assert.equal(847_556, 847_556, 'the pre-P7-6 length, kept beside the new one');
   assert.equal(883_589, 883_589, 'the pre-P4-1e length, kept beside the new one');
@@ -759,7 +764,7 @@ test('P3-21f chunk 1 — and an EMPTY one no longer does either, and WATERFALL L
   assert.equal(1_068_245, 1_068_245, 'the pre-closing-wealth length, kept beside the new one');
   // AND T135 (2026-09-24) moved it 2 bytes LONGER: an Age Pension figure crossed a digit boundary.
   assert.equal(1_074_656, 1_074_656, 'the pre-thresholds full length, kept beside the new one');
-  assert.equal(empty.bytes, 1_074_656 + 221 * 79, 'the same 79 bytes a month as the funded walk');
+  assert.equal(empty.bytes, 1_074_656 + 221 * 79 + 89_096, 'the same 79 bytes a month as the funded walk, and the cap headroom');
   assert.equal(566_571, 566_571, 'the pre-attribution length, kept beside the new one');
   assert.equal(429_136, 429_136, 'the pre-P5-3 length, kept beside the new one');
   assert.ok(empty.bytes > 121_050);
