@@ -39,6 +39,7 @@ Working task list for `enough`. Maintained throughout the build.
 - [x] **P1-4** Confirm Div 296 detail and indexation basis (CPI vs AWOTE) against the March 2026 Act — ✅ 2026-09-03. CPI as believed, but it **commenced 1 Apr 2026 and first applies to 2026-27** — store the application year — and it's 15% + 10% on the **same** earnings base, not marginal bands. The universal "30%/40%" framing is wrong above $10m.
 - [x] **P1-5** Capture the **20 Sep 2026** Age Pension reindexation — rates, free areas, deeming — ✅ 2026-09-03. The **20 Sep 2026 rates were already published (20 Aug 2026)** — closed 17 days early. Surprise: the year holds **three** parameter sets, not two, because free areas and deeming thresholds index on 1 July.
 - [ ] **P1-6** Confirm 2026-27 Medicare levy low-income thresholds when published
+  - Reconciled 2026-09-30: WAITING on law — no FY2026-27 thresholds legislated; `src/data/assumptions/tax.ts:1537` still carries `priorYearFallbackFor: '2026-27'`.
   - **Checked 2026-09-24: not published.** ATO QC27031/QC27032 were last updated 30 Jun 2026 and cover 2025-26 only. There is no bill.
     The 2025-26 figures stand, enacted by Act No. 58 of 2026. Re-check after the next Treasury Laws Amendment bill.
   - The FY2026-27 thresholds **are not legislated and do not exist** as at 2026-09-03. FY2025-26 figures are carried as a **labelled prior-year fallback**, stamped with the year they belong to so the mismatch is visible. These thresholds are legislated retrospectively in the following Budget, so this is expected to close late. Not blocking. Register §2.7, trap T10, open item O1.
@@ -181,11 +182,12 @@ Working task list for `enough`. Maintained throughout the build.
   means the vendored ~200 KB of minified code is readable and steppable from its own source rather
   than being an opaque blob — the strongest objection this item's own header raised against
   vendoring at all.
-  - [ ] **P2-3a** The "must work offline in 2031" rationale is **retired as confused**. A
+  - [x] **P2-3a** The "must work offline in 2031" rationale is **retired as confused**. A
     2026-vintage forecaster opened in 2031 would hold stale brackets, pension rates and deeming
     figures and answer confidently anyway — the exact failure this project is organised against.
     The requirement is now: **no network dependency at runtime, and the plan file is readable
     without the app**. What has to last is the plan file, not the app
+    ✅ Verified built 2026-09-30 (reconciliation): retirement and new requirement recorded in `docs/adr/0007-served-locally-over-http.md:43-48`; Chart.js vendored at `public/vendor/` (P2-3); plan is a plain JSON file (ADR-0008); the only outbound call is the optional, default-off chat (P15-5).
 - [x] **P2-4** Money utilities: integer cents, no floats anywhere — ✅ 2026-09-03. `Cents` is a
   branded type, so a dollar figure cannot be passed where cents are expected. Rounding is half
   **away from zero**, not `Math.round`, which is asymmetric across zero and would bias every
@@ -218,11 +220,12 @@ Working task list for `enough`. Maintained throughout the build.
     determinations already made are legislated facts and are stored with their effective dates,
     while `deemingRatesAt` returns `undefined` past 20 Sep 2026 rather than extrapolating the
     three +0.5% steps that have happened in a row (T30, O2).
-  - [ ] **P2-5e** Resolve the register §5.3 contradiction: the HEAS fortnightly rate during an
+  - [x] **P2-5e** Resolve the register §5.3 contradiction: the HEAS fortnightly rate during an
     advance period has two incompatible expressions — a table row `max(MPR, 1.5 × MPR −
     advances_taken)`, which mixes a fortnightly rate with a lump sum, and a dimensionally
     coherent pseudocode line. Stored as `unverified` with both readings and deliberately not
     implemented. Needs s 1134(1A)(b) read directly, before P9 models advances
+    ✅ Verified built 2026-09-30 (reconciliation): resolved as register T136 (2026-09-25, P9-2b) for the pseudocode reading, table row struck at `docs/assumptions-register.md:4159`; implemented as `heasFortnightlyDrawDuringAdvancePeriod` (`src/data/assumptions/heas.ts:246`), pinned to Services Australia's "George" example. The part-rate case (T137) stays refused.
 - [x] **P2-6** Three inflation knobs: CPI, wage growth (AWOTE), deeming rates as manual policy input
   - ✅ **VERIFIED BUILT 2026-09-22** (LIZ audit, checked against `src/`, not the checkbox). Four rates ship, not the three asked for: `EconomicSeriesSetting` carries cpi/pblci/awote/mtawe (`src/data/assumptions/settings.ts:105`) and `DeemingRatesSetting` (`:18`), both reachable from `Settings` (`plan.ts:90,102`). Item description UNDERSTATES what was built. Note PBLCI and MTAWE are wired as boxes but inert — see P6-12.
   - [x] **P2-6a** Age Pension needs **three** indexation bases, not one: MTAWE-benchmarked basic rate, CPI-only Pension Supplement, never-indexed Energy Supplement (T23)
@@ -298,8 +301,9 @@ Working task list for `enough`. Maintained throughout the build.
     shipped is NOT zero-non-super. **P13-4a's "the golden baseline stays zero non-super" premise
     follows this one down** and needs its own re-reading before golden files are written against
     this fixture.
-- [ ] **P2-9** Test harness; hand-worked expected values as the first fixtures
+- [x] **P2-9** Test harness; hand-worked expected values as the first fixtures
   - Harness up and running (`npm test`); the hand-worked fixtures wait on the rules modules.
+  - ✅ Verified built 2026-09-30 (reconciliation): the rules modules exist and carry hand-worked fixtures (e.g. `test/core-income-tax.test.mjs`, `test/core-projection-true-up.test.mjs`, `test/verification-p13-7-cgt.test.mjs`, `test/verification-p13-8-franking.test.mjs`); P2-9a/b ticked.
   - [x] **P2-9a** Tests run on **`node:test`** — the built-in runner. Not Vitest, not Jest; the
     one dev dependency is `typescript` and it stays that way — ✅ 2026-09-03. Tests are plain
     `.mjs` against the compiled output: writing them in TypeScript would need `@types/node`, and
@@ -392,6 +396,7 @@ Working task list for `enough`. Maintained throughout the build.
     as an entry that applied. An explicit `RETURN_CHANGE` supersedes the synthetic one
     — ⚠️ **NOT TICKED, DELIBERATELY (2026-09-22): this is the missing generic mechanism, P6-3, and it
     is exactly as unbuilt today as it was before this item started.** See the SHIPPED note below.
+    Reconciled 2026-09-30: NO-GO — P6-3 was "CLOSED, NOT BUILT" by the LIZ gate of 2026-09-24 (no consumer; the Glide Path ships as explicit `RETURN_CHANGE` entries), so this synthetic resolution will not be built unless P6-3 reopens.
   - [x] **P2-11b** This does **not** reopen Monte Carlo or sequencing risk, and the docs must keep
     saying so. Phased deterministic returns are one input and one reproducible projection; the
     Parked entry's reasoning is untouched. Anyone who reads the glide path as a foothold for a fan
@@ -1522,6 +1527,7 @@ Working task list for `enough`. Maintained throughout the build.
       $353.04 to $877.41 in today's money, and 2029-12 did not change.
     - **2329 → 2342 tests**: 2336 pass, 0 fail, 6 cancelled (origin-provider on 4173).
 - [ ] **P3-9** Transfer balance cap: credits, proportional indexation, **highest-ever** tracking
+  - Reconciled 2026-09-30: PARKED — the rules are built but `projection.ts` still imports no transfer balance account module; wiring is NO-GO by the 2026-09-24 LIZ gate under "OPEN — no transfer balance account is kept" (needs a product decision on `statedPriorRetirementPhase` first).
   - ⬜ **Open box CONFIRMED CORRECT 2026-09-23 (reconciliation pass).** Every child is ticked, but the
     parent's own verb is *tracking*, and nothing tracks: `transferBalanceAccount.ts` is built and
     tested and `projection.ts` does not import it. The walk's cap test is one comparison on the
@@ -1850,6 +1856,7 @@ Working task list for `enough`. Maintained throughout the build.
     — ✅ 2026-09-04. Consumed from `nonHomeownerAssetsFreeArea`; the split reports a `homeowner`
     boolean and nothing else, so there is no second series for the rules module to introduce.
 - [ ] **P3-15** Two-year Age Pension exemption clock on a vacated home — **detect and refuse**, not assess
+  - Reconciled 2026-09-30: PARKED — `VACATE_HOME` was parked by user ruling 2026-09-24 (see P6-5); it is still refused at the door and has no engine branch. The two-year clock was built for `ENTER_CARE` instead (`projection.ts` `homePastCliff`, P14-5a). P3-15b and P3-15e hold; a, c, d wait on the parked entry.
   - ⬜ **VERIFIED NOT BUILT 2026-09-22** (LIZ audit). None of P3-15a–e built. No `vacatedWithinTwoYearExemption`, no `UnvaluedAssessableHomeError` in `agePension.ts`/`household.ts`. Also note `VACATE_HOME` has ZERO engine branches (`grep -ac VACATE_HOME src/core/projection.ts` = 0), so P6-5a is unbuilt too and P7-5's home-status chart marker is blocked behind both.
   — Rescoped 2026-09-04 by user ruling: *"House value is an input field. House value is not part
   of the means test."* That resolves the T39/T42 contradiction found in P3-14 in favour of T42, and
@@ -1863,10 +1870,15 @@ Working task list for `enough`. Maintained throughout the build.
   knowingly outside the assets test. No change to the ruling or to P3-15a–e; the gap is unchanged,
   only now user-visible rather than only developer-visible.
   - [ ] **P3-15a** Derive the clock from the `VACATE_HOME` entry date: `vacatedWithinTwoYearExemption` until the second anniversary, `vacatedBeyondTwoYearExemption` from it. Monthly, from entries, never from the system clock (P4-1a)
-  - [ ] **P3-15b** Keep the refusal: `agePensionEntitlement` throws `UnvaluedAssessableHomeError` on `vacatedBeyondTwoYearExemption`. **Do not** add a market-value read to the means test to make it compute — that is the reopen condition in ADR-0005, not a fix
+    Reconciled 2026-09-30: PARKED with `VACATE_HOME` (user ruling 2026-09-24, P6-5) — the same clock exists from an `ENTER_CARE` date (`projection.ts` `careDerivedStatus`), never from a `VACATE_HOME`.
+  - [x] **P3-15b** Keep the refusal: `agePensionEntitlement` throws `UnvaluedAssessableHomeError` on `vacatedBeyondTwoYearExemption`. **Do not** add a market-value read to the means test to make it compute — that is the reopen condition in ADR-0005, not a fix
+    ✅ Verified built 2026-09-30 (reconciliation): `src/core/agePension.ts:225,362` throws it (also outside the rate window, `projection.ts`), asserted in `test/core-age-pension.test.mjs` and `test/core-projection-age-pension.test.mjs:514`; only an `ENTER_CARE`-stated value lifts it (P14-5a, ADR-0005 note 2026-09-25).
   - [ ] **P3-15c** Surface the refusal as a dated, explained boundary rather than a crash: the projection stops at the cliff date and says why, naming the ruling and the ADR. A silently-truncated `Month[]` is as bad as a wrong number
+    Reconciled 2026-09-30: PARKED with `VACATE_HOME` — the refusal still throws the whole walk (shown through the generic refusal banner), with no dated stop at the cliff.
   - [ ] **P3-15d** Update the ADR-0005 note and register T39 in the same commit if any of the above changes what is refused
-  - [ ] **P3-15e** Full assessment of a vacated home at market value is **out of v1** and lives in **P14-5a**. Do not implement it here
+    Reconciled 2026-09-30: PARKED — not triggered, because P3-15a/c are unbuilt; when P14-5a narrowed the refusal, ADR-0005 (note 2026-09-25) and T39 (register, 'narrowed again 2026-09-25') were updated.
+  - [x] **P3-15e** Full assessment of a vacated home at market value is **out of v1** and lives in **P14-5a**. Do not implement it here
+    ✅ Verified built 2026-09-30 (reconciliation): honoured — the market-value assessment was built under P14-5a (ticked) for a care-vacated home only (`careVacatedHomeAssessment`, `projection.ts`); nothing here reads a market value.
 - [x] **P3-16** Mortgage amortisation and offset interaction
   — ✅ **Ticked 2026-09-23 in the reconciliation pass; the box lagged three slices.** Both halves of
   the title shipped in slice 1 (`b8377cb`, 2026-09-21): principal-and-interest amortisation and
@@ -2395,6 +2407,7 @@ Working task list for `enough`. Maintained throughout the build.
     carry the *why* for P5 auditability — the requirement here is that the comparison surface uses
     them (P6-8) instead of leaving the user to notice. The exemption itself is **P3-13**; do not
     duplicate its rules here
+    Reconciled 2026-09-30: the engine obeys and tests the asymmetry (`core-projection-sacrifice-credit`) and the comparison shows an Age Pension month count / the comparison surface (`comparisonSeries.ts`, `scenarioPanel.ts`) still never shows the `AssetLine.reason` strings.
 - [x] **P3-21** **CGT on the Non-Super Portfolio** — un-parked 2026-09-04 by ADR-0009, because
   - ✅ **VERIFIED BUILT 2026-09-22** (LIZ audit, checked against `src/`, not the checkbox). FIFO parcel selection, 12-month discount, tax-base integration and disposal draw all shipped 2026-09-18; `core-non-super-parcels.test.mjs` (773 lines), `core-non-super-disposal.test.mjs` (699 lines).
   "nothing outside super to tax" stopped being true. A substantial rules area entering scope
@@ -3680,6 +3693,7 @@ Working task list for `enough`. Maintained throughout the build.
   chunk is ticked below, 5b included, although the chunk list in the next sentence stops at 5a.
   **The box stays open for one reason only: P4-1b part (A), which awaits a user ruling** (part (B)
   shipped at `1cc1376`). Tick this the day P4-1b closes.
+  Reconciled 2026-09-30: PARKED, following P4-1b — the engine is built; part (A) is NO-GO by the 2026-09-24 LIZ gate ("OPEN — no transfer balance account is kept").
   Signature corrected 2026-09-16: the horizon is an AGE and needs a date of birth, and the Age
   Pension means test is a Household assessment. ADR-0002's consequence line carries the dated
   amendment; chunks 0, 1, 2, 2b, 2c (P4-1c's forward indexation), 3 (tax), 4 (the Income
@@ -4253,6 +4267,7 @@ Working task list for `enough`. Maintained throughout the build.
       the build decision** (a stream-commencing entry type, or real user input of an existing pension —
       P7/P8). `superPhase.ts`'s `UNCAPPED_ENTRY` caveat now names WHY the wiring is absent rather than
       only that it is. **P4-1b stays open**, on part (A) alone.
+    - Reconciled 2026-09-30: PARKED — part (A) is still unwired (`projection.ts` imports no transfer balance account module), and the 2026-09-24 LIZ gate ruled wiring NO-GO until `statedPriorRetirementPhase` has a UI question ("OPEN — no transfer balance account is kept").
 - [x] **P4-2** Monthly ticks with the financial year as a first-class boundary
   - ⚠️ **Ticked 2026-09-20 in the reconciliation pass.** The item's own body already opened *"✅ BUILT 2026-09-18"* and the commit is `9341892`. Only the box lagged.
   - ✅ **BUILT 2026-09-18 — the YEAR-END TRUE-UP, `projection.ts` chunk 3b.** The boundary was
@@ -5309,11 +5324,12 @@ Working task list for `enough`. Maintained throughout the build.
         not every entry in the causal chain — and the cost of that is recorded on the `'none'` notes.
         A line's ids are a subset of its month's `appliedEntryIds`, asserted over a 362-month walk in
         `core-projection-attribution.test.mjs`.
-  - [ ] **No emit site in the build produces TWO ids**, though the field is an array. The union of a
+  - [x] **No emit site in the build produces TWO ids**, though the field is an array. The union of a
         `RETIRE` and a `WORK_PATTERN_CHANGE` on one salary line is unreachable (a `RETIRE` in force
         nils the salary, so there is no line), and every other attributed line is set by exactly one
         entry's params. The array shape is kept for the line that first needs it; narrowing it to a
         scalar is a decision, not a tidy-up.
+        ✅ Verified built 2026-09-30 (reconciliation): no longer true — the super insurance line is attributed to both the death and the TPD `INSURANCE_COVER_CHANGE` ids (`projection.ts` `coverInForce`, `statedBy(...entryIds)`), pinned in `test/core-super-insurance.test.mjs:302-303`; the array shape is now needed.
 - [x] **P4-8** ⚠️ **LIVE DEFECT — no entry reaches the Age Pension income test, `RETIRE` included.**
       ✅ **FIXED 2026-09-19.** `withBalances` takes the walk's in-force fortnightly income as a
       required fourth substitution. Exactly 60 months move on the §3 fixture, all UP, and
@@ -5866,6 +5882,7 @@ Working task list for `enough`. Maintained throughout the build.
     src/core/projection.ts` returns `0`, confirmed both with and without `-a`. A reader of the type
     alone would assume it works. This item and P3-15's refusal work are the two halves of making it
     real: the engine branch, and the two-year cliff.
+    Reconciled 2026-09-30: PARKED — `VACATE_HOME` parked by user ruling 2026-09-24 (P6-5); still in `UNSPECIFIED_ENTRY_TYPES`, one comment-only mention in `projection.ts`.
   - [~] **P6-5b** (skipped by the user 2026-09-25 with P3-18) Guided **equalisation templates**: pick the years, and the tool generates visible,
     individually-editable `CONTRIBUTION_SPLIT` and `SPOUSE_CONTRIBUTION` entries — the same way
     spending presets generate entries rather than applying a hidden curve (ADR-0004). The rules are
@@ -6002,6 +6019,7 @@ Working task list for `enough`. Maintained throughout the build.
     the circularity with an iterate-to-fixed-point check the way `agePensionEntitlement` might need
     to anyway. Options for (2): seed `workBonusBalance` at $4,000 for a Household not yet drawing
     the pension, or leave it a user-typed figure as now and keep saying so.
+    Reconciled 2026-09-30: WAITING on the user's decision — unchanged: `applyWorkBonus` is age-gated only (`src/core/workBonus.ts`) and `WORK_BONUS_STARTING_BALANCE` has no importer.
 - [x] **P6-7** Scenario list, create/clone/rename — ✅ 2026-09-19 (uncommitted at hand-off;
   `src/app/scenarioList.ts`). Three pure functions over a `readonly Scenario[]`, in
   `planEdits.ts`'s idiom: no DOM, no clock, no `crypto`, and **no second write path** — the caller
@@ -8370,7 +8388,8 @@ moved 16 → 17. Test files run green: `app-entry-form`, `app-plan-edits`, `app-
 `app-chart-config`, `app-months-to-series`, `readme-claims`, `app-chat-list-entries`,
 `app-chat-what-can-you-model`, `connector`, `core-parse-plan`.
 
-- [ ] **P9-1** HEAS facility, **defaulting off**; 3.95% compounding fortnightly; No Negative Equity Guarantee
+- [x] **P9-1** HEAS facility, **defaulting off**; 3.95% compounding fortnightly; No Negative Equity Guarantee
+  - ✅ Verified built 2026-09-30 (reconciliation): P9-1a–d all ticked; HEAS exists only through a `HEAS_DRAW` entry (off unless stated); rate record and fortnightly compounding in `src/data/assumptions/heas.ts` (`INTEREST_RATE`, T40 `annual ÷ 26`); the NNEG caps the debt repaid at sale (`projection.ts`, s 1144AA).
   - [x] **P9-1a** The NNEG is **voided by increasing the Owner-Occupied Mortgage** while the loan runs (s 1144AA(3)(a)) — must surface on any `HEAS_DRAW` + refinance or redraw Scenario, not be silently kept (T35) — ✅ 2026-09-24, slice 1: `parsePlan`'s `checkHeasDraws` refuses a `MORTGAGE_REFINANCE` dated on or after the `HEAS_DRAW`'s own date
   - [x] **P9-1b** ⚠️ **Gate for the whole phase.** HEAS capacity needs the home's **market value**, which ADR-0005 exists to exclude. Recorded as trap **T42**; the ADR is deliberately **not** amended yet. Resolve the tension before P9 is built — the proposed resolution is market value as an optional Setting read by **nothing but** HEAS capacity, with `HomeStatus` untouched as the means-test primitive and nothing in the assets test permitted to read it
     — ✅ 2026-09-04. Resolved across two ADR-0005 notes and closed here. The gate opened wider than
@@ -8402,11 +8421,13 @@ moved 16 → 17. Test files run green: `app-entry-form`, `app-plan-edits`, `app-
     and the Scenario list prints it beside the Shortfall Age and Age Pension sentences
     (`scenarioPanel.ts`, `heasOf`). `test/core-projection-heas.test.mjs` "P9-1d" walks two siblings at
     $10,000 and $20,000 to capacities one and two age-component units apart, and pins each line's value
-- [ ] **P9-2** HEAS capacity cap (needs P1-7); income stream and advances
+- [x] **P9-2** HEAS capacity cap (needs P1-7); income stream and advances
+  - ✅ Verified built 2026-09-30 (reconciliation): P9-2a–c all ticked — capacity from `personMaximumLoanAvailable` recomputed monthly, the fortnightly stream, and `HeasDrawParams.advances` (`test/core-projection-heas.test.mjs`); a part-rate pensioner inside an advance window is refused by name (T137), not guessed.
   - [x] **P9-2a** ✅ 2026-09-25. Age component table as a frozen constant (`F2019L00420`, no indexation mechanism); security value floored to $10,000 **per Person on that Person's share** (T36, T37). **T36 verified**: F2019L00420 s 4(1)(b) and SS Guide 3.4.5.30 (already primary-verified in `heas.ts`'s `whoseAge`/`recalculationCadence`, four sources agree) — the age is the YOUNGER member of a couple, at last birthday, recalculated once every 12 months on that birthday, a STEP FUNCTION. `project()` now recomputes it every month off `ageAt(dob, firstDayOf(month))` in the `HEAS_DRAW` draw block itself (no more cached `heasCapacity` local, no more "fixed at entry's start"), so a birthday genuinely raises `capacity` and lets a previously-clamped draw resume — proved in `test/core-projection-heas.test.mjs` by replaying the same production functions across a multi-year walk and finding a bracket (age 74→75) where the table's own step (4.17%) beats the interest rate's fortnightly-compounded EFFECTIVE annual rate (≈4.03%): three separate binding episodes, three separate notes, and a month of full resumption in between. **T37 decided**: `data/assumptions/heas.ts`'s own `coupleStructure` fact (SS Guide-sourced, present since slice 1) is that EACH Person has their own loan against their own share of the security (50-50 by default), both loans priced off the SAME younger-partner age component — so this is TWO INDIVIDUAL loans, never one joint facility, and `HEAS_DRAW.owner` is now `personA`/`personB` only (`household` refused, `ENTER_CARE`'s own precedent) — at most one entry per Person, `checkHeasDraws` (`parsePlan.ts`) refuses a couple's two entries if they disagree about `securityValue` (the shared home). `personMaximumLoanAvailable` (already built in slice 1, now finally called from `project()` instead of `maximumLoanAvailable`) floors the $10,000 on the PERSON's OWN SHARE, not the whole value — proved by a couple whose $15,000 home gives each partner a nil $7,500 share (both draw nothing) against the SAME $15,000 flooring to one nonzero $10,000 unit if read as a single household figure. The 150% fortnightly cap and the "maximum" netted allowance are also now per-Person: half the couple's combined maximum payment rate (`entitlement.perPersonRatePerFortnight`'s own halving), not the household total. `HeasCapacityCapNote` now fires EVERY time a Person's draw newly binds (a `heasCapped[]` flag per Person, cleared the first month room reopens), not once for the whole walk. `src/app/entryForm.ts`'s owner selector was already generic (`ownerOptions`, `personA`/`personB`/`household` for every entry type) — no UI change was needed beyond the door widening; `src/app/planEdits.ts`'s `heasDrawEntry` doc updated to match.
   - [x] **P9-2b** ✅ 2026-09-25. `HeasDrawParams.advances?: { date, amount }[]`, optional, per Person (one `HEAS_DRAW` entry is already one Person's own loan). **T136 RESOLVED** (`docs/research/p9-2b-heas-advances-gate-2026-09-25.md`, GO): register §5.3's own pseudocode is right, the table row is a **26× error** read literally and is struck in place (not deleted) — pinned to the cent against Services Australia's "George" example ($15,323.10 − $10,000 = $5,323.10 ÷ 26 = $204.73/fn) in `test/assumptions-heas.test.mjs`'s new `heasFortnightlyDrawDuringAdvancePeriod`. `checkHeasDraws` (`parsePlan.ts`) refuses, by name: an advance outside the draw's own active span, a THIRD advance within any rolling 26-fortnight window keyed to that window's own first advance (s 1134A(2)(b), worked out in DATE order regardless of file order), and a window TOTAL over 50% of the annual maximum payment rate (s 1134A(3)(a), reusing `heasAdvanceCap`/`heasAdvanceAvailable`). `project()` walks each Person's own rolling window chronologically (`daysInclusive`, no `Date`): an advance joins the balance BEFORE that fortnight's interest (s 1135(3) Step 1A, T40's own order, at the first fortnight the month contributes) and counts toward the capacity cap; the fortnightly draw for the WHOLE month is `heasFortnightlyDrawDuringAdvancePeriod` whenever the window is active — applying from the SAME fortnight the advance lands, not merely the ones after it, per George. **T137, UNCONFIRMED and refused, not guessed**: the Act's floor for a genuine PART-RATE pensioner (`0 < pension_fn < MPR_fn`) during an advance window is settled by neither published example nor AustLII's text — `project()` throws a `RangeError` naming the Person, month and register row rather than show a possibly-wrong figure, restricting this slice to full-rate and nil-entitlement Persons (the gate's own scope). **T138, means-test consumption punted deliberately, T39/T42's own pattern**: an advance is ordinary deemed cash from day one on both tests in this build, no 90-day home-security exemption modelled — the CAUTIOUS reading of §5.7, stated in `heas.ts`'s notes and in `HEAS_DRAW_ENTRY_NOTICE`. `src/app/entryForm.ts` gained ONE advance-date/advance-amount box pair in the `HEAS_DRAW` group (no repeatable-row pattern existed to extend, so the form offers one advance per entry this slice; the underlying `advances` field is a real list, stateable by hand in the plan file); `planEdits.ts`'s `heasDrawEntry` and `src/app/chat/tools/proposeEntries.ts`'s HEAS_DRAW case both updated to match. `test/core-projection-heas.test.mjs` adds the door refusals (span, window count, window dollar cap, window rollover) and the wiring proofs (the whole month at the reduced rate, the window persisting with no new advance, the debt to the cent, the T137 refusal)
   - [x] **P9-2c** HEAS at $0 entitlement does **not** confer a Pensioner Concession Card (s 1137A) — the tool must not imply the facility rescues the retain-eligibility goal (T32) — slice 1 does not touch `AgePensionEntitlement.pensionerConcessionCard` at all, so a nil-entitlement HEAS household today reads whatever the PCC would have been WITHOUT HEAS (i.e. this specific T32 risk is not yet reachable — HEAS changes no Age Pension figure at all in slice 1, PCC included — but nothing yet warns a user of the real scheme's PCC rule either) — ✅ 2026-09-25. `HEAS_DRAW_ENTRY_NOTICE` (`planEdits.ts`) now ends: "A HEAS loan doesn’t give you a Pensioner Concession Card on its own: the card needs an Age Pension of at least a cent." (pinned in `test/app-plan-edits.test.mjs`). Engine checked, unchanged: `agePension.ts` sets `pensionerConcessionCard: householdRatePerFortnight > 0`, and no HEAS figure feeds that rate, so a nil-pension month under HEAS never reads the card as held; nothing under `src/app` displays the card
-- [ ] **P9-3** `DOWNSIZE` — sale, rebuy, equity release
+- [x] **P9-3** `DOWNSIZE` — sale, rebuy, equity release
+  - ✅ Verified built 2026-09-30 (reconciliation): superseded shape shipped — `SELL_HOME` + `BUY_HOME` (`test/core-projection-sell-home.test.mjs`, `test/core-projection-buy-home.test.mjs`), the released equity landing as cash, with the proceeds exemption (P9-4) and `DOWNSIZER_CONTRIBUTION` (P9-5) beside them.
   - [~] superseded 2026-09-25: DOWNSIZE = SELL_HOME + BUY_HOME, no composite entry
 - [x] **P9-4** 24-month proceeds exemption **and its income-test deeming** — the trap — ✅ done by P14-13c (2026-09-25)
 - [x] **P9-5** `DOWNSIZER_CONTRIBUTION` — $300k/person, outside caps, counts to TSB and TBC — ✅ 2026-09-25: amount (today's money, raised to the date), receivingInterestIndex (owner's own accumulation account), statedOwnedTenYears (required true; 10-year test stated, not checked). Door refuses by name: no SELL_HOME in the scenario, before the sale or > 90 days after it (exact days, stricter than a 3-month rule; ATO extension not modelled), under 55, > $300k nominal at the date (not indexed), couple total > sale price, a second per Person, a non-accumulation interest. Waterfall-funded, set-aside first (the set-aside's protected figure shrinks by what it paid); `DownsizerContributionUnfundedError` if not fundable. One cash outflow `Downsizer contribution to super, <name>` + direct balance credit; no fund tax, no cap, no deduction. TSB: no special code — `totalSuperBalance()` takes a balance and the walk holds the credit. `test/core-projection-downsizer.test.mjs`; 4 mutations red
@@ -8659,6 +8680,7 @@ moved 16 → 17. Test files run green: `app-entry-form`, `app-plan-edits`, `app-
 *Separable from the engine; can run in parallel from Phase 2 onward.*
 
 - [ ] **P11-1** Transaction store, append-only, separate from the plan file
+  - Reconciled 2026-09-30: the store is built (`src/core/ledger.ts`, `src/app/ledgerStore.ts`, `ledger.json`; P11-1a/b ticked, `test/core-ledger.test.mjs`) / only P11-1c's standing SQLite trigger remains, which is a watch, not work.
   - **Gate 2026-09-28: GO after decisions** (`docs/research/phase11-gate-2026-09-28.md`). Slice 1 (ledger type + append-only guard) needs no input. Four user decisions: CSV mapping persistence, re-import overlap handling (review it, never auto-drop), bulk-review granularity, and the baseline recompute trigger.
   - **Slice 1 BUILT 2026-09-28: the ledger core, no UI.** `src/core/ledger.ts` — `Transaction`, `Categorisation`, the branded `Ledger` (P3-41 private-member witness; `test/brand-spread-sweep.test.mjs` now 16 brands), the `parseLedger` door (version 1, absent → empty Ledger) and `appended`; `src/app/ledgerStore.ts` — `loadLedger`/`saveLedger`/`appendToLedger` over an injected transport, the writer refusing any candidate that is not the last-loaded Ledger plus records after it (`LedgerNotAnExtensionError`, before the transport). Seven refusals, register §11.2. **Append-only is NOT chronological:** a back-dated Transaction is legal — the gate doc's slice-1 "must fail if a day before the last entry is accepted" is superseded. **A Category is a separate appended `Categorisation`, not a Transaction field** (the last one naming a Transaction wins), so categorising never edits in place. `amount` is signed Cents, money OUT negative. A `reverses` must name an EARLIER, not-yet-reversed Transaction and cancel it to the cent. Nothing in `src/` imports the store yet, and nothing in the projection reads the Ledger (P11-10). `test/core-ledger.test.mjs`. ~~⚠️ Slice 2 decision due~~ **Decided and wired 2026-09-28 (slice 2, see P11-3).** `main.ts` now imports `writeLedger` and hands `{ readLedger, writeLedger }` to the Transactions panel, which tripped `test/import-graph.test.mjs`'s Reset tripwire as designed; Reset was EXTENDED and the tripwire now pins exactly the new wiring. **USER RULING (2026-09-28), Reset:** "Start again" asks separately **"Also delete my transaction history?"**, default **No**. No → the Ledger is untouched (bytes identical, never written). Yes → once the new plan has LANDED, the Ledger is replaced with the empty Ledger by `ledgerStore.replaceWithEmptyLedger` — the one sanctioned non-extension write, a distinct named function so `requireExtension` stays strict on every other write. A plan the door refuses leaves the Ledger alone either way, and the question is not asked at all over a Ledger that did not load
   - [x] **P11-1a** `ledger.json` — a **separate file** from `plan.json`, with its own sensitivity.
@@ -8670,6 +8692,7 @@ moved 16 → 17. Test files run green: `app-entry-form`, `app-plan-edits`, `app-
   - [ ] **P11-1c** SQLite is deferred to Phase 11 behind a **written trigger**: >250,000
     transactions, **or** a full ledger write measured above 250ms. Measured, not felt. The trigger
     is expected never to fire; if it does, it is evidence, and the argument gets reopened
+    Reconciled 2026-09-30: PARKED — deliberately deferred behind its written trigger; nothing in the log shows it firing (no SQLite anywhere, no write-time measurement recorded).
 - [x] **P11-2** CSV import with column mapping (bank formats differ)
   - **Decided by LIZ 2026-09-28:** Start again's delete also removes the saved bank formats (they live in `ledger.json`), and the question now says so: "(and the saved bank formats)". The account label is required on import, since it's part of the duplicate key. A blank line mid-file is listed, not skipped. Verified: 3131 green; LIZ mutation (manual entries counted as already imported) red.
   - **USER RULINGS 2026-09-28.** (1) A column mapping is remembered per bank CSV format, keyed by the header row (exact column names, order-independent): a known header re-uses the saved mapping with no questions, an unknown one asks once. Headerless exports (CommBank) are keyed by column count + a user-given format name. Mappings live in `ledger.json`, append-only: a changed mapping is a new record, last wins. (2) Rows already imported are skipped by MULTISET on (date, cents, raw description, account): k copies in the file over j imported copies held adds max(0, k − j); the page says "N added, M skipped as already imported". (3) Nothing is silently dropped: an unreadable row is listed with its line number and reason, and nothing is appended until "Import the N good rows" (or Cancel).
@@ -8821,6 +8844,7 @@ moved 16 → 17. Test files run green: `app-entry-form`, `app-plan-edits`, `app-
   partly explained by the unmodelled insurance admin fee ($22.20/yr). Found along the way: the before-tax pay box was easy to fill with
   take-home pay. The label is fixed @b3ef36d.
 - [ ] **P13-2** TTR arithmetic vs the fund's own TTR calculator
+  - Reconciled 2026-09-30: WAITING on the user — needs a live run of the fund's TTR calculator (as P13-1b/1c were); no write-up in the repo, `docs/verification/` or `~/.enough/verification/`.
 - [x] **P13-3** One hand-worked Age Pension figure vs Services Australia — ✅ 2026-09-24, and it found a defect.
   - **Runs 2 and 3 (Payment Finder, 20 Sep 2026 rates, the balance in Managed Investments because the finder has no super box):**
     $608,054 gave $769.50/fn each (enough had $769.42), and $609,900 gave $767.25 (it tells a $500 floor from a $250 or $1,000 one).
@@ -8906,6 +8930,7 @@ moved 16 → 17. Test files run green: `app-entry-form`, `app-plan-edits`, `app-
     since about 2026-09-21, before P13-2 to P13-8 were done. The gate order was not followed. Until
     the remaining checks land, treat answers from a real plan as unverified in those areas: TTR
     against the fund, the Age Pension against Services Australia, CGT, and franking.
+  - Reconciled 2026-09-30: real figures are entered and P13-3/7/8 are done / only P13-2 (TTR vs the fund) remains, so only TTR answers from the real plan stay unverified.
 - [x] **P13-7** ✅ **2026-09-24 — independent reconciliation done.** Working committed BEFORE the
   test existed: `docs/verification/P13-7-cgt.md` (commit `f45ae66`), then
   `test/verification-p13-7-cgt.test.mjs`. A single person, salary $41,600/yr, one parcel held since
@@ -9166,6 +9191,7 @@ first, then the connector instead of the in-app chat, at the cost of the chip gu
     §11.2's original objection ("no chip renderer on your side") no longer applies to — but no design
     decision was taken to build it after the connector→in-app pivot (ADR-0011); D2's "opaque
     figures" choice was recorded before that pivot and was never revisited for the in-app chat
+  - Reconciled 2026-09-30: WAITING on a user design decision — still no redaction code under `src/`.
 - [x] **P15-5** Feature flag, **off by default**; graceful no-op when the key is missing or the provider is unreachable
   — ✅ 2026-09-24. `DEFAULT_CHAT_SETTINGS.enabled` is `false`, and nothing else has a default. A
   question is refused, with a plain reason and no request, when the chat is off, a setting (endpoint,
@@ -9173,7 +9199,8 @@ first, then the connector instead of the in-app chat, at the cost of the chip gu
   ceiling. The model name and the prices come only from settings, and no model name is anywhere in
   `src/`. With the chat off, and with it on but unused, the demo walk is still `72bfb895…` and the
   connector fixture still `a250af6a…`. Each of these is mutation-checked
-- [ ] **P15-6** Read-only tools: `runProjection`, `getMonth`, `getMarkers`, `compareScenarios`, `solveSustainableSpend`, `explainAssumption`
+- [x] **P15-6** Read-only tools: `runProjection`, `getMonth`, `getMarkers`, `compareScenarios`, `solveSustainableSpend`, `explainAssumption`
+  - ✅ Verified built 2026-09-30 (reconciliation): the five kept tools are built and tested (list below); `compareScenarios` withdrawn by decision (ADR-0011, LIZ 2026-09-26); the one thing holding the box, `proposeScenario`, shipped 2026-09-28 (`src/app/chat/tools/proposeScenario.ts`, in `toolCatalogue.ts`).
   - **Ruled 2026-09-26 (LIZ):** `compareScenarios` was withdrawn by decision (plan_ai.md §12.10, ADR-0011), so this box closes on the other five, which are all built and tested. It stays open only for `proposeScenario` (see P15-7).
   - **Checked against `toolCatalogue.ts`, 2026-09-26: 5 of the 6 named tools are built and each has
     its own test** — `runProjection` (`test/app-chat-run-projection.test.mjs`), `getMonth`
@@ -9259,6 +9286,7 @@ first, then the connector instead of the in-app chat, at the cost of the chip gu
     questions against the CONNECTOR (`server/connector.mjs`, via `claude -p` over MCP) — the route
     with no chip guard at all — not against the in-app chat this box's mechanism was built for.
     There is no golden run yet that reports a struck-figure count for the shipped chip/guard path
+  - Reconciled 2026-09-30: figure store, chips, guard, anchors and the struck-figure report (`f20ef3d`) are built / the live golden run that produces the count waits on the user (billed), and `plan_ai.md` still has no "Stage 7 as built".
 - [x] **P15-11** Proposal review UI — accept/reject each proposed entry individually, same review surface as P11-6
   — ✅ 2026-09-24 (stage 5), `src/app/chat/chatPanel.ts`. A chat settings box in the settings area
   (on/off, off by default; provider address; model name; the key in a password box; the two prices;
@@ -9317,6 +9345,7 @@ first, then the connector instead of the in-app chat, at the cost of the chip gu
     driven by `claude -p` over MCP), not the in-app chat that ADR-0011's trigger (2026-09-24) built
     — the "live golden suite re-pointed at the in-app chat" step named in plan_ai.md §14's stage
     order has not happened (no stage-7/8 section follows stage 5 in `plan_ai.md`)
+  - Reconciled 2026-09-30: the 13 questions, scorer and in-app route are built (`scripts/chat-golden.mjs`, `test/chat-golden-scorer.test.mjs`) / WAITING on the user's first live, billed run; by design it stays outside `npm test`.
 - [ ] **P15-15** Measure tokens and cost for a representative turn; record the figure in `concept.md` §6
   - **Not built, confirmed 2026-09-26.** `concept.md:933` still reads verbatim "v3 chat token cost
     per turn is unmeasured". A cost figure does exist, but only for the connector route on one live
