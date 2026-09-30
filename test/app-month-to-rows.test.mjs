@@ -892,9 +892,12 @@ test('the eight note subjects get eight DIFFERENT labels — one label for two w
   //
   // **TWELVE from 2026-09-30 (LR-3): a low income super tax offset left out** because every account
   // is a pension by the July it would be paid. Its label names the direction, like the cap note's.
+  //
+  // **THIRTEEN from 2026-09-30 (RF-3): a TTR_START with an amount moved money into its new account.**
+  // Its label names where the money went and what the new account costs (a second fee).
   const labels = Object.values(NOTE_TEXT_LABELS);
-  assert.equal(labels.length, 12);
-  assert.equal(new Set(labels).size, 12, `two note subjects share a label: ${JSON.stringify(labels)}`);
+  assert.equal(labels.length, 13);
+  assert.equal(new Set(labels).size, 13, `two note subjects share a label: ${JSON.stringify(labels)}`);
   for (const label of labels) assert.ok(label.trim().length > 20, JSON.stringify(label));
   // And each subject of the walk carries its own. The withdrawal label is a PREFIX — the tax figure
   // is composed onto it, because folding a dollar amount away behind a disclosure would hide money.

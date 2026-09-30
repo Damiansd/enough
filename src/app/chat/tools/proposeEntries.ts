@@ -95,6 +95,7 @@ export const FORM_BOXES = Object.freeze({
   returnRate: 'New investment return a year, as a decimal (0.065 is 6.5%)',
   ttrRate: 'New share taken out each year (%)',
   ttrStartRate: 'Share taken out each year (%)',
+  ttrMoveAmount: 'Amount to move $',
   spouseAmount: 'Amount, paid once, from your own after-tax money $',
   spouseAccount: "Your spouse's super account",
   homeValue: 'Home value on the day of entry, in today’s money $',
@@ -352,9 +353,12 @@ const typedOnTheForm = (entry: Entry, ID = TRIAL_ID, CREATED_AT = TRIAL_CREATED_
     case 'TTR_START': {
       const interestIndex = account(entry.params.interestIndex);
       const drawdownRatePercent = entry.params.drawdownRate === undefined ? '' : fractionAsPercent(entry.params.drawdownRate);
+      // RF-3: the amount box only where one is proposed; blank is the account itself.
+      const amount = entry.params.amount === undefined ? '' : centsToDollars(entry.params.amount);
+      const moved = entry.params.amount === undefined ? [] : [[FORM_BOXES.ttrMoveAmount, amount, entry.params.amount] as const];
       return {
-        boxes: boxes([FORM_BOXES.superAccount, interestIndex], [FORM_BOXES.ttrStartRate, drawdownRatePercent]),
-        built: ttrStartEntry({ ...common, interestIndex, drawdownRatePercent }, ID, CREATED_AT),
+        boxes: boxes([FORM_BOXES.superAccount, interestIndex], ...moved, [FORM_BOXES.ttrStartRate, drawdownRatePercent]),
+        built: ttrStartEntry({ ...common, interestIndex, drawdownRatePercent, amount }, ID, CREATED_AT),
       };
     }
     case 'TTR_RATE_CHANGE': {

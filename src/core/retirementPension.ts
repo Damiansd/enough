@@ -99,11 +99,15 @@ export const workSpells = (household: Household, entries: readonly Entry[]): rea
  * releases the super, at 60 or older; with none, the first stop. A later `RETIRE` cannot postpone a
  * release (`retiredOn`'s rule), and a stop after going back to work switches nothing a second time.
  * It switches only where the first stop was before 60 and so switched nothing (retire flow S3).
+ *
+ * `opensOn` is `project()`'s (RF-3): the day each account the walk opens for a `TTR_START` with an
+ * amount starts, by Person and position. Such an account is not in the switch at a stop before it.
  */
 export const retirementSwitches = (
   household: Household,
   entries: readonly Entry[],
   asAtDate: IsoDate,
+  opensOn: readonly (readonly (IsoDate | undefined)[])[] = [],
 ): readonly RetirementSwitch[] => {
   const spells = workSpells(household, entries);
   return household.persons.map((person, index): RetirementSwitch => {
@@ -112,8 +116,10 @@ export const retirementSwitches = (
     const stops = (spells[index] ?? []).filter(({ kind }) => kind === 'stopped').map(({ date }) => date);
     const retireDay = stops.find(releasedOn) ?? stops[0];
     if (retireDay === undefined) return { kind: 'notRetiring' };
-    const slots = person.superInterests.flatMap((interest, slot) =>
-      interest.phase !== 'accountBasedPension' && interest.keepInAccumulationAtRetirement !== true ? [slot] : []);
+    const slots = person.superInterests.flatMap((interest, slot) => {
+      const opens = opensOn[index]?.[slot];
+      return interest.phase !== 'accountBasedPension' && interest.keepInAccumulationAtRetirement !== true && (opens === undefined || opens <= retireDay) ? [slot] : [];
+    });
     if (slots.length === 0) return { kind: 'nothingToSwitch', retireDay };
     if (retireDay < asAtDate) return { kind: 'retiredBeforeThePlan', retireDay };
     const released = releasedOn(retireDay);

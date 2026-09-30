@@ -1272,9 +1272,10 @@ export interface TrisEarlyConversionParams {
  * `TTR_START` — **from `date`, one of the owner's accumulation accounts becomes a transition to
  * retirement income stream** (retire flow S4, user ruling 2026-09-29: "need a start ttr date").
  *
- * **The mechanism is a phase change of an account the plan already states, never a new account.**
- * The walk cannot open an account part-way through, so the money the member will move into the TTR
- * is stated today as a second accumulation account, and this entry names it. Before `date` it is
+ * **Without `amount`, the mechanism is a phase change of an account the plan already states.** The
+ * money the member will move into the TTR is stated today as a second accumulation account, and this
+ * entry names it. **With `amount` (RF-3), the walk opens that second account itself**: see `amount`.
+ * Before `date` the named account is
  * accumulation in every respect (the younger-partner exemption, earnings tax, fees); from `date` the
  * walk reads it as `'ttr'` (paid between the Schedule 7 minimum and 10%, still taxed as
  * accumulation, assessed and deemed for the Age Pension, closed to contributions); it converts to an
@@ -1284,8 +1285,8 @@ export interface TrisEarlyConversionParams {
  * the Age Pension from month 0, before the stream exists; this entry is what avoids that.
  *
  * Refused at the door (`checkTtrStartTargets`): a `household` owner, an account that is not in the
- * file or is not accumulation, the account the employer's Guarantee is nominated into, a Person with
- * no other accumulation account (the Guarantee still needs one), a date before the plan starts,
+ * file or is not accumulation, and without `amount` the account the employer's Guarantee is nominated
+ * into and a Person with no other accumulation account (the Guarantee still needs one); a date before the plan starts,
  * before the 60th birthday or on or after the 65th. Refused in the walk, where the Scenario is known:
  * two starts for one account, and a start on or after that Person's `RETIRE`.
  */
@@ -1294,6 +1295,16 @@ export interface TtrStartParams {
   readonly interestIndex: number;
   /** The yearly rate chosen (0.07 is 7%), `TtrRateChangeParams.drawdownRate`'s range. Absent pays the Schedule 7 minimum. */
   readonly drawdownRate?: number;
+  /**
+   * **RF-3: what moves out of `interestIndex` into a NEW account that becomes the TTR**, in nominal
+   * dollars, `LumpSumFromSuperParams.amount`'s basis. The walk adds the account after the Person's
+   * stated ones (`ttrAccountsOpened`), moves the amount on the first day of the entry's month, capped
+   * at the named account's balance (a `TtrAccountOpenedNote` says so), and the named account stays
+   * accumulation, where the employer keeps paying. The new account copies the named account's stated
+   * fees (a second administration fee, the conservative reading) and none of its insurance. A
+   * `TTR_RATE_CHANGE` naming `interestIndex` changes the new account. Absent: no account is opened.
+   */
+  readonly amount?: Cents;
 }
 
 /**
@@ -2353,7 +2364,26 @@ export type MonthNote =
   | PensionAtRetirementNote
   | ConcessionalCapExceededNote
   | HeasCapacityCapNote
-  | LowIncomeSuperTaxOffsetNotPaidNote;
+  | LowIncomeSuperTaxOffsetNotPaidNote
+  | TtrAccountOpenedNote;
+
+/**
+ * **RF-3 — a `TTR_START` with an amount moved money into the new account it opened**, in the month
+ * of its date. Nothing left the Person's super, so no line carries it. `moved` is under `requested`
+ * exactly where the named account held less.
+ */
+export interface TtrAccountOpenedNote {
+  readonly subject: 'TTR account opened';
+  readonly person: string;
+  readonly entryId: string;
+  /** The account the money came from, by position in `superInterests`. */
+  readonly interestIndex: number;
+  /** The new account, by position: after the Person's stated accounts. */
+  readonly toInterestIndex: number;
+  readonly requested: Cents;
+  readonly moved: Cents;
+  readonly note: string;
+}
 
 /**
  * **LR-3 — a Person qualified for the low income super tax offset for a completed year, and the

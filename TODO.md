@@ -9717,10 +9717,29 @@ guide Chapter 85.
   "released in part" on a TTR). Guide Chapters 18 and 25, register (conditionOfRelease section,
   RF-2 paragraph).
 - [x] **RF-2b A TTR started before the first Retire, on a "keep in accumulation" account, runs as a TTR to 65 (RULED 2026-09-30: leave it).** The user ruled the tick means "don't switch this account at retirement", TTR or not; it understates (15% earnings tax, 10% draw cap from the Retire to 65). A TTR started after a return still converts at the next stop (RF-2). Guide ch 25 already says so.
-- [ ] **RF-3 A TTR needs a second accumulation account split by hand.** The walk cannot open or
-  split an account mid-walk; guide Chapter 25 tells the user. Revisit if the walk ever can.
-- [ ] **RF-4 Life stages "Retires ·" label reads a pre-plan stop's plan-start month** (existing
-  quirk, noted by retire flow S3; cosmetic).
+- [x] **RF-3 A TTR needs a second accumulation account split by hand (DONE 2026-09-30).** `TtrStartParams.amount?`
+  (nominal cents): `project()` adds a nil accumulation account after the Person's stated ones
+  (`ttrAccountsOpened`), points the start at it, and on the first of its month moves
+  `min(amount, source balance)` before any balance or phase read (switch/cap, RF-1, means test, Sch 7);
+  a `TtrAccountOpenedNote` (`TTR account opened`) reports asked and moved. Rulings built: fees copied,
+  insurance not, RF-1 released stays with the source, a `TTR_RATE_CHANGE` naming the source redirected.
+  Until it opens the account is out of the switch (`retirementSwitches`' `opensOn`), the back-at-work list
+  and limb 5; `ttrStartDay` keeps it from the Guarantee/LISTO from month 0. Door: with an amount, no
+  employer-account or only-account refusal; `ttrRefusal(…, withAmount)` needs one account (register
+  conditionOfRelease section, RF-3 paragraph). Page: "Amount to move $" box on the entry and the retire
+  choice; notes and `getMonth` name it "the TTR from super account N"; chat catalogue, propose, listEntries,
+  identity; guide Ch 25 (and 17). No amount: the demo walk is byte-identical (sha pinned). Evidence:
+  `core-projection-ttr-start.test.mjs` RF-3 tests (control: first-day $200,000 split == hand split to the
+  cent at 6%, fee-free and with the same fees stated on the hand-made account; mid-walk at 0% fee-free;
+  capped $900,000 → $708,082.84 moved, $4,130.48 a month), `app-retire-choice.test.mjs`; 12 mutations
+  each fail a test (no month-0 `ttrStartDay`, move after the determination, no cap, insurance copied, fees
+  not copied, slot in the RF-2 switch, rate change not redirected, a slot always added, locked list,
+  limb 5, door only-account, `ttrRefusal` needing two).
+- [x] **RF-4 Life stages "Retires ·" label reads a pre-plan stop's plan-start month (DONE 2026-09-30).**
+  A stop before the plan reads "Retired <year> · <age>" from its own date; in-plan stops unchanged.
+  Evidence: `app-life-stages.test.mjs` RF-4 (2023-03-10 stop, born 1962-03-05: "Retired 2023 · 61"; an
+  in-plan stop on 20 June with a 10 June birthday still reads 65); mutations: clamped month restored,
+  `change.date` for in-plan stops — each fails it.
 - [ ] **RF-5 Retire flow S2, the "have you switched to an account-based pension? Done" confirmation
   — HELD by the user** until Open Items (below) is built. Not to be built on its own.
 - [x] **LR-3 Low income super tax offset (LISTO) not modelled at all** — today $500; from 1 July

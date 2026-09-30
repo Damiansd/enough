@@ -2560,6 +2560,20 @@ accumulation ignores every stop and runs to 65. **Residual:** the page cannot ch
 cutting-down answer names against the switch, only that one is left; the door refuses a switched one by
 name.
 
+**RF-3 (built 2026-09-30): a `TTR_START` with an `amount` opens its own account.** The walk adds a nil
+accumulation account after the Person's stated ones (`ttrAccountsOpened`), names the start at it, and
+on the first of the start's month moves `min(amount, the source's balance)` in, before the switch and
+cap test, RF-1's released amounts, the means test and the Sch 7 determination read a balance. The
+source stays accumulation. **Refusals that change:** with an amount, the door no longer refuses the
+account the employer pays into, nor a Person's only accumulation account (`checkTtrStartTargets`), and
+the page's `ttrRefusal` needs one account still building up, not two; without an amount every refusal
+stands (the only-account one now also says an amount can be stated). An RF-2 start with an amount is
+tested against the first stop's switch on its SOURCE. **Rulings:** the new account copies the source's
+stated fee fields (a second administration fee: conservative) and none of its insurance; RF-1's released
+amount stays with the source (understates access); a `TTR_RATE_CHANGE` naming the source changes the new
+account; until its month the new account is in no switch, no back-at-work list and no limb 5 note, and
+from month 0 it is closed to the Guarantee and LISTO. A capped move is reported in the month's note.
+
 **Everything reachable through this module now has a row, and the list of what does not is worth
 keeping.** `ttrPaymentRange` calls `conditionOfRelease` and then `minimumDrawdown`, and both can
 refuse on their own grounds. Until 2026-09-10 four of those refusals were in the P3-26 quarantine

@@ -478,7 +478,7 @@ const SELL_HOME_FORM = { date: '2040-07-01', owner: 'household', note: '', saleP
 /** Buy a new home (P14-19). `purchaseCosts: ''` is the box's own "none stated" spelling. */
 const BUY_HOME_FORM = { date: '2040-10-01', owner: 'household', note: '', purchasePrice: '600,000', purchaseCosts: '' };
 const INSURANCE_COVER_CHANGE_FORM = { date: '2030-01-01', owner: 'personA', note: '', interestIndex: '1', benefit: 'death', coverPercent: '50' };
-const TTR_START_FORM = { date: '2030-01-01', owner: 'personA', note: '', interestIndex: '2', drawdownRatePercent: '' };
+const TTR_START_FORM = { date: '2030-01-01', owner: 'personA', note: '', interestIndex: '2', drawdownRatePercent: '', amount: '' };
 const DOWNSIZER_FORM = { date: '2040-08-01', owner: 'personA', note: '', amount: '200,000', receivingInterestIndex: '1', ownedTenYears: 'yes' };
 const RENT_OUT_HOME_FORM = { date: '2040-07-01', owner: 'household', note: '', weeklyRent: '550', annualRates: '', annualInsurance: '', annualAgentFees: '', annualRepairs: '', endDate: '' };
 /** A return change (P2-11). One box, a decimal fraction, `MORTGAGE_REFINANCE`'s own rate-box shape. */

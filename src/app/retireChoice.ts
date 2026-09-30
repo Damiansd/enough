@@ -9,7 +9,7 @@
 //   It is offered only at 60 to 64 on the date. Where no TTR is running by then (none stated as
 //   started by the plan's date, and no `TTR_START` for the Person on or before the date), it also
 //   writes a `TTR_START` on the same date naming the account the pension is paid from (S4, user
-//   ruling 2026-09-29).
+//   ruling 2026-09-29), or the account money moves out of into a new one, with the amount (RF-3).
 //
 // Pure: no DOM, no clock, no randomness. `entryForm.ts` shows the words and passes the ids in.
 import { conditionOfRelease } from '../core/conditionOfRelease.js'; // `.js` is correct in a `.ts` file — see tsconfig.json
@@ -41,9 +41,10 @@ export const TTR_CHOICE_SUMMARY = 'What cutting down does';
 export const TTR_CHOICE_DETAIL =
   'For someone who keeps working, on fewer days or the same, and draws a transition to retirement' +
   ' pension. This changes the days and pay from this date. If no pension is running yet, it also starts' +
-  ' one on this date from the super account you choose, which must be a second account: your employer' +
-  ' keeps paying into the first. It becomes a normal pension when you stop work for good, or by itself' +
-  ' at the age the law sets.';
+  ' one on this date. Type the amount to move and the forecast opens a new account for the pension,' +
+  ' taking the amount out of the super account you choose, where your employer keeps paying. Or leave' +
+  ' the amount blank and choose a second account you have already set up for it. It becomes a normal' +
+  ' pension when you stop work for good, or by itself at the age the law sets.';
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -90,9 +91,10 @@ export const ttrStartNeeded = (household: Household, entries: readonly Entry[], 
  * the pension (`ttrStartNeeded`), the things `parsePlan` would refuse the `TTR_START` for that the
  * page can see first: a date before the plan's, being stopped on the date (this answer's own work
  * change counts as a return after a stop, RF-2), no second account still building up, and no second
- * account left once the first stop's switch is taken out.
+ * account left once the first stop's switch is taken out. With an amount to move (RF-3) the pension
+ * gets a new account, so one account still building up is enough.
  */
-export const ttrRefusal = (household: Household, entries: readonly Entry[], owner: string, date: string, asAtDate: IsoDate): string | undefined => {
+export const ttrRefusal = (household: Household, entries: readonly Entry[], owner: string, date: string, asAtDate: IsoDate, withAmount = false): string | undefined => {
   const index = PERSON_OWNERS.indexOf(owner as EntryOwner);
   const person = household.persons[index];
   if (person === undefined) return 'Choose one person: a transition to retirement pension is one person’s own.';
@@ -111,15 +113,18 @@ export const ttrRefusal = (household: Household, entries: readonly Entry[], owne
   if (latest?.kind === 'stopped') {
     return `${name} already stops work for good on ${latest.date} in this plan, which turns their super into a full pension. A transition to retirement pension can’t start after that.`;
   }
+  const needed = withAmount ? 1 : 2;
   const building = person.superInterests.filter((interest) => interest.phase === 'accumulation').length;
-  if (building < 2) {
-    return `${name}’s employer keeps paying into their super account, so the pension needs a second one. Add a second super account under Household and settings, holding the money that will move into the pension, then choose it here.`;
+  if (building < needed) {
+    return withAmount
+      ? `${name} has no super account still building up, so there is nothing to move into a transition to retirement pension.`
+      : `${name}’s employer keeps paying into their super account, so the pension needs its own account. Type the amount to move into it, or add a second super account under Household and settings and choose it here.`;
   }
   const decided = retirementSwitches(household, entries, asAtDate)[index];
   const kept = person.superInterests.filter((interest, slot) =>
     interest.phase === 'accumulation' && !(decided?.kind === 'switches' && decided.slots.includes(slot) && decided.retireDay <= on)).length;
-  if (kept < 2) {
-    return `${name}’s super became a full pension when ${name} stopped work on ${(decided as { readonly retireDay: IsoDate }).retireDay}, so no account is left to start a transition to retirement pension from. It needs a second account kept in accumulation at retirement.`;
+  if (kept < needed) {
+    return `${name}’s super became a full pension when ${name} stopped work on ${(decided as { readonly retireDay: IsoDate }).retireDay}, so no account is left to start a transition to retirement pension from. It needs ${withAmount ? 'an account' : 'a second account'} kept in accumulation at retirement.`;
   }
   return undefined;
 };
@@ -156,6 +161,8 @@ export interface RetireChoiceFormValues extends WorkPatternChangeFormValues {
   readonly ttrInterestIndex: string;
   /** The yearly rate as a percent, as typed; blank pays the minimum. Read only when a start is needed. */
   readonly ttrRatePercent: string;
+  /** RF-3: the dollars to move into a new account for the pension, as typed; blank names an account already set up. */
+  readonly ttrAmount: string;
 }
 
 export type RetireChoiceResult = { readonly refused: string } | { readonly entries: readonly unknown[] };
@@ -178,12 +185,12 @@ export const retireChoiceEntries = (
     return { entries: [retireEntry({ date: values.date, owner: values.owner, note: values.note }, newId(), createdAt)] };
   }
   if (choice === 'ttr') {
-    const refused = ttrRefusal(household, entries, values.owner, values.date, asAtDate);
+    const refused = ttrRefusal(household, entries, values.owner, values.date, asAtDate, values.ttrAmount.trim() !== '');
     if (refused !== undefined) return { refused };
     const work = workPatternChangeEntry(values, newId(), createdAt);
     if (!ttrStartNeeded(household, entries, values.owner, values.date, asAtDate)) return { entries: [work] };
     const start = ttrStartEntry(
-      { date: values.date, owner: values.owner, note: values.note, interestIndex: values.ttrInterestIndex, drawdownRatePercent: values.ttrRatePercent },
+      { date: values.date, owner: values.owner, note: values.note, interestIndex: values.ttrInterestIndex, drawdownRatePercent: values.ttrRatePercent, amount: values.ttrAmount },
       newId(),
       createdAt,
     );

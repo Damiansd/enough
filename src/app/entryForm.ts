@@ -310,9 +310,11 @@ const buildForm = (host: EntryEditorHost): { readonly form: HTMLFormElement; rea
   const insuranceBenefit = labelledSelect('insuranceBenefit', INSURANCE_BENEFIT_CHOICES);
   const insuranceCoverPercent = input('text', 'insuranceCoverPercent', 'e.g. 50 — 0 cancels it');
   const ttrRatePercent = input('text', 'ttrRatePercent', `between ${TTR_RATE_RANGE_PERCENT[0]} and ${TTR_RATE_RANGE_PERCENT[1]} — e.g. 7`);
-  // `TTR_START` (retire flow S4): the account, and the rate with blank for the minimum.
+  // `TTR_START` (retire flow S4): the account, and the rate with blank for the minimum; RF-3's amount,
+  // with blank for the account itself.
   const ttrStartInterestIndex = input('text', 'ttrStartInterestIndex', 'which one — 1 is the first');
   const ttrStartRatePercent = input('text', 'ttrStartRatePercent', `between ${TTR_RATE_RANGE_PERCENT[0]} and ${TTR_RATE_RANGE_PERCENT[1]}, or blank for the minimum`);
+  const ttrStartAmount = input('text', 'ttrStartAmount', 'e.g. 150,000 — blank to use the account itself');
   // `ENTER_CARE`'s three boxes, `MORTGAGE_REFINANCE`'s own precedent: all required, none judged
   // here, and all the household's own estimate — `ENTER_CARE_ENTRY_NOTICE` says why.
   // **All three are TODAY's money (user ruling, 2026-09-25): type today's price; the forecast raises
@@ -449,8 +451,10 @@ const buildForm = (host: EntryEditorHost): { readonly form: HTMLFormElement; rea
   // S4: where no pension is running yet, the same answer starts one on the date, from this account.
   const ttrStartAccount = input('text', 'ttrStartAccount', 'which one — 1 is the first');
   const ttrStartRate = input('text', 'ttrStartRate', `between ${TTR_RATE_RANGE_PERCENT[0]} and ${TTR_RATE_RANGE_PERCENT[1]}, or blank for the minimum`);
+  const ttrMoveAmount = input('text', 'ttrMoveAmount', 'e.g. 150,000 — blank to use the account itself');
   const ttrStartBoxes = group(
     label('Which super account pays the pension ', ttrStartAccount),
+    label('Amount to move $', ttrMoveAmount),
     label('Share taken out each year (%) ', ttrStartRate),
   );
   const ttrBoxes = group(label('Days a week ', ttrDaysPerWeek), label('Salary a year, in today’s money $', ttrAnnualSalary), ttrStartBoxes);
@@ -540,6 +544,7 @@ const buildForm = (host: EntryEditorHost): { readonly form: HTMLFormElement; rea
     RETURN_CHANGE: group(label('New investment return a year, as a decimal (0.065 is 6.5%) ', returnRate)),
     TTR_START: group(
       label('Super account ', ttrStartInterestIndex),
+      label('Amount to move $', ttrStartAmount),
       label('Share taken out each year (%) ', ttrStartRatePercent),
       infoButton(TTR_START_ENTRY_SUMMARY, TTR_START_ENTRY_NOTICE, 'guide:ttr-start'),
     ),
@@ -601,15 +606,18 @@ const buildForm = (host: EntryEditorHost): { readonly form: HTMLFormElement; rea
     forGoodFields.hidden = retireKind.value !== 'forGood';
     ttrFields.hidden = retireKind.value !== 'ttr';
     forGoodNote.textContent = forGoodLines(plan.household, activeScenarioEntries(plan), plan.settings.asAtDate, owner.value, date.value).join(' ');
-    const refused = ttrRefusal(plan.household, activeScenarioEntries(plan), owner.value, date.value, plan.settings.asAtDate);
+    // RF-3: a refusal an amount answers keeps the boxes open, so the amount can be typed.
+    const withAmount = ttrMoveAmount.value.trim() !== '';
+    const refused = ttrRefusal(plan.household, activeScenarioEntries(plan), owner.value, date.value, plan.settings.asAtDate, withAmount);
     ttrRefusalLine.textContent = refused ?? '';
-    ttrBoxes.hidden = refused !== undefined;
+    ttrBoxes.hidden = (withAmount ? refused : ttrRefusal(plan.household, activeScenarioEntries(plan), owner.value, date.value, plan.settings.asAtDate, true)) !== undefined;
     ttrStartBoxes.hidden = !ttrStartNeeded(plan.household, activeScenarioEntries(plan), owner.value, date.value, plan.settings.asAtDate);
     submit.disabled = type.value === 'RETIRE' && retireKind.value === 'ttr' && refused !== undefined;
   }
   retireKind.addEventListener('change', showRetireChoice);
   date.addEventListener('change', showRetireChoice);
   owner.addEventListener('change', showRetireChoice);
+  ttrMoveAmount.addEventListener('input', showRetireChoice);
 
   form.append(
     label('Type ', type),
@@ -733,7 +741,7 @@ const buildForm = (host: EntryEditorHost): { readonly form: HTMLFormElement; rea
       returnChangeEntry({ date: date.value, owner: owner.value, note: note.value, rate: returnRate.value }, id, createdAt),
     TTR_START: (id, createdAt) =>
       ttrStartEntry(
-        { date: date.value, owner: owner.value, note: note.value, interestIndex: ttrStartInterestIndex.value, drawdownRatePercent: ttrStartRatePercent.value },
+        { date: date.value, owner: owner.value, note: note.value, interestIndex: ttrStartInterestIndex.value, drawdownRatePercent: ttrStartRatePercent.value, amount: ttrStartAmount.value },
         id,
         createdAt,
       ),
@@ -832,7 +840,7 @@ const buildForm = (host: EntryEditorHost): { readonly form: HTMLFormElement; rea
         retireKind.value,
         {
           date: date.value, owner: owner.value, note: note.value, daysPerWeek: ttrDaysPerWeek.value, annualSalary: ttrAnnualSalary.value,
-          ttrInterestIndex: ttrStartAccount.value, ttrRatePercent: ttrStartRate.value,
+          ttrInterestIndex: ttrStartAccount.value, ttrRatePercent: ttrStartRate.value, ttrAmount: ttrMoveAmount.value,
         },
         () => crypto.randomUUID(),
         createdAt,
@@ -993,7 +1001,11 @@ const describeParams = (entry: Entry): string => {
         : ` — ${superAccountName(entry.params.interestIndex)}: ${cover} cut to ${fractionAsPercent(entry.params.coverFraction)}% from this date`;
     }
     case 'TTR_START':
-      return ` — ${superAccountName(entry.params.interestIndex)} becomes a transition to retirement pension, paying ${
+      return ` — ${
+        entry.params.amount === undefined
+          ? `${superAccountName(entry.params.interestIndex)} becomes`
+          : `${formatDollars(entry.params.amount)} moves out of ${superAccountName(entry.params.interestIndex)} into`
+      } a transition to retirement pension, paying ${
         entry.params.drawdownRate === undefined ? 'the yearly minimum' : `${fractionAsPercent(entry.params.drawdownRate)}% of its balance a year`
       }`;
     case 'TTR_RATE_CHANGE':

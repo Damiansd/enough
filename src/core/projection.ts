@@ -259,7 +259,7 @@ import type { Cents } from './money.js';
 import type { AssetSplit, Household, HomeStatus, Mortgage, MortgageMonth, Parcel, Person, PersonAssetSplit, SuperInterest } from './household.js';
 import type { QualifyingEarnings } from './superContributions.js';
 import type { ConcessionalContributionComponents, ContributionsTax } from './superConcessional.js';
-import type { ConcessionalCapHeadroom, Entry, FigureProvenance, HeasCapacityCapNote, IsoMonth, LineAttribution, Month, MonthLine, MonthNote, MonthProvenance, ParameterWindowNote, ParcelSelection, PensionAtRetirementNote, ProvenanceRegister, Settings, StandingParametersNote, StatedByEntries, SuperGuaranteeNote, UncarriedProvenance, UnattributedFigure, UnlegislatedFigure, UnstatedFigure, WaterfallLimbNote } from './plan.js';
+import type { ConcessionalCapHeadroom, Entry, FigureProvenance, HeasCapacityCapNote, TtrAccountOpenedNote, IsoMonth, LineAttribution, Month, MonthLine, MonthNote, MonthProvenance, ParameterWindowNote, ParcelSelection, PensionAtRetirementNote, ProvenanceRegister, Settings, StandingParametersNote, StatedByEntries, SuperGuaranteeNote, UncarriedProvenance, UnattributedFigure, UnlegislatedFigure, UnstatedFigure, WaterfallLimbNote } from './plan.js';
 import type { ComputedProvenance, Consumed, ProvenanceBearing } from './provenance.js';
 import type { AgePensionEntitlement } from './agePension.js';
 import type { MinimumTaxFacts, SaptoPerson } from './incomeTax.js';
@@ -4593,6 +4593,96 @@ export const lowIncomeSuperTaxOffsetNotPaidNoteText = (name: string, fy: Fact, a
   'is a pension by the July it would be paid, so the forecast has nowhere to put it and leaves it out. The ATO would ' +
   'still pay it, into a new account or to the person, so super from here is UNDERSTATED by that amount and what it would earn.';
 
+/** RF-3: how the page and the notes name the account a `TTR_START` with an amount opened, by its source. */
+export const ttrAccountName = (from: number): string => `the TTR from super account ${from + 1}`;
+
+/** RF-3: the note for the money a `TTR_START` with an amount moved; `whole` when the source held less than asked. */
+export const ttrAccountOpenedNoteText = (name: string, from: Fact, day: Fact, whole: boolean): string =>
+  `${name}'s transition to retirement pension starts on ${day} in a new account, the TTR from super account ${from}. ` +
+  (whole
+    ? `Super account ${from} held less than the amount to move on the first of the month, so all of it moved. `
+    : `The amount moved out of super account ${from} on the first of the month. `) +
+  `Super account ${from} stays in accumulation. The new account is charged the same fees as super account ${from}, ` +
+  'a second administration fee, and holds no insurance.';
+
+/** RF-3: one account the walk opens for a `TTR_START` with an amount. */
+export interface TtrAccountOpened {
+  /** The new account's position in `superInterests`: after the Person's stated accounts, in entry order. */
+  readonly slot: number;
+  /** The account the money moves out of: the entry's own `interestIndex`. */
+  readonly from: number;
+  readonly entry: Extract<Entry, { readonly type: 'TTR_START' }>;
+  readonly amount: Cents;
+}
+
+/**
+ * **RF-3: the accounts the walk opens, per Person**, one for each enabled `TTR_START` that states an
+ * amount, numbered after that Person's stated accounts in the order of `entries`. Empty for every
+ * plan with none, and then `project()` walks the Household and entries exactly as given. The page
+ * reads the same list to name those accounts (`ttrAccountName`).
+ */
+export const ttrAccountsOpened = (household: Household, entries: readonly Entry[]): readonly (readonly TtrAccountOpened[])[] =>
+  household.persons.map((person, index) => {
+    let slot = person.superInterests.length;
+    return entries.flatMap((entry) =>
+      entry.enabled && entry.type === 'TTR_START' && entry.params.amount !== undefined && entry.owner === (index === 0 ? 'personA' : 'personB')
+        ? [{ slot: slot++, from: entry.params.interestIndex, entry, amount: entry.params.amount }]
+        : [],
+    );
+  });
+
+/** The fee fields the new account copies from its source (RF-3 ruling): a second fee is the conservative reading. */
+const TTR_ACCOUNT_FEE_FIELDS = [
+  'statedAdministrationFeePerYear',
+  'statedAdministrationFeeRate',
+  'statedAdministrationFeeCapPerYear',
+  'statedInvestmentFeeRate',
+  'statedPensionAdministrationFeePerYear',
+  'statedPensionAdministrationFeeRate',
+  'statedPensionAdministrationFeeCapPerYear',
+] as const satisfies readonly (keyof SuperInterest)[];
+
+/**
+ * RF-3: the Household with each opened account added (nil, accumulation, the source's fees and no
+ * insurance), each `TTR_START` with an amount naming its new account, and each `TTR_RATE_CHANGE`
+ * naming a source redirected to the account that source opened (the latest started on or before the
+ * change, else the first). With nothing opened, both come back as given.
+ */
+const withTtrAccountsOpened = (
+  household: Household,
+  entries: readonly Entry[],
+  opened: readonly (readonly TtrAccountOpened[])[],
+): { readonly household: Household; readonly entries: readonly Entry[] } => {
+  if (opened.every((row) => row.length === 0)) return { household, entries };
+  const persons = household.persons.map((person, index) => {
+    const row = opened[index] ?? [];
+    if (row.length === 0) return person;
+    const added = row.map(({ from, entry }): SuperInterest => {
+      const source = person.superInterests[from];
+      if (source?.phase !== 'accumulation') {
+        throw new RangeError(`entry ${entry.id} (TTR_START) moves money out of super account ${from} of ${entry.owner}, and this Household holds no accumulation account there`);
+      }
+      const fees = Object.fromEntries(TTR_ACCOUNT_FEE_FIELDS.flatMap((field) => (source[field] === undefined ? [] : [[field, source[field]]])));
+      return Object.freeze({ phase: 'accumulation' as const, balance: toCents(0), ...fees });
+    });
+    return Object.freeze({ ...person, superInterests: Object.freeze([...person.superInterests, ...added]) });
+  });
+  const ownerIndex = (owner: Entry['owner']): number => (owner === 'personA' ? 0 : owner === 'personB' ? 1 : -1);
+  const rewritten = entries.map((entry): Entry => {
+    if (entry.type === 'TTR_START') {
+      const own = opened[ownerIndex(entry.owner)]?.find((each) => each.entry === entry);
+      return own === undefined ? entry : { ...entry, params: { ...entry.params, interestIndex: own.slot } };
+    }
+    if (entry.type === 'TTR_RATE_CHANGE') {
+      const sources = (opened[ownerIndex(entry.owner)] ?? []).filter(({ from }) => from === entry.params.interestIndex);
+      const to = sources.filter((each) => each.entry.date <= entry.date).at(-1) ?? sources[0];
+      return to === undefined ? entry : { ...entry, params: { ...entry.params, interestIndex: to.slot } };
+    }
+    return entry;
+  });
+  return { household: Object.freeze({ ...household, persons: Object.freeze(persons) }) as Household, entries: rewritten };
+};
+
 /** `frankedShare` is `Settings.investmentPayoutFrankedShare`, and absent is the unfranked sentence. */
 export const investmentDistributionNoteText = (name: string, distribution: Fact, payoutRate: Fact, frankedShare: Fact | undefined): string =>
   frankedShare === undefined
@@ -5647,9 +5737,36 @@ const deathOf = (entries: readonly Entry[], household: Household, first: IsoMont
  */
 export const project = (
   settings: Settings,
-  household: Household,
-  entries: readonly Entry[],
+  statedHousehold: Household,
+  statedEntries: readonly Entry[],
 ): readonly Month[] => {
+  // **RF-3: a `TTR_START` with an amount opens a new account**, added here after the Person's stated
+  // ones so every reader below sees it as one more interest. Nil until the start's month, when the
+  // amount moves in (`ttrOpenedThisMonth`). With no such entry both are the stated objects.
+  const opened = ttrAccountsOpened(statedHousehold, statedEntries);
+  const { household, entries } = withTtrAccountsOpened(statedHousehold, statedEntries, opened);
+  /** RF-3: the day an opened account's TTR starts, or `undefined` for an account the plan states. */
+  const opensOn: readonly (readonly (IsoDate | undefined)[])[] = household.persons.map((person, index) =>
+    person.superInterests.map((_interest, slot) => opened[index]?.find((each) => each.slot === slot)?.entry.date));
+  /** RF-3: an opened account whose start's month is still ahead: left out of the notes that list accounts. */
+  const notOpenYet = (personIndex: number, slot: number, month: IsoMonth): boolean => {
+    const day = opensOn[personIndex]?.[slot];
+    return day !== undefined && month < monthOf(day);
+  };
+  /**
+   * The accounts a note lists: "super accounts 1 and 2", and an opened one by `ttrAccountName` (RF-3).
+   * `afterName` is for "Lee's …": there an opened account listed first loses its "the".
+   */
+  const accountsNamed = (personIndex: number, slots: readonly number[], afterName = false): string => {
+    const stated = slots.filter((slot) => opensOn[personIndex]?.[slot] === undefined);
+    const named = slots.flatMap((slot) => {
+      const from = opened[personIndex]?.find((each) => each.slot === slot)?.from;
+      return from === undefined ? [] : [ttrAccountName(from)];
+    });
+    const plain = stated.length === 0 && named.length > 0 ? [] : [`${stated.length === 1 ? 'super account' : 'super accounts'} ${stated.map((slot) => slot + 1).join(' and ')}`];
+    const joined = [...plain, ...named].join(' and ');
+    return afterName && plain.length === 0 ? joined.replace(/^the /, '') : joined;
+  };
   // **P4-1b part (B): the window is NAMED, and this is the only place the walk learns its bounds.**
   // Both refusals below quote `first` and `last`, and both now get them from `forecastWindow` rather
   // than deriving a private copy — so the boundary this function refuses an entry against and the
@@ -6079,7 +6196,7 @@ export const project = (
   // only while stopped: the latest stop or return on or before the day is a stop. It converts at the
   // NEXT stop after it, or at 65, whichever is first, and that stop converts only this account
   // (`ttrConvertsAtStop`). An account the first stop already switched is a pension, so it is refused.
-  const switches = retirementSwitches(household, entries, settings.asAtDate);
+  const switches = retirementSwitches(household, entries, settings.asAtDate, opensOn);
   const spells = workSpells(household, entries);
   const ttrConvertsAtStop: (IsoDate | undefined)[][] = household.persons.map((person) => person.superInterests.map(() => undefined));
   const ttrAt65: (IsoDate | undefined)[][] = household.persons.map((person) => person.superInterests.map(() => undefined));
@@ -6102,8 +6219,10 @@ export const project = (
       throw new RangeError(`entry ${entry.id} (TTR_START) starts ${person.name}'s transition to retirement pension on ${entry.date}, on or after their Retire entry dated ${latest.date}. Stopping work already turns the super into a full pension, so the pension can't start after it. After going back to work one can start again: date it on or after the return`);
     }
     const decided = switches[personIndex];
-    if (decided?.kind === 'switches' && decided.slots.includes(slot) && decided.retireDay <= entry.date) {
-      throw new RangeError(`entry ${entry.id} (TTR_START) starts a transition to retirement pension from ${person.name}'s super account ${slot + 1} on ${entry.date}, and that account already became a full pension when ${person.name} stopped work on ${decided.retireDay}. Choose an account kept in accumulation at retirement`);
+    // RF-3: an opened account's money comes from its source, so the source is the one tested.
+    const source = opened[personIndex]?.find((each) => each.slot === slot)?.from ?? slot;
+    if (decided?.kind === 'switches' && decided.slots.includes(source) && decided.retireDay <= entry.date) {
+      throw new RangeError(`entry ${entry.id} (TTR_START) starts a transition to retirement pension from ${person.name}'s super account ${source + 1} on ${entry.date}, and that account already became a full pension when ${person.name} stopped work on ${decided.retireDay}. Choose an account kept in accumulation at retirement`);
     }
     row[slot] = entry.date;
     (ttrStartRate[personIndex] as (number | undefined)[])[slot] = entry.params.drawdownRate;
@@ -6799,6 +6918,32 @@ export const project = (
     // **P12-1 — who has died by the first of this month.** The per-month "living persons" notion,
     // and the only one: every site the death reaches reads this.
     const deceasedNow = death !== undefined && month >= death.month ? death.index : undefined;
+    // **RF-3: a `TTR_START` with an amount moves it into its new account on the first of its month**,
+    // before anything in the tick reads a balance or a phase: the switch and cap test at retirement,
+    // RF-1's released amounts, the means test and the Sch 7 determination all see the account as it
+    // starts. Capped at what the source holds; the note says what moved.
+    const ttrOpenedThisMonth: TtrAccountOpenedNote[] = [];
+    opened.forEach((row, personIndex) => {
+      const person = household.persons[personIndex];
+      const held = balances[personIndex]?.superInterestBalances;
+      if (person === undefined || held === undefined || personIndex === deceasedNow) return;
+      for (const { slot, from, entry, amount } of row) {
+        if ((monthOf(entry.date) < first ? first : monthOf(entry.date)) !== month) continue;
+        const moved = Math.min(amount, held[from] ?? 0) as Cents;
+        held[from] = subCents(held[from] ?? toCents(0), moved);
+        held[slot] = addCents(held[slot] ?? toCents(0), moved);
+        ttrOpenedThisMonth.push(Object.freeze({
+          subject: 'TTR account opened' as const,
+          person: person.name,
+          entryId: entry.id,
+          interestIndex: from,
+          toInterestIndex: slot,
+          requested: amount,
+          moved,
+          note: ttrAccountOpenedNoteText(person.name, from + 1, entry.date, moved < amount),
+        }));
+      }
+    });
     // **The year this month is walked under.** Declared here rather than at chunk 3b, where it used
     // to sit, because P5-3 limb 2 stamps the Age Pension line in chunk 2 and a second
     // `financialYearContaining(date)` would be a second spelling of the same string arithmetic. Its
@@ -7279,7 +7424,7 @@ export const project = (
         : decided.kind === 'switches'
           ? [...decided.slots, ...ttrConvertingOn(personIndex, decided.retireDay).filter((slot) => !decided.slots.includes(slot))].sort((a, b) => a - b)
           : decided.slots;
-      const accounts = `${slots.length === 1 ? 'super account' : 'super accounts'} ${slots.map((slot) => slot + 1).join(' and ')}`;
+      const accounts = accountsNamed(personIndex, slots);
       const report = (outcome: PensionAtRetirementNote['outcome'], note: string): void => {
         retirementNotes.push(Object.freeze({
           subject: 'pension at retirement' as const,
@@ -7312,7 +7457,7 @@ export const project = (
         report('over the cap', PENSION_AT_RETIREMENT_NOTE_TEXT['over the cap'](person.name, formatCents(credit), decided.retireDay, accounts, ttrs.length === 0 ? 'none' as const : ttrs.length === slots.length ? 'all' as const : 'some' as const));
         return;
       }
-      report('switched', PENSION_AT_RETIREMENT_NOTE_TEXT.switched(person.name, decided.retireDay, accounts, slots.length === 1));
+      report('switched', PENSION_AT_RETIREMENT_NOTE_TEXT.switched(person.name, decided.retireDay, accountsNamed(personIndex, slots, true), slots.length === 1));
     });
     // Retire flow S3: a return to work, and a stop after one, each say what they do to the super in
     // the month they take effect (the plan's first month for one dated before it).
@@ -7332,7 +7477,7 @@ export const project = (
           // RF-2: the TTR converting at this stop is tested against the cap as the switch is, its
           // own balance included; over it, it stays a TTR until 65.
           const held = balances[personIndex]?.superInterestBalances ?? [];
-          const accounts = `${converting.length === 1 ? 'super account' : 'super accounts'} ${converting.map((slot) => slot + 1).join(' and ')}`;
+          const accounts = accountsNamed(personIndex, converting);
           const alreadyCredited = (creditedAtConversion[personIndex] ?? []).reduce<number>((total, credit) => total + (credit ?? 0), 0);
           const credit = converting.reduce<number>((total, slot) =>
             total + (creditedAtConversion[personIndex]?.[slot] === undefined ? (held[slot] ?? 0) : 0), alreadyCredited) as Cents;
@@ -7349,11 +7494,11 @@ export const project = (
             interestIndexes: Object.freeze([...converting]),
             note: over
               ? PENSION_AT_RETIREMENT_NOTE_TEXT['over the cap'](person.name, formatCents(credit), change.date, accounts, 'all')
-              : PENSION_AT_RETIREMENT_NOTE_TEXT['stopped again, TTR converted'](person.name, change.date, accounts, converting.length === 1),
+              : PENSION_AT_RETIREMENT_NOTE_TEXT['stopped again, TTR converted'](person.name, change.date, accountsNamed(personIndex, converting, true), converting.length === 1),
           }));
           return;
         }
-        const locked = person.superInterests.flatMap((_interest, slot) => (effectivePhaseFor(personIndex, slot, date) === 'accumulation' ? [slot] : []));
+        const locked = person.superInterests.flatMap((_interest, slot) => (effectivePhaseFor(personIndex, slot, date) === 'accumulation' && !notOpenYet(personIndex, slot, month) ? [slot] : []));
         retirementNotes.push(Object.freeze({
           subject: 'pension at retirement' as const,
           person: person.name,
@@ -7715,7 +7860,7 @@ export const project = (
     // reason; and after the Waterfall, where all four limbs report what they could offer and why.
     // Nothing reads it back — it is output — so nothing downstream can come to depend on the order
     // by accident.
-    const notes: MonthNote[] = [...retirementNotes];
+    const notes: MonthNote[] = [...ttrOpenedThisMonth, ...retirementNotes];
 
     // The means test, on this month's own parameters — or nothing at all, where none exist. Past
     // the published window the parameters are indexed from `settings.economicSeries.agePension`, or
@@ -10287,6 +10432,7 @@ export const project = (
     household.persons.forEach((person, personIndex) => {
       if (personIndex === deceasedNow) return; // P12-1: their accounts were paid out at the death.
       person.superInterests.forEach((_interest, slot) => {
+        if (notOpenYet(personIndex, slot, month)) return; // RF-3: nothing in it, and nothing to say yet.
         const partly = releasedWhileBackAtWork(personIndex, slot);
         const heldInSlot = balances[personIndex]?.superInterestBalances[slot] as Cents;
         const phase = effectivePhaseFor(personIndex, slot, date);

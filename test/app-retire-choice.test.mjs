@@ -14,7 +14,8 @@ const withDanaSuper = (interest) => ({
   persons: [{ ...DEMO_PLAN.household.persons[0], superInterests: [interest] }, DEMO_PLAN.household.persons[1]],
 });
 const TTR_RUNNING = withDanaSuper({ phase: 'ttr', balance: 41_200_000, statedStreamSettings: { commencementDay: '2025-07-01' } });
-const values = (date, owner = 'personA') => ({ date, owner, note: '', daysPerWeek: '3', annualSalary: '60,000' });
+// `ttrAmount` blank (RF-3, 2026-09-30): the form always passes the box, and blank is today's path.
+const values = (date, owner = 'personA') => ({ date, owner, note: '', daysPerWeek: '3', annualSalary: '60,000', ttrAmount: '' });
 const ids = () => {
   let n = 0;
   return () => `id-${++n}`;
@@ -85,7 +86,8 @@ test('with no TTR running, cutting down writes the work change AND a TTR_START o
 
 test('a start is refused by name: one account only, on or after a Retire, before the plan', () => {
   const one = DEMO_PLAN.household; // Dana has one account, in accumulation
-  assert.match(ttrRefusal(one, OTHER_ENTRIES, 'personA', '2029-01-01', AS_AT), /Dana’s employer keeps paying into their super account, so the pension needs a second one/);
+  // RF-3 (2026-09-30): the words now offer the amount too.
+  assert.match(ttrRefusal(one, OTHER_ENTRIES, 'personA', '2029-01-01', AS_AT), /Dana’s employer keeps paying into their super account, so the pension needs its own account\. Type the amount to move into it/);
   assert.deepEqual(Object.keys(retireChoiceEntries(one, OTHER_ENTRIES, AS_AT, 'ttr', startValues('2029-01-01'), ids(), '2026-09-29')), ['refused']);
   assert.equal(ttrRefusal(DANA_TWO, OTHER_ENTRIES, 'personA', '2029-01-01', AS_AT), undefined);
   // The demo's Retire is 2031-05-14: the day before is fine, the day itself is not.
@@ -161,4 +163,20 @@ test('the note follows the walk’s switch, not an age: kept out, a pension alre
 test('a date not typed yet gives no note and no error', () => {
   assert.deepEqual(forGoodLines(DEMO_PLAN.household, OTHER_ENTRIES, AS_AT, 'personA', ''), []);
   assert.deepEqual(forGoodLines(DEMO_PLAN.household, OTHER_ENTRIES, AS_AT, 'personA', '1900-01-01'), []);
+});
+
+// RF-3 (2026-09-30): with an amount to move, the walk opens the pension's own account, so one account
+// still building up is enough, and the answer writes the amount.
+test('RF-3: with an amount, one account is enough, and the start carries the amount', () => {
+  const one = DEMO_PLAN.household; // Dana has one account, in accumulation
+  assert.match(ttrRefusal(one, OTHER_ENTRIES, 'personA', '2029-01-01', AS_AT), /needs its own account/);
+  assert.equal(ttrRefusal(one, OTHER_ENTRIES, 'personA', '2029-01-01', AS_AT, true), undefined);
+  const chosen = retireChoiceEntries(one, OTHER_ENTRIES, AS_AT, 'ttr', { ...values('2029-01-01'), ttrInterestIndex: '1', ttrRatePercent: '', ttrAmount: '120,000' }, ids(), '2026-09-30');
+  assert.deepEqual(chosen.entries.map((entry) => entry.type), ['WORK_PATTERN_CHANGE', 'TTR_START']);
+  assert.deepEqual(chosen.entries[1].params, { interestIndex: 0, amount: 12_000_000 });
+  // After the first stop switched her only account, an amount does not help: nothing is left to move.
+  const householdRetire = [{ ...DEMO_PLAN.entries[1], owner: 'household', date: '2030-01-01' }];
+  assert.match(ttrRefusal(one, householdRetire, 'personA', '2030-06-01', AS_AT, true), /no account is left to start a transition to retirement pension from\. It needs an account kept in accumulation at retirement/);
+  // Still under 60 or stopped: the amount changes nothing.
+  assert.match(ttrRefusal(one, OTHER_ENTRIES, 'personA', '2028-05-13', AS_AT, true), /under 60/);
 });

@@ -50,6 +50,9 @@ const statedFigures = (entry: Entry): readonly Stated[] => {
       return [[entry.params.amount, 'nominal']];
     case 'SUPER_CONTRIBUTION':
       return entry.params.kind === 'stopped' ? [] : [[entry.params.annualAmount, 'nominal']];
+    // RF-3: the amount moved into a new account, where one is stated; nominal, as a lump sum's is.
+    case 'TTR_START':
+      return entry.params.amount === undefined ? [] : [[entry.params.amount, 'nominal']];
     case 'MORTGAGE_REFINANCE':
       return [[entry.params.openingBalance, 'nominal'], [entry.params.monthlyRepayment, 'nominal']];
     case 'NON_SUPER_INVESTMENT':

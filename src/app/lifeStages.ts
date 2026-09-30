@@ -201,10 +201,15 @@ export const lifeStagesTimeline = (
     changes.forEach(({ change, at, month, index: changeIndex }, position) => {
       if (changeIndex === undefined || changes[position + 1]?.index === changeIndex) return;
       const when = `${yearOf(month)} · ${ageAt(person.dateOfBirth, firstDayOf(month))}`;
+      // RF-4: a stop before the plan is labelled from its own day, in the past tense, not the plan's first month.
+      const before = monthOf(change.date) < months[0]!.month;
+      const stopped = before
+        ? `${at === 0 ? 'Retired' : 'Retired again'} ${yearOf(change.date)} · ${ageAt(person.dateOfBirth, change.date)}`
+        : `${at === 0 ? 'Retires' : 'Retires again'} ${when}`;
       transitions.push(
         change.kind === 'returned'
           ? { index: changeIndex, phase: 'working', label: `Back at work ${when}` }
-          : { index: changeIndex, phase: 'retired', label: `${at === 0 ? 'Retires' : 'Retires again'} ${when}` },
+          : { index: changeIndex, phase: 'retired', label: stopped },
       );
     });
     if (careIndex !== undefined) {

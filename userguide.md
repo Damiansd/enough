@@ -1171,10 +1171,11 @@ Pick **{{name|Retire}}** from the **{{name|Type}}** list, then fill in:
     ([Chapter 25](#transition-to-retirement)). Fill in **{{name|Days a week}}** and the salary those days pay.
     This isn't retiring, so it adds a **{{name|Change work hours and pay}}** entry, not a Retire entry.
     If no pension is running yet, two more boxes appear, and the same answer also starts one on that
-    date ([Starting one from a later date](#ttr-start)): pick the **{{name|Which super account pays the pension}}**
-    and, if you like, the **{{name|Share taken out each year (%)}}**.
-    If the person is under 60 or 65 or older on the date, already stops work for good on or before it,
-    or has only one super account still building up, the form says why and adds nothing.
+    date ([Starting one from a later date](#ttr-start)): pick the **{{name|Which super account pays the pension}}**,
+    type the **{{name|Amount to move $}}** into it and, if you like, the **{{name|Share taken out each year (%)}}**.
+    If the person is under 60 or 65 or older on the date, or already stops work for good on or before it,
+    the form says why and adds nothing. So it does if the amount is empty and they have only one super
+    account still building up.
 
 ### What it doesn't do by itself
 
@@ -1693,17 +1694,29 @@ when you add a Retire entry ([Chapter 17](#retire-date)). Fill in:
 - **{{name|From}}** — the day it starts. You must be 60 to 64 on that day.
 - **{{name|Owner}}** — whose pension it is.
 - **{{name|Super account}}** — which one, counted from 1.
+- **{{name|Amount to move $}}** — how much to move into the pension. Leave it empty if you have set up
+  a second account for it yourself (see below).
 - **{{name|Share taken out each year (%)}}** — between 4% and 10%, or leave it empty for the legal minimum.
 
-**It has to be a second super account.** While you keep working, your employer keeps paying into
-your super, and a pension account can't take that money. So a fund starts the pension in a new
-account and moves part of your super into it. *enough* can't open an account part-way through the
-forecast, so add that second account now under **{{name|Household and settings}}**, holding the amount
-you plan to move, and name it here. Your employer's money goes on landing in the other one.
-If you are paid a salary, *enough* also has to know which of the two accounts your employer pays
-into. Once you have two accounts still building up, a **{{name|Employer pays into}}**
-box appears under your super accounts: pick the account your employer pays into, and the other one
-can start the pension. Until you pick, the page won't save the second account.
+**The pension gets its own account.** While you keep working, your employer keeps paying into your
+super, and a pension account can't take that money. So a fund starts the pension in a new account and
+moves part of your super into it. Type that amount in **{{name|Amount to move $}}** and *enough* does
+the same: on the first of the month the pension starts, it opens a new account and moves the amount
+into it out of the account you named. That account stays as it is and your employer's money goes on
+landing in it. If the account holds less than the amount by then, all of it moves. In the forecast the
+new account is called "the TTR from super account 1" (or whichever account you named).
+
+The new account is charged the same fees as the account the money came from, so you pay a second
+administration fee. Most funds do charge one, but check yours: if it doesn't, the forecast is a little
+worse than it will be. It has no insurance: the cover stays on the old account.
+
+**Setting up the second account yourself still works.** Instead of an amount, add a second super
+account now under **{{name|Household and settings}}**, holding the amount you plan to move, and name
+it here with the amount left empty. If you are paid a salary, *enough* also has to know which of the
+two accounts your employer pays into. Once you have two accounts still building up, a
+**{{name|Employer pays into}}** box appears under your super accounts: pick the account your employer
+pays into, and the other one can start the pension. Until you pick, the page won't save the second
+account. This way you can give the second account its own fees and insurance.
 
 **Until the start date, nothing changes.** The account is still "building up": if you're younger
 than Age Pension age, it doesn't count for the Age Pension. From the start date it pays you, it
@@ -1717,8 +1730,9 @@ back.
 
 **After going back to work** ([Chapter 18](#back-to-work)) you can start one again. It becomes a full
 pension the next time you stop, or on your 65th birthday, whichever comes first, and that stop changes
-only this account. It has to come from an account that stayed as it was when you stopped: one that
-became a pension then can't start another, and the form says so.
+only this account. It has to come from an account that stayed as it was when you stopped (with an
+amount, the money has to come from one): one that became a pension then can't start another, and the
+form says so.
 
 **One case works differently.** A pension started *before* you first stop, from an account you set to
 stay as it is at retirement, is not turned into a full pension by that stop, or by any later one. It
@@ -1732,6 +1746,9 @@ change the rate from a later date:
 - **{{name|Super account}}** — which one, counted from 1.
 - **{{name|New share taken out each year (%)}}** — again between 4% and 10%.
 
+For a pension started with an amount to move, name the account the money came from: the change goes
+to the pension's new account.
+
 A mid-year change resets the payments for the rest of that year. But the year's total still can't
 go above 10% of the balance on 1 July, or below the legal minimum. The change has to come before
 the account converts to a full pension. That happens automatically at 65 at the latest — a full
@@ -1742,11 +1759,11 @@ pension has no rate left to change.
 Neither Pip nor Jo has a transition to retirement pension in their real facts ([Chapter 83](#pip-and-jo-facts)).
 
 **What-if:** What if, from age 60, Pip drew a TTR pension from their super at 7% a year, alongside
-still working? In **{{name|Household and settings}}**, add a second super account for Pip holding the
-amount Pip would move into the pension. Then add a **{{name|Start a transition to retirement pension}}**
-entry for Pip, dated Pip's 60th birthday, naming that account, 7% taken out each year. Later, if Pip wanted to draw less,
-add a **{{name|Change how much a transition to retirement pension pays}}** entry, naming that account and a
-new rate, dated from whenever the change should start.
+still working? Add a **{{name|Start a transition to retirement pension}}** entry for Pip, dated Pip's
+60th birthday, naming Pip's super account, with the amount Pip would move into the pension and 7% taken
+out each year. Later, if Pip wanted to draw less, add a **{{name|Change how much a transition to retirement pension pays}}**
+entry naming the same account and a new rate, dated from whenever the change should start: it changes
+the pension's new account.
 
 **Where this comes from:** [Transition to retirement income streams (ATO)](https://www.ato.gov.au/individuals-and-families/super-for-individuals-and-families/self-managed-super-funds-smsf/paying-smsf-benefits/income-stream-pension-rules-and-payments/transition-to-retirement-income-streams), [Superannuation Industry (Supervision) Regulations, reg 6.01(2)](https://www.ato.gov.au/law/view/document?DocID=REG%2F19940057%2F6.01%282%29) and [Pension payment rules (ATO)](https://www.ato.gov.au/individuals-and-families/super-for-individuals-and-families/self-managed-super-funds-smsf/paying-smsf-benefits/income-stream-pension-rules-and-payments). In the appendix: [Super and contributions](#sources-super).
 

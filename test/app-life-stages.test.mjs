@@ -215,3 +215,19 @@ test('a stop and a return both before the plan starts show the row Working from 
   assert.deepEqual(pat.segments.map((segment) => segment.phase), ['working']);
   assert.deepEqual(pat.boundaries, []);
 });
+
+// --- RF-4 (2026-09-30): a stop before the plan is labelled from its own day ---------------------------
+
+test('RF-4: a stop before the plan reads "Retired <year> · <age>" from its own date; one inside the plan is unchanged', () => {
+  // Pat: born 5 March 1962, retired 10 March 2023 at 61. The plan starts 2026-01-01, when Pat is 63.
+  const pat = (dateOfBirth) => ({ persons: [person({ name: 'Pat', dateOfBirth, superInterests: [{ phase: 'accumulation', balance: C(100_000) }] })], homeStatus: 'occupied' });
+  const early = [entry('r', 'RETIRE', '2023-03-10', {}, 'personA')];
+  const before = lifeStagesTimeline(project(SETTINGS(), pat('1962-03-05'), early), pat('1962-03-05'), early).persons[0];
+  assert.deepEqual(before.boundaries.map(({ atIndex, label }) => [atIndex, label]), [[0, 'Retired 2023 · 61']]);
+  // Inside the plan the month's first day still sets the age: born 10 June 1962, stopping on 20 June
+  // 2028 — 65 on the 1st, 66 on the day — reads 65, as it always has.
+  const inPlan = [entry('r', 'RETIRE', '2028-06-20', {}, 'personA')];
+  const months = project(SETTINGS(), pat('1962-06-10'), inPlan);
+  const later = lifeStagesTimeline(months, pat('1962-06-10'), inPlan).persons[0];
+  assert.deepEqual(later.boundaries.map(({ atIndex, label }) => [atIndex, label]), [[months.findIndex((m) => m.month === '2028-06'), 'Retires 2028 · 65']]);
+});

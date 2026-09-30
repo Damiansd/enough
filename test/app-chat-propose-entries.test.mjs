@@ -89,7 +89,8 @@ const CASES = {
   DEATH: [DEMO_PLAN, [draft('DEATH', 'personB', {}, '2040-01-01')]],
   NON_SUPER_INVESTMENT: [DEMO_PLAN, [draft('NON_SUPER_INVESTMENT', 'personA', { direction: 'buy', amount: toCents(10_000), incidentalCostsOfAcquisition: toCents(20) }), draft('NON_SUPER_INVESTMENT', 'personA', { direction: 'sell', amount: toCents(5_000), parcelSelection: 'highest-cost-base-first' }, '2029-07-01')]],
   RETURN_CHANGE: [DEMO_PLAN, [draft('RETURN_CHANGE', 'personA', { rate: 0.0651 })]],
-  TTR_START: [WITH_SECOND_ACCOUNT, [draft('TTR_START', 'personA', { interestIndex: 2, drawdownRate: 0.07 })]],
+  // RF-3: the second one moves an amount out of the employer's account into a new one.
+  TTR_START: [WITH_SECOND_ACCOUNT, [draft('TTR_START', 'personA', { interestIndex: 2, drawdownRate: 0.07 }), draft('TTR_START', 'personA', { interestIndex: 1, amount: toCents(50_000) })]],
   TTR_RATE_CHANGE: [WITH_TTR, [draft('TTR_RATE_CHANGE', 'personA', { interestIndex: 2, drawdownRate: 0.07 })]],
   INSURANCE_COVER_CHANGE: [WITH_INSURANCE, [draft('INSURANCE_COVER_CHANGE', 'personA', { interestIndex: 1, benefit: 'both', coverFraction: 0.5 })]],
   SPOUSE_CONTRIBUTION: [DEMO_PLAN, [draft('SPOUSE_CONTRIBUTION', 'personB', { amount: toCents(3_000), receivingInterestIndex: 1 })]],
@@ -132,6 +133,7 @@ const FIELD_OF_BOX = {
   [FORM_BOXES.returnRate]: 'rate',
   [FORM_BOXES.ttrRate]: 'drawdownRatePercent',
   [FORM_BOXES.ttrStartRate]: 'drawdownRatePercent',
+  [FORM_BOXES.ttrMoveAmount]: 'amount',
   [FORM_BOXES.spouseAmount]: 'amount',
   [FORM_BOXES.spouseAccount]: 'receivingInterestIndex',
   [FORM_BOXES.homeValue]: 'homeValue',
@@ -187,6 +189,10 @@ const typedBack = (entryDraft, boxes) => {
   // `advanceDate`/`advanceAmount` own "blank means none" idiom; `sellHomeEntry` requires both keys.
   if (type === 'SELL_HOME') {
     return edits.sellHomeEntry({ newHomeAmount: '', newHomePurchaseDate: '', ...values }, 'x', 'y');
+  }
+  // RF-3: blank unless the box above set it, `BUY_HOME`'s own idiom.
+  if (type === 'TTR_START') {
+    return edits.ttrStartEntry({ amount: '', ...values }, 'x', 'y');
   }
   if (type === 'BUY_HOME') {
     return edits.buyHomeEntry({ purchaseCosts: '', ...values }, 'x', 'y');
@@ -319,7 +325,7 @@ test('every money box, every offered type, both bases: the value is bare and the
       });
     }
   }
-  assert.equal(money, 2 * 29, 'the money boxes the cases hold'); // + DOWNSIZER_CONTRIBUTION's three (its sale's salePrice and sellingCosts, then amount); 13 + ENTER_CARE's three (homeValue, radPrice, radPaidAsLumpSum) + HEAS_DRAW's one ("maximum" carries no second money box, securityValue's own doc) + SELL_HOME's two (salePrice, sellingCosts) + RENT_OUT_HOME's two (weeklyRent, annualRates) + BUY_HOME's five (its sale's salePrice, sellingCosts and newHomeAmount, then purchasePrice, purchaseCosts)
+  assert.equal(money, 2 * 30, 'the money boxes the cases hold'); // + TTR_START's one (RF-3, its amount) + DOWNSIZER_CONTRIBUTION's three (its sale's salePrice and sellingCosts, then amount); 13 + ENTER_CARE's three (homeValue, radPrice, radPaidAsLumpSum) + HEAS_DRAW's one ("maximum" carries no second money box, securityValue's own doc) + SELL_HOME's two (salePrice, sellingCosts) + RENT_OUT_HOME's two (weeklyRent, annualRates) + BUY_HOME's five (its sale's salePrice, sellingCosts and newHomeAmount, then purchasePrice, purchaseCosts)
   // The three kinds of stated money, each on its own label.
   const [spend, salary, lump] = [
     ['SPEND_CHANGE', 'household', { annualSpend: toCents(72_000) }],

@@ -19,10 +19,11 @@ import { anonymousAges, anonymousDescription, anonymousNote, anonymousProvenance
 import { labelledFigure, labelledProse } from './basisLabelled.js';
 import { DEFAULT_MONEY_VIEW, MONEY_VIEW_TAG } from '../../todaysDollars.js';
 import { superAccountName } from '../../entryLabels.js';
+import { ttrAccountName, ttrAccountsOpened } from '../../../core/projection.js';
 import { isRefusal, scenarioWalk } from './scenarioWalk.js';
 import type { Cents } from '../../../core/money.js';
 import type { Household } from '../../../core/household.js';
-import type { IsoMonth, LineAttribution, LineProvenance, Month, MonthNote, MonthProvenance } from '../../../core/plan.js';
+import type { Entry, IsoMonth, LineAttribution, LineProvenance, Month, MonthNote, MonthProvenance } from '../../../core/plan.js';
 import type { PlanFile } from '../../../core/parsePlan.js';
 import type { MoneyBasis } from '../../todaysDollars.js';
 import type { ToolOptions, ToolRefusal } from './scenarioWalk.js';
@@ -37,11 +38,14 @@ const NOT_MONEY: { readonly [S in MonthNote['subject']]?: readonly Exclude<keyof
 /**
  * **A super account goes out as the page names it, counted from 1** (`superAccountName`). The engine
  * holds a position in `superInterests`, counted from 0; a model handed that position would quote
- * "account 0" beside a page that says "super account 1". `null` (nothing credited) stays `null`.
+ * "account 0" beside a page that says "super account 1". `null` (nothing credited) stays `null`. An
+ * account the walk opened for a `TTR_START` with an amount goes out as `ttrAccountName` (RF-3).
  */
-const ACCOUNT_FIELDS: Readonly<Record<string, string>> = { interestIndex: 'superAccount', interestIndexes: 'superAccounts' };
-const accountNamed = (value: unknown): unknown =>
-  typeof value === 'number' ? superAccountName(value) : Array.isArray(value) ? value.map((position: number) => superAccountName(position)) : value;
+const ACCOUNT_FIELDS: Readonly<Record<string, string>> = { interestIndex: 'superAccount', interestIndexes: 'superAccounts', toInterestIndex: 'toSuperAccount' };
+/** One Person's account name, by position. */
+type AccountNamer = (position: number) => string;
+const accountNamed = (value: unknown, name: AccountNamer): unknown =>
+  typeof value === 'number' ? name(value) : Array.isArray(value) ? value.map((position: number) => name(position)) : value;
 
 const WELL_FORMED_MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 
@@ -71,18 +75,23 @@ const monthProvenance = (household: Household, provenance: MonthProvenance, figu
 });
 
 /** A note: every number that is money labelled, and its prose rebuilt or its raw figures omitted (`labelledProse`). */
-const labelledNote = (household: Household, note: MonthNote, figure: Figure): Record<string, unknown> => {
+const labelledNote = (household: Household, note: MonthNote, figure: Figure, entries: readonly Entry[]): Record<string, unknown> => {
   const notMoney: readonly string[] = NOT_MONEY[note.subject] ?? [];
+  const opened = 'person' in note ? ttrAccountsOpened(household, entries)[household.persons.findIndex((person) => person.name === note.person)] ?? [] : [];
+  const name: AccountNamer = (position) => {
+    const from = opened.find((each) => each.slot === position)?.from;
+    return from === undefined ? superAccountName(position) : ttrAccountName(from);
+  };
   return Object.fromEntries(
     Object.entries(anonymousNote(household, note)).map(([key, value]) =>
       Object.hasOwn(ACCOUNT_FIELDS, key)
-        ? [ACCOUNT_FIELDS[key]!, accountNamed(value)]
+        ? [ACCOUNT_FIELDS[key]!, accountNamed(value, name)]
         : [key, typeof value === 'number' && !notMoney.includes(key) ? figure(value as Cents) : typeof value === 'string' ? labelledProse(value, figure) : value],
     ),
   );
 };
 
-const monthDetail = (household: Household, scenarioId: string, month: Month, basis: MoneyBasis) => {
+const monthDetail = (household: Household, scenarioId: string, month: Month, basis: MoneyBasis, entries: readonly Entry[]) => {
   const figure: Figure = (cents) => labelledFigure(cents, basis, month.month);
   return {
     scenarioId,
@@ -98,7 +107,7 @@ const monthDetail = (household: Household, scenarioId: string, month: Month, bas
       provenance: lineProvenance(household, line.provenance, figure),
       attribution: lineAttribution(household, line.attribution, figure),
     })),
-    notes: month.notes.map((note) => labelledNote(household, note, figure)),
+    notes: month.notes.map((note) => labelledNote(household, note, figure, entries)),
     incomeFromSuper: figure(month.incomeFromSuper),
     balances: {
       openingBalance: figure(month.openingBalance),
@@ -133,7 +142,7 @@ export const monthOrRefusal = (plan: PlanFile, month: string, options: ToolOptio
       reason: `the forecast runs from ${walk.months[0]?.month} to ${walk.months.at(-1)?.month}, and ${month} is not in it`,
     };
   }
-  return monthDetail(plan.household, walk.scenarioId, found, walk.basis);
+  return monthDetail(plan.household, walk.scenarioId, found, walk.basis, walk.entries);
 };
 
 /** `getMonth` as the connector returns it: serialised, through the identity guard. */

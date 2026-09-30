@@ -63,7 +63,7 @@
 import { formatDollars, wholeDollarsIn } from './displayMoney.js'; // `.js` is correct in a `.ts` file — see tsconfig.json
 import { moneyLens } from './todaysDollars.js';
 import { superAccountName } from './entryLabels.js';
-import { AGE_PENSION_LINE } from '../core/projection.js';
+import { AGE_PENSION_LINE, ttrAccountName } from '../core/projection.js';
 import type { MoneyBasis, MoneyLens } from './todaysDollars.js';
 import type { Cents } from '../core/money.js';
 import type { Person } from '../core/household.js';
@@ -441,6 +441,7 @@ export const NOTE_SUBJECT_LABELS: Readonly<Record<MonthNote['subject'], string>>
   'concessional cap exceeded': 'Over the before-tax super cap',
   'HEAS capacity cap reached': 'Home Equity Access Scheme — capacity reached',
   'low income super tax offset not paid': 'Low income super tax offset left out',
+  'TTR account opened': 'Transition to retirement pension: money moved in',
 });
 
 const WATERFALL_LIMB_TITLES: Readonly<Record<WaterfallLimbNote['limb'], string>> =
@@ -499,6 +500,7 @@ export const NOTE_TEXT_LABELS: Readonly<Record<MonthNote['subject'], string>> = 
   'concessional cap exceeded': 'Over the cap — this forecast looks better than it should',
   'HEAS capacity cap reached': 'Why the loan payments stopped, and what keeps growing anyway',
   'low income super tax offset not paid': 'Why this was left out — this forecast looks worse than it should',
+  'TTR account opened': 'Where the money went, and what the new account costs',
 });
 
 /**
@@ -712,6 +714,21 @@ export const noteRow = (note: MonthNote, money: MoneyLens): NoteRow => {
         note: wholeDollarsIn(note.note),
         noteLabel: NOTE_TEXT_LABELS['low income super tax offset not paid'],
         detail: REGISTER_DETAILS['low income superannuation tax offset'] ?? null,
+      });
+    case 'TTR account opened':
+      // RF-3: what was asked to move and what the source held to move, `super withdrawal`'s pair. The
+      // money stays in super, so the total does not change.
+      return Object.freeze({
+        subject: 'TTR account opened' as const,
+        subjectLabel: NOTE_SUBJECT_LABELS['TTR account opened'],
+        of: `${note.person} — ${superAccountName(note.interestIndex)} into ${ttrAccountName(note.interestIndex)}`,
+        available: formatDollars(money(note.requested)),
+        drawn: formatDollars(money(note.moved)),
+        note: wholeDollarsIn(note.note),
+        noteLabel: NOTE_TEXT_LABELS['TTR account opened'],
+        detail:
+          'A transition to retirement pension is paid from its own account. The forecast opens it on the' +
+          ' start date and moves the amount you chose into it; the rest stays where your employer pays in.',
       });
     default: {
       const unreachable: never = note;

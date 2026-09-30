@@ -387,6 +387,8 @@ export interface ReturnChangeFormValues extends EntryFormValues {
 export interface TtrStartFormValues extends EntryFormValues {
   readonly interestIndex: string;
   readonly drawdownRatePercent: string;
+  /** RF-3: dollars to move into a new account for the pension; blank makes the named account the pension. */
+  readonly amount: string;
 }
 
 /**
@@ -1167,8 +1169,9 @@ export const SPOUSE_CONTRIBUTION_ENTRY_SUMMARY =
   'Extra super for your spouse, paid once from your own after-tax money.';
 
 /**
- * A candidate `TTR_START`. Nothing is judged here: `parsePlan` refuses the ages, the account and a
- * rate outside `TTR_RATE_FLOOR`..`TTR_RATE_CEILING`. A blank rate box states no rate.
+ * A candidate `TTR_START`. Nothing is judged here: `parsePlan` refuses the ages, the account, a rate
+ * outside `TTR_RATE_FLOOR`..`TTR_RATE_CEILING` and an amount of nothing. A blank rate box states no
+ * rate, and a blank amount box no amount.
  */
 export const ttrStartEntry = (values: TtrStartFormValues, id: string, createdAt: string): unknown =>
   candidateEntry(
@@ -1177,18 +1180,21 @@ export const ttrStartEntry = (values: TtrStartFormValues, id: string, createdAt:
     {
       interestIndex: interestIndexAsTyped(values.interestIndex),
       ...(values.drawdownRatePercent.trim() === '' ? {} : { drawdownRate: percentAsFraction(values.drawdownRatePercent) }),
+      ...(values.amount.trim() === '' ? {} : { amount: dollarsToCents(values.amount) }),
     },
     id,
     createdAt,
   );
 
 export const TTR_START_ENTRY_SUMMARY =
-  'Turns one of your super accounts into a transition to retirement pension, from this date.';
+  'Starts a transition to retirement pension from one of your super accounts, from this date.';
 
 export const TTR_START_ENTRY_NOTICE =
-  'From this date the account pays you a pension while you keep working, at the share you choose, or the' +
-  ' yearly minimum if you leave it blank. It must be a second account, holding the money you will move into' +
-  ' the pension, because your employer keeps paying into the other one. Until this date nothing changes;' +
+  'From this date a pension is paid to you while you keep working, at the share you choose, or the yearly' +
+  ' minimum if you leave it blank. Type an amount to move and the forecast opens a new account for the' +
+  ' pension on this date, taking the amount out of the account you name, where your employer keeps paying.' +
+  ' Leave the amount blank to turn the account you name into the pension: then it must be a second account' +
+  ' you have set up, because your employer keeps paying into the other one. Until this date nothing changes;' +
   ' from it, the account also counts for the Age Pension. It becomes a normal pension when you stop work for' +
   ' good, or by itself at the age the law sets.';
 

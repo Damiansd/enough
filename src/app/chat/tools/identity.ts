@@ -76,6 +76,7 @@ import {
   superPaymentDescription,
   superPoolName,
   taxTrueUpDescription,
+  ttrAccountOpenedNoteText,
 } from '../../../core/projection.js';
 import {
   accountBasedPensionNotSweptClaimNote,
@@ -188,6 +189,8 @@ const NAMED_NOTE_TEXTS: readonly NoteText[] = [
   (name, stopDay, accounts) => PENSION_AT_RETIREMENT_NOTE_TEXT['stopped again, TTR converted'](name, stopDay, accounts, false),
   (name, age) => superWithdrawalTaxNote(name, age, true),
   (name, age) => superWithdrawalTaxNote(name, age, false),
+  (name, from, day) => ttrAccountOpenedNoteText(name, from, day, true),
+  (name, from, day) => ttrAccountOpenedNoteText(name, from, day, false),
 ];
 
 /** Every limb 5 claim note that names a Person. */

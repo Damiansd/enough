@@ -1264,16 +1264,23 @@ const PARAMS_PARSERS = {
   },
   // `TTR_START` — retire flow S4. The shape only; the owner, the account and the ages are
   // `checkTtrStartTargets`', below. The rate is optional (absent pays the Schedule 7 minimum) and
-  // has `TTR_RATE_CHANGE`'s bounds.
+  // has `TTR_RATE_CHANGE`'s bounds. The amount (RF-3) is optional and, where stated, more than
+  // nothing, on `LUMP_SUM_FROM_SUPER.amount`'s ground.
   TTR_START: (value: unknown, path: string): Entry['params'] => {
-    const record = object(PlanFileEntryError, value, path, ['interestIndex', 'drawdownRate']);
+    const record = object(PlanFileEntryError, value, path, ['interestIndex', 'drawdownRate', 'amount']);
     const interestIndex = record['interestIndex'];
     if (typeof interestIndex !== 'number' || !Number.isSafeInteger(interestIndex) || interestIndex < 0) {
       fail(PlanFileEntryError, `${path}.interestIndex`, `is ${JSON.stringify(interestIndex)}, and which super account becomes the transition to retirement pension is a position in that Person's \`superInterests\` — a whole number from 0. It is required`);
     }
+    const amount = optional(record, 'amount', (raw) => {
+      const stated = cents(PlanFileEntryError, raw, `${path}.amount`);
+      if (stated <= 0) fail(PlanFileEntryError, `${path}.amount`, `is ${stated} cents, and the amount moved into a transition to retirement pension is more than nothing. Leave it out to make the account itself the pension`);
+      return stated;
+    });
     return {
       interestIndex,
       ...optionally('drawdownRate', optional(record, 'drawdownRate', (raw) => parseTtrDrawdownRate(raw, `${path}.drawdownRate`, PlanFileEntryError))),
+      ...optionally('amount', amount),
     };
   },
   // `TTR_RATE_CHANGE` — the shape only; which interest, its phase and the 65th birthday are
@@ -2629,8 +2636,9 @@ const PRESERVATION_AGE: number = SUPERANNUATION.access.preservationAge.value;
 
 /**
  * **What a `TTR_START` needs that only the whole file knows** (retire flow S4): a Person and an
- * accumulation account that exist, that account not being where the Guarantee is nominated, another
- * accumulation account for the Guarantee to go on landing in, and a date from the plan's start and
+ * accumulation account that exist; without an amount, that account not being where the Guarantee is
+ * nominated and another accumulation account for the Guarantee to go on landing in (with one, RF-3,
+ * the account stays accumulation and the pension is a new account); and a date from the plan's start and
  * from the 60th birthday to before the 65th (item 110 is attaining preservation age; item 106 has
  * released everything at 65, so there is nothing to transition).
  */
@@ -2652,12 +2660,12 @@ const checkTtrStartTargets = (entries: readonly Entry[], household: Household, s
     if (interest.phase !== 'accumulation') {
       fail(PlanFileEntryError, `${path}.params.interestIndex`, `is ${entry.params.interestIndex}, and that super account of ${person.name}'s is ${interest.phase === 'ttr' ? 'already a transition to retirement pension' : 'already a full account-based pension'}. A transition to retirement pension starts from an account still building up (accumulation): pick that account`);
     }
-    if (interest.statedEmployerContributionDestination !== undefined) {
+    if (entry.params.amount === undefined && interest.statedEmployerContributionDestination !== undefined) {
       fail(PlanFileEntryError, `${path}.params.interestIndex`, `is ${entry.params.interestIndex}, and that is the super account ${person.name}'s employer pays into. A pension account cannot take contributions, so the employer keeps paying into an account still building up. Pick the other account for the pension, or name another account as the one the employer pays into`);
     }
     const others = person.superInterests.filter((other, slot) => slot !== entry.params.interestIndex && other.phase === 'accumulation');
-    if (others.length === 0) {
-      fail(PlanFileEntryError, `${path}.params.interestIndex`, `is ${entry.params.interestIndex}, and it is ${person.name}'s only super account still building up. Someone drawing a transition to retirement pension is still working, and their employer keeps paying into an account still building up, so the pension is paid from a second account. This forecast cannot open an account part-way through: add the amount you will move into the pension as a second super account under Household and settings, and name that one`);
+    if (entry.params.amount === undefined && others.length === 0) {
+      fail(PlanFileEntryError, `${path}.params.interestIndex`, `is ${entry.params.interestIndex}, and it is ${person.name}'s only super account still building up. Someone drawing a transition to retirement pension is still working, and their employer keeps paying into an account still building up, so the pension is paid from a second account. State the amount to move into the pension, and the forecast opens that account on the start date; or add it yourself as a second super account under Household and settings, and name that one`);
     }
     if (entry.date < settings.asAtDate) {
       fail(PlanFileEntryError, `${path}.date`, `is ${entry.date}, before the plan starts on ${settings.asAtDate}. A transition to retirement pension that has already started is stated under Household and settings, as that account's phase, with the day it started`);
