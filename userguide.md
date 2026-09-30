@@ -2951,6 +2951,8 @@ Each month, on top of the accommodation payment, *enough* adds a basic daily fee
 contribution and a non-clinical care contribution. All of this is worked out from your own income
 and assets, under the aged care means test. You don't type these.
 
+From 20 March 2027, the hotelling and non-clinical care contributions start only once your means-tested amount passes $78.73 a day (up from $73.73), whatever kind of home you're in ([the rules that set it](https://www.legislation.gov.au/F2026L01252/asmade/text)).
+
 ### What happens to the deposit
 
 The lump sum is refunded — less a small amount the facility keeps over time — when that person

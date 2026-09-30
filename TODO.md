@@ -9852,8 +9852,16 @@ guide Chapter 85.
   a pension from the January 2034 retirement). Golden: 236 figures moved, all traced to those four
   credits and their earnings (`test/core-low-income-super-tax-offset.test.mjs`, 14 tests; 13
   mutations each killed).
-- [ ] **LR-4 Aged care accommodation supplement restructure — announced for 20 March 2027, not yet
-  law.** Top tier $77.30 a day; `agedCare.ts` holds one $73.73 figure. Wait for the instrument.
+- [x] **LR-4 Aged care accommodation supplement restructure — announced for 20 March 2027, not yet
+  law.** ~~Top tier $77.30 a day~~ (superseded: the law says $78.73); `agedCare.ts` holds one $73.73 figure. Wait for the instrument.
+  — ✅ 2026-09-30 built. Act s 235(3) takes the HIGHEST prescribed amount for the day, so the tiers
+  only change what government pays the provider: one figure, $78.73 system-wide from 20 Mar 2027.
+  Leaf `agedCare.maxAccommodationSupplementFrom2027` (`config`, effective 2027-03-20, F2026L01252
+  Sch 8 + s 235(3), register §12.7), substituted in `agedCareScheduleThrough` after that step's CPI
+  movement and indexed DOWN on later steps (2027-07-01: $79.38). March 2027 keeps $73.73 (month
+  granularity; s 610-65(2)). Hidden in Rules in force; listed in the chat money locations. Walk pin:
+  a resident near $80/day pays hotelling $6.27/day in March 2027, $1.52/day in April 2027 (the
+  $5.00 step less $0.25 the indexed bands add). Five mutations each killed; 0 golden/demo digests moved.
   - **Checked 2026-09-30: NOW LAW — code not yet changed.** The instrument is the Aged Care Amendment
     (September Indexation and Other Measures) Rules 2026, **F2026L01252** (made 17 Sep 2026), Schedule 8,
     which **commences 20 March 2027**. It amends Aged Care Rules 2025 s 230-10(2)/(2A), s 230-15 and s 242B-25:

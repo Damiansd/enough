@@ -230,3 +230,30 @@ test('the NCCC daily max in a generated period is CPI-carried from the one befor
   assert.ok(first20Mar2027.nonClinicalCareContribution.dailyMax > published.nonClinicalCareContribution.dailyMax);
   assert.ok(first20Mar2027.nonClinicalCareContribution.dailyMax >= Math.ceil(published.nonClinicalCareContribution.dailyMax * (1 + ECONOMIC_SERIES.cpi) ** 0.5));
 });
+
+// --- LR-4 — F2026L01252 Sch 8: the maximum accommodation supplement is $78.73 from 20 Mar 2027 ------
+
+test('LR-4 — the leaf: $78.73, effective 20 Mar 2027, sourced to the instrument and Act s 235(3)', () => {
+  const leaf = AGED_CARE.maxAccommodationSupplementFrom2027;
+  assert.equal(leaf.value, 7873);
+  assert.equal(leaf.effective, '2027-03-20');
+  assert.equal(leaf.kind, 'config');
+  assert.match(leaf.source, /F2026L01252/);
+  assert.match(leaf.source, /s 235\(3\)/);
+});
+
+test('LR-4 — the supplement is $73.73 on 20 Sep 2026, EXACTLY $78.73 on 20 Mar 2027, then indexed DOWN from $78.73', () => {
+  const schedule = agedCareScheduleThrough(ECONOMIC_SERIES.cpi, singleMaximumBasicRateAt, '2027-09-20');
+  assert.equal(schedule['2026-09-20'].maxAccommodationSupplement, 7373);
+  // Not CPI-carried on its own step: the instrument states the figure for that day.
+  assert.equal(schedule['2027-03-20'].maxAccommodationSupplement, 7873);
+  // 20 Mar → 1 Jul 2027 is four months: $78.73 × 1.025^(4/12) = $79.3807…, rounded DOWN = $79.38.
+  assert.equal(schedule['2027-07-01'].maxAccommodationSupplement, 7938);
+  assert.equal(schedule['2027-07-01'].maxAccommodationSupplement, Math.floor(7873 * 1.025 ** (4 / 12)));
+  // 1 Jul → 20 Sep 2027 (two months) carries on from $79.38, not back to $78.73.
+  assert.equal(schedule['2027-09-20'].maxAccommodationSupplement, Math.floor(7938 * 1.025 ** (2 / 12)));
+  // The walk reads a period by its month's 1st: March 2027 keeps $73.73, April 2027 takes $78.73.
+  const periods = agedCarePeriodsThrough('2027-09-20', ECONOMIC_SERIES.cpi, singleMaximumBasicRateAt);
+  assert.equal(agedCarePeriodAt('2027-03-01', periods).rates.maxAccommodationSupplement, 7373);
+  assert.equal(agedCarePeriodAt('2027-04-01', periods).rates.maxAccommodationSupplement, 7873);
+});

@@ -798,18 +798,19 @@ test('P14-5a, the literal version — a couple, one dies, the survivor already i
 //
 // **Finding (review 2026-09-25): the low fees are correct.** Alex enters care 2056-01-01 with the
 // home ($1.2m, Sam remains there — protected) and a $750,000 room price part-funded by a $300,000
-// RAD lump sum. `Month.assessableAssets` for 2056-01 is $1,179,586.69 (combined) — super IS in that
+// RAD lump sum. `Month.assessableAssets` for 2056-01 is $1,188,357.89 (combined) — super IS in that
 // figure (both are ABP, both are Age Pension age by 2056, and `superInterestTreatment`'s
 // younger-partner exemption is an ACCUMULATION-phase, under-pension-age rule that does not apply
 // here — see [[project-sacrifice-means-test-asymmetry]] for the exemption itself). Per Person that
-// is $589,793.35 — between the 2056 (CPI-carried) "second" and "third" asset-band boundaries, NOT
+// is ~$594,178.95 — between the 2056 (CPI-carried) "second" and "third" asset-band boundaries, NOT
 // past the uncapped top band, so the 17.5%/0%/7.8%/0%/7.8% taper (health.gov.au's own band shape,
 // pinned to the cent against Sakura's and Raj's worked examples in `core-aged-care.test.mjs`) gives
-// an asset-tested amount of $160.62/day. The 2056 maximum accommodation supplement — itself CPI-
-// carried from $73.73 (2026) to ~$150.22/day by 2056, the SAME movement every other figure here
-// moves by — is subtracted FIRST (the health.gov.au waterfall `FEE_WATERFALL_ORDER` quotes, and
-// Raj's own worked example already shows a moderately-above-the-free-area resident paying BELOW the
-// hotelling max for exactly this reason), leaving only ~$10.40/day for hotelling and nothing at all
+// an asset-tested amount of $161.56/day. The 2056 maximum accommodation supplement — $78.73 from
+// 20 Mar 2027 (LR-4, F2026L01252 Sch 8), then CPI-carried to $158.54/day by 2056-01, the SAME
+// movement every other figure here moves by — is subtracted FIRST (the health.gov.au waterfall
+// `FEE_WATERFALL_ORDER` quotes, and Raj's own worked example already shows a moderately-above-the-
+// free-area resident paying BELOW the hotelling max for exactly this reason), leaving only ~$3.02/day
+// for hotelling and nothing at all
 // for the NCCC. A resident's own wealth needs to clear the accommodation supplement by MORE than the
 // hotelling max (2056: ~$46.00/day) before the NCCC starts at all — Raj, in the SOURCE example, is
 // $1.75/day short of that and pays zero NCCC too, so this household's own zero is the same shape as
@@ -881,6 +882,49 @@ test('P14-18a — demo couple review fixture: 2056-01 hotelling/NCCC hand-worked
   assert.equal(lineSum(jan2056, AGED_CARE_NCCC_LINE), fees.nonClinicalCareContribution * DAYS_IN_JAN);
   assert.equal(fees.nonClinicalCareContribution, 0, 'the finding: NCCC is genuinely zero this month, not merely small — hotelling never reaches its own cap');
   assert.ok(fees.hotellingContribution > 0 && fees.hotellingContribution < period.rates.hotellingContributionMax, 'hotelling is a real, non-zero, below-cap contribution — the accommodation supplement offset, not a missing input, is what keeps it small');
+});
+
+// --- LR-4 — the maximum accommodation supplement is $78.73 from 20 Mar 2027 (F2026L01252 Sch 8) ---
+//
+// Aged Care Act 2024 s 235(3): hotelling (s 278 Step 2) subtracts the HIGHEST supplement the rules
+// prescribe for the day — $73.73 until Sch 8 commences, then $78.73 whatever the home's tier. The
+// walk reads one parameter period per month (the 1st), so March 2027 is still on $73.73 (s 610-65(2)
+// keeps the old section for days before commencement) and April 2027 is the first month on $78.73.
+// A single resident, cash only, income nil, whose means-tested amount sits near $80/day. By hand:
+//   March, assets $295,297.95 on the 20 Sep 2026 thresholds: 17.5% × ($219,858.40 − $66,500) +
+//     7.8% × ($295,297.95 − $266,000) = $29,122.96 ÷ 364 = $80.00/day; less $73.73 = $6.27/day.
+//   April, assets $295,487.51 on the 20 Mar 2027 thresholds: 17.5% × ($222,589.66 − $67,326.11) +
+//     7.8% × ($295,487.51 − $269,304.47) = $29,213.40 ÷ 364 = $80.25/day; less $78.73 = $1.52/day.
+// The $5.00 supplement step, less the $0.25 the indexed bands add to the means-tested amount. The
+// supplement is a literal here, never read off the period, so a walk that looked April up in the
+// published window (still $73.73) fails.
+test('LR-4 — hotelling drops by the $5.00 supplement step from April 2027: March still subtracts $73.73, April $78.73', () => {
+  const single = { persons: [person('Sam', '1957-06-01')], homeStatus: 'occupied', openingOffsetBalance: toCents(282_293) };
+  const enteredCare = entry('ec', 'ENTER_CARE', '2027-02-01', { homeValue: toCents(0), radPrice: toCents(0), radPaidAsLumpSum: toCents(0) }, 'personA');
+  const walked = project(SETTINGS, single, [enteredCare]);
+  const periods = agedCarePeriodsThrough('2027-12-31', SETTINGS.economicSeries.cpi, () => toCents(0));
+  const perDay = {};
+  for (const [month, supplement, days] of [['2027-03', toCents(73.73), 31], ['2027-04', toCents(78.73), 30]]) {
+    const walkedMonth = walked.find((m) => m.month === month);
+    const rates = agedCarePeriodAt(`${month}-01`, periods).rates;
+    const means = agedCareMeansAssessment(
+      { couple: false, personNames: ['Sam'], combinedAssessableIncome: toCents(0), combinedAssessableAssetsExcludingHomeAndRad: walkedMonth.assessableAssets, combinedRadPaid: toCents(0), home: { netValue: toCents(0), homeIsProtected: false } },
+      rates,
+    );
+    // Income: an upper-bound deeming ceiling still tests at nil, so the $0 above loses nothing.
+    const bound = agedCareMeansAssessment(
+      { couple: false, personNames: ['Sam'], combinedAssessableIncome: Math.ceil(walkedMonth.assessableAssets * SETTINGS.deemingRates.upper), combinedAssessableAssetsExcludingHomeAndRad: walkedMonth.assessableAssets, combinedRadPaid: toCents(0), home: { netValue: toCents(0), homeIsProtected: false } },
+      rates,
+    );
+    assert.equal(bound.perPerson[0].incomeTestedAmountPerDay, 0);
+    const amount = means.perPerson[0].meansTestedAmountPerDay;
+    assert.ok(amount > toCents(79.5) && amount < toCents(80.5), `${month}: the fixture must sit near $80/day, got ${amount} cents`);
+    perDay[month] = { amount, hotelling: amount - supplement };
+    assert.equal(lineSum(walkedMonth, AGED_CARE_HOTELLING_LINE), perDay[month].hotelling * days, `${month}: hotelling is not the means-tested amount less ${supplement} cents a day`);
+    assert.equal(lineSum(walkedMonth, AGED_CARE_NCCC_LINE), 0);
+  }
+  assert.deepEqual(perDay['2027-03'], { amount: 8000, hotelling: 627 });
+  assert.deepEqual(perDay['2027-04'], { amount: 8025, hotelling: 152 });
 });
 
 // --- HEAS debt against the former home (docs/research/p9-heas-debt-netting-2026-09-25.md) ---------

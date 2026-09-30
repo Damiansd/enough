@@ -6044,3 +6044,33 @@ pinned beside the single-Person stand-in the earlier slice used.
 **Mutation-tested** (isolated scratchpad copy, per the mutation protocol): generation disabled past
 the published year turned 4 tests red; the basic fee wired to a fixed figure instead of the
 projected pension rate turned 2 tests red. Both reverted before this change was committed.
+
+### 12.7 The maximum accommodation supplement — $78.73 from 20 Mar 2027 (LR-4, 2026-09-30)
+
+**The rule.** Aged Care Act 2024 s 235(3): the "maximum accommodation supplement amount" for a day
+is the HIGHEST amount the rules prescribe for that day. The hotelling contribution (s 278 Step 2) and
+the non-clinical care contribution (s 279 Step 2) both subtract it from the means-tested amount
+before anything is charged — `FEE_WATERFALL_ORDER`'s first step.
+
+**The Sch 8 step.** Aged Care Amendment (September Indexation and Other Measures) Rules 2026,
+[F2026L01252](https://www.legislation.gov.au/F2026L01252/asmade/text), Sch 8, commences 20 March
+2027 (read from the Federal Register's as-made Word text, 2026-09-30, `primary-verified`). It
+replaces Aged Care Rules 2025 s 230-10(2) with tiers by building status and low-means resident
+percentage ($59.23 / $66.00 / $78.73 for a new or significantly refurbished home, a flat $53.09
+otherwise), and s 230-15 with $78.73 / $53.09. The highest figure any day can reach is $78.73, so
+from 20 Mar 2027 the maximum is $78.73 everywhere. Saving provision s 610-65(2): days before
+commencement keep the old s 230-15 — the $73.73 of the same instrument's Sch 1.
+
+**Why the tiers never reach the household.** The tiers set what government pays the PROVIDER for a
+low-means resident. The household's fees read only the s 235(3) maximum, which is the top of the
+table whatever the home's own tier — so this project stores one figure, not a home attribute.
+
+**In code.** `agedCare.maxAccommodationSupplementFrom2027` (`config`, effective 2027-03-20, $78.73)
+in `src/data/assumptions/agedCare.ts`. `agedCareScheduleThrough` substitutes it at the 2027-03-20
+step, AFTER that step's CPI movement, so the 20 Mar 2027 set carries exactly $78.73 (not CPI-carried
+on its own step); every later step indexes it DOWN from there like the other protection-side
+figures (§12.3). The walk reads one period per month (the 1st), so March 2027 still subtracts $73.73
+and April 2027 is the first month on $78.73. Hidden in Rules in force (no row shows the supplement
+today). Hand-worked walk pin: a resident near $80/day pays hotelling of $6.27/day in March 2027 and
+$1.52/day in April 2027 (`test/core-projection-aged-care.test.mjs`); chain pins in
+`test/assumptions-aged-care.test.mjs`. Supersedes TODO LR-4's announced "$77.30 top tier".

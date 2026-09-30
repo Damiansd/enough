@@ -192,6 +192,7 @@ export const MONEY_LOCATIONS = [
   'agedCare.residentialSchedule.*#value.assetThresholds.third',
   'agedCare.residentialSchedule.*#value.assetThresholds.fourth',
   'agedCare.residentialSchedule.*#value.maxAccommodationSupplement',
+  'agedCare.maxAccommodationSupplementFrom2027#value',
   'agedCare.grandfatheredCaps.*#value.lifetimeCap',
   'agedCare.grandfatheredCaps.*#value.annualCap',
   'agedCare.supportAtHome.classificationBudgets#value.1',

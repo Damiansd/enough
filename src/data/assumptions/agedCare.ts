@@ -22,7 +22,7 @@ import { toCents } from '../../core/money.js'; // `.js` is correct in a `.ts` fi
 import type { Cents } from '../../core/money.js';
 import { priceLevelFactor } from '../../core/priceLevel.js';
 import { deepFreeze } from './types.js';
-import type { Assumption, Config, Constant, Formula, IsoDate, Rate } from './types.js';
+import type { Assumption, Config, Constant, Formula, IsoDate, Money, Rate } from './types.js';
 import { dayBefore, latestOnOrBefore, mergeCalendarBoundaries } from './periods.js';
 
 const HEALTH_GOV_SCHEDULE_20_SEP_2026 = {
@@ -141,6 +141,26 @@ const FEE_WATERFALL_ORDER = {
   value:
     'remainder = max(0, meansTestedAmountPerDay - maxAccommodationSupplement); hotelling = min(remainder, hotellingContributionMax); nonClinicalCareContribution = min(remainder - hotelling, nonClinicalCareContribution.dailyMax), THEN further capped by the lifetime $ and 1,460-day caps',
 } satisfies Constant<string>;
+
+/**
+ * **LR-4 — the supplement the waterfall subtracts becomes $78.73 on 20 Mar 2027, whatever the home.**
+ * Aged Care Act 2024 s 235(3) makes the "maximum accommodation supplement amount" the HIGHEST amount
+ * the rules prescribe for the day; Sch 8 replaces Rules s 230-15's tiered table with one top figure,
+ * $78.73. The home's tier only changes what government pays the provider. `agedCareScheduleThrough`
+ * substitutes it at the 2027-03-20 step, AFTER that step's CPI movement; later steps index it down
+ * like every other protection-side figure.
+ */
+const MAX_ACCOMMODATION_SUPPLEMENT_FROM_2027 = {
+  source:
+    'Aged Care Amendment (September Indexation and Other Measures) Rules 2026 (F2026L01252) Sch 8 items 7 and 10, substituting Aged Care Rules 2025 s 230-15 and inserting s 610-65 · Aged Care Act 2024 s 235(3) — https://www.legislation.gov.au/F2026L01252/asmade/text',
+  retrieved: '2026-09-30',
+  confidence: 'primary-verified',
+  registerSection: '§12.7',
+  kind: 'config',
+  effective: '2027-03-20',
+  value: toCents(78.73),
+  note: 'Sch 8 commences 20 Mar 2027; s 610-65(2) keeps the old s 230-15 for days before it. The walk reads one period per month, so March 2027 still takes $73.73.',
+} satisfies Money;
 
 /** The residential schedule PDF's own three-date publication cycle (P14-3). */
 export type AgedCareScheduleDate = `${number}-03-20` | `${number}-07-01` | `${number}-09-20`;
@@ -652,6 +672,9 @@ export const agedCareScheduleThrough = (
     for (const effective of agedCareScheduleDatesAfter(lastPublished, to)) {
       const movement = priceLevelFactor(cpi, previousDate, effective);
       carried = indexAgedCareSchedule(carried, { cpi: movement }, singleMaximumBasicRateAt(effective));
+      if (effective === MAX_ACCOMMODATION_SUPPLEMENT_FROM_2027.effective) {
+        carried = Object.freeze({ ...carried, maxAccommodationSupplement: MAX_ACCOMMODATION_SUPPLEMENT_FROM_2027.value });
+      }
       schedule[effective] = carried;
       previousDate = effective;
     }
@@ -693,6 +716,7 @@ export const AGED_CARE = deepFreeze({
   dapFormula: DAP_FORMULA,
   meansTestTaper: MEANS_TEST_TAPER,
   feeWaterfallOrder: FEE_WATERFALL_ORDER,
+  maxAccommodationSupplementFrom2027: MAX_ACCOMMODATION_SUPPLEMENT_FROM_2027,
   supportAtHome: {
     classificationBudgets: SUPPORT_AT_HOME_CLASSIFICATION_BUDGETS,
     reclassification1Oct2026: SUPPORT_AT_HOME_RECLASSIFICATION_1_OCT_2026,

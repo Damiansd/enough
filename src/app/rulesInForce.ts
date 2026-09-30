@@ -224,6 +224,7 @@ export const RULE_CLASSIFICATION: Readonly<Record<string, RuleClassification>> =
   ...shown('agedCare', G.mpir, ['agedCare.mpir.2026-07-01', 'agedCare.mpir.2026-10-01']),
   ...hidden(FORMULA, ['agedCare.dapFormula', 'agedCare.indexation.basicDailyFeeLinkage']),
   ...hidden(STEP, ['agedCare.feeWaterfallOrder']),
+  ...hidden('the amount taken off the means-tested amount before the care fees start; no row shows the supplement today', ['agedCare.maxAccommodationSupplementFrom2027']),
   ...hidden('caps for people who entered care under the old arrangements; every care entry in a forecast is under the new ones', ['agedCare.grandfatheredCaps.2026-09-20']),
   ...hidden(WORDS, ['agedCare.grandfatheringStructure']),
   ...hidden(INDEXATION, ['agedCare.indexation.linkageUnknown', 'agedCare.indexation.mechanism']),
