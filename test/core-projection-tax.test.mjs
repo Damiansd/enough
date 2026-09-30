@@ -672,6 +672,8 @@ test('a salary is an INFLOW and income tax is an OUTFLOW — the sign, on every 
     'Age Pension': 'inflow',
     'Superannuation Guarantee into superannuation': 'inflow',
     'Investment growth': 'inflow',
+    // LR-3 (2026-09-30): a completed year under the threshold pays the offset into super in July.
+    'Low income super tax offset': 'inflow',
   };
   let checked = 0;
   for (const fixture of [
@@ -694,7 +696,7 @@ test('a salary is an INFLOW and income tax is an OUTFLOW — the sign, on every 
       .flatMap((m) => m.lines)
       .map((l) => l.description.split(',')[0]),
   );
-  assert.deepEqual([...kinds].sort(), ['Age Pension', 'Income tax', 'Investment growth', 'Salary', 'Superannuation Guarantee into superannuation']);
+  assert.deepEqual([...kinds].sort(), ['Age Pension', 'Income tax', 'Investment growth', 'Low income super tax offset', 'Salary', 'Superannuation Guarantee into superannuation']);
 });
 
 // --- P6-8 brief 2, chunk 1 — the salary SACRIFICED, and the four bases it does and does not move --

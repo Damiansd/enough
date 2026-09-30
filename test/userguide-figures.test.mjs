@@ -167,8 +167,8 @@ test('every tagged Pip-and-Jo figure matches the plan run through the engine', (
 // Kills: the comparison ignoring the guide's text (a figure typed one dollar off still passing).
 test('a guide figure changed by one dollar fails, and names its line', () => {
   const tag = FIGURES.find((t) => t.key === 'retire-total-future');
-  const mutated = mismatches([{ ...tag, text: '$1,093,553' }], BASE);
-  assert.deepEqual(mutated, [{ key: 'retire-total-future', line: tag.line, guideSays: '$1,093,553', appSays: 1_093_552 }]);
+  const mutated = mismatches([{ ...tag, text: '$1,097,432' }], BASE);
+  assert.deepEqual(mutated, [{ key: 'retire-total-future', line: tag.line, guideSays: '$1,097,432', appSays: 1_097_431 }]);
 });
 
 // Kills: the readers returning constants, or reading the guide rather than the engine — a plan

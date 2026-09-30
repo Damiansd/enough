@@ -1865,7 +1865,10 @@ export type ProvenanceRegister =
   // own register for `agePensionProvenance`'s own reason: it has its own rate (3.95%, compounding
   // fortnightly), its own 150% cap and its own capacity formula, none of which are Age Pension
   // figures even though the fortnightly cap READS one (the maximum payment rate) as an input.
-  | 'Home Equity Access Scheme';
+  | 'Home Equity Access Scheme'
+  // **LR-3.** The low income super tax offset is paid under the Co-contribution Act, not the rate
+  // scale: filing it under 'income tax year-end true-up' would put the wrong Act behind the credit.
+  | 'low income superannuation tax offset';
 
 /**
  * **THE LEGISLATED BASIS OF ONE FIGURE — ADR-0006's citation form, which is PER ROW.**
@@ -2348,7 +2351,24 @@ export type MonthNote =
   | InvestmentDistributionNote
   | PensionAtRetirementNote
   | ConcessionalCapExceededNote
-  | HeasCapacityCapNote;
+  | HeasCapacityCapNote
+  | LowIncomeSuperTaxOffsetNotPaidNote;
+
+/**
+ * **LR-3 — a Person qualified for the low income super tax offset for a completed year, and the
+ * walk had no open accumulation account to pay it into** (every account is a pension or a
+ * transition to retirement pension by the July it lands in). A real fund, or the ATO, would still
+ * pay it somewhere; the forecast leaves it out, so its super is UNDERSTATED by `amount` and what
+ * that would have earned. No line carries it, because nothing moved.
+ */
+export interface LowIncomeSuperTaxOffsetNotPaidNote {
+  readonly subject: 'low income super tax offset not paid';
+  readonly person: string;
+  /** The completed year the offset was for. */
+  readonly financialYear: FinancialYear;
+  readonly amount: Cents;
+  readonly note: string;
+}
 
 /**
  * **A Person's concessional contributions so far this financial year went over the year's general

@@ -12,17 +12,17 @@
 //      figure, and `livesOnPensionAlone` excludes the Offset from conditions 1 to 4 *on purpose*,
 //      which reopens exactly the same false positive one level up. What closes it is condition 5,
 //      the marker's alone: the month must OPEN with nil cash. §3 is a Household with no wage, an
-//      `Age Pension` line and **$247,730.19 in the bank**, whose conditions 1 to 4 hold for sixty
+//      `Age Pension` line and **$246,768.34 in the bank**, whose conditions 1 to 4 hold for sixty
 //      unbroken months and whose answer is `'never'`. §4 is the same Household spending hard: the
-//      month before the marker opens with **$3,699.67** and is not the marker, and the month after
-//      it opens with nil and is.
+//      month before the marker opens with nil cash but **$976.81** of super still to draw, and is not
+//      the marker; the marker month opens with neither.
 //   2. **`assessableAssets === 0` while the YOUNGER PARTNER's super is exempt.** §5 holds
 //      **$338,486.36** of Accumulation Phase super belonging to a Person under Age Pension age —
 //      exempt from both tests (§4.8), so it lands in `protectedAssets` and not in `assessableAssets`
 //      — and its answer is `'never'` for all 345 months of the walk.
 //   3. **The refused proxy: *"first month with an `Age Pension` line and no `Salary, …` line"*.**
 //      That is a RETIREMENT age. In §3 it would answer 2031-07; the truth is that the money never
-//      runs out at all, and in §4, where it does, the two answers are **thirty months apart**.
+//      runs out at all, and in §4, where it does, the two answers are **thirty-four months apart** (2031-07 and 2034-05).
 //
 // And the false NEGATIVE, which is the other half: a Household that banks part of its pension has
 // not stopped living on the pension alone. §2 banks $1,231.35 in its first pension-only month and
@@ -331,8 +331,16 @@ test('NIL ASSESSABLE ASSETS IS NOT EXHAUSTION — a quarter of a million in the 
   // of deeming on a growing superannuation balance. The Household is not poorer for it: the same
   // sixty months put $23,316.06 into Sam's interest, so it is $22,432.94 better off in total and
   // holds less of it in cash. That is the direction a credited Guarantee must move a Household in.
-  assert.equal(retired.openingBalance, toCents(246_847.07));
-  assert.equal(retired.assessableAssets - retired.openingBalance, toCents(23_316.06));
+  // **$246,768.34 since LR-3 (2026-09-30), $78.73 less again, and the same mechanism.** Sam's $39,000
+  // earns a low income super tax offset of 15% x 12% x $39,000 = $702.00 for each of FY2027-28 to
+  // FY2029-30, credited each July (FY2026-27 is a part year; FY2030-31's is not paid because his
+  // account is a pension by then). His super at retirement is $2,391.83 higher (three credits and
+  // their earnings), and that assessed super deems, so the pension, and the cash banked, is a little less.
+  assert.equal(retired.openingBalance, toCents(246_768.34));
+  assert.deepEqual(months.flatMap((m) => m.lines.filter((l) => /income super tax offset/i.test(l.description)).map((l) => [m.month, l.amount])),
+    [['2028-07', toCents(702)], ['2029-07', toCents(702)], ['2030-07', toCents(702)]]);
+  assert.equal(retired.assessableAssets - retired.openingBalance, toCents(25_707.89));
+  assert.equal(toCents(25_707.89) - toCents(23_316.06), toCents(2_391.83));
   assert.equal(toCents(247_730.19) - toCents(246_847.07), toCents(883.12));
   assert.ok(retired.openingBalance > toCents(200_000), 'still a quarter of a million, which is the whole point');
   // The only CASH inflow is the pension. The second line is the month's return on the Guarantee's
@@ -387,29 +395,75 @@ test('NIL ASSESSABLE ASSETS IS NOT EXHAUSTION — a quarter of a million in the 
   //   Σ = **$7,070.00**. The other **$8.32** is Age Pension, in the six months from 2036-01 where the
   //   income test bites: the swept dollars stop earning 6.5% (the Offset earns nothing at `cpi: 0`),
   //   so the deemed total is a little lower and the pension a little higher.
-  assert.equal(months.at(-1).closingBalance, toCents(412_378.82)); // the pension exceeds the bill; it grows
   assert.equal(toCents(412_378.82) - toCents(405_300.50), toCents(1_400 + 1_410 + 1_410 + 1_420 + 1_430) + toCents(8.32));
-  assert.equal(months.filter((m) => m.lines.some((l) => l.description === 'Account-Based Pension payment, Sam')).map((m) => m.month).join(),
-    '2032-06,2033-06,2034-06,2035-06,2036-06', 'the minimum is swept in June and in no other month');
+  //
+  // ⚠️ **$412,980.11 SINCE LR-3 (2026-09-30), $601.29 MORE, on three terms.** Each 1 July balance
+  // is higher by the $2,391.83 of offset credits and their growth, so each sweep is higher:
+  //   FY2031-32: 6% × $25,707.89 = $1,542.47 → $1,540;  FY2032-33: 6% × $25,830.73 = $1,549.84 → $1,550;
+  //   FY2033-34: 6% × $25,951.51 = $1,557.09 → $1,560;  FY2034-35: 6% × $26,070.07 = $1,564.20 → $1,560;
+  //   FY2035-36: 6% × $26,196.36 = $1,571.78 → $1,570.  Σ = **$7,780.00**, $710 more than $7,070.
+  // Less the **$78.73** less cash at retirement (above; the Offset earns nothing, so it carries to the
+  // horizon cent for cent), less **$29.98** of Age Pension: the extra super puts ~$3,000 more in the
+  // assets, which deem at the upper 3.75%, so the income test now bites from 2035-12, a month
+  // earlier ($1.52 there, the part of the extra deemed income that clears the free area), and in
+  // 2036-01 to 2036-06, where both walks are in the taper, costs ΔA × 3.75% × 50% ÷ 12 a month:
+  // $3,014.01 × 0.0015625 = $4.71 in January (paid $4.72 after per-Person rounding); $4.72, $4.73,
+  // $4.72, $4.76, $4.77, $4.76 over the six, and $1.52 + $28.46 = $29.98.
+  assert.equal(months.at(-1).closingBalance, toCents(412_980.11)); // the pension exceeds the bill; it grows
+  assert.equal(toCents(412_980.11) - toCents(412_378.82), toCents(710) - toCents(78.73) - toCents(29.98));
+  assert.equal(toCents(412_980.11) - toCents(405_300.50), toCents(1_540 + 1_550 + 1_560 + 1_560 + 1_570) - toCents(78.73) - (toCents(29.98) - toCents(8.32)));
+  // The swept amounts, one per June, and their sum.
+  const sweeps = months.flatMap((m) => m.lines.filter((l) => l.description === 'Account-Based Pension payment, Sam').map((l) => [m.month, l.amount]));
+  assert.deepEqual(sweeps, [['2032-06', toCents(1_540)], ['2033-06', toCents(1_550)], ['2034-06', toCents(1_560)], ['2035-06', toCents(1_560)], ['2036-06', toCents(1_570)]],
+    'the minimum is swept in June and in no other month');
+  assert.equal(sweeps.reduce((s, [, a]) => s + a, 0), toCents(7_780));
+  assert.equal(toCents(7_780) - toCents(1_400 + 1_410 + 1_410 + 1_420 + 1_430), toCents(710));
+  // Pre-LR-3 the switch was worth the $7,070 of sweeps plus $8.32 of pension over six months (the
+  // identity above, kept as history). Since LR-3 the kept-out account ALSO takes FY2030-31's $702
+  // offset in 2031-07 (it is still accumulation then, so the fund can take it), and the switch is
+  // worth $7,780 of sweeps plus **$20.77** of pension over SEVEN months, 2035-12 to 2036-06: both
+  // walks are in the taper from 2035-12, and the kept-out walk's assessable assets are higher by
+  // the swept dollars' lost growth and the $702 with its growth — $1,775.61 in 2035-12, so
+  // $1,775.61 × 0.0015625 = $2.77 that month, rising to $3.17 by 2036-06.
+  const keptOut = { ...WORKER, persons: WORKER.persons.map((p) => ({ ...p, superInterests: p.superInterests.map((i) => ({ ...i, keepInAccumulationAtRetirement: true })) })) };
+  const unswitched = project(SETTINGS, keptOut, WORKER_ENTRIES);
+  assert.equal(unswitched.at(-1).closingBalance, toCents(405_179.34));
+  assert.equal(toCents(412_980.11) - toCents(405_179.34), toCents(7_780) + toCents(20.77));
+  const unswitchedPensionGap = months.reduce((s, m, i) => s + (m.lines.find((l) => l.description === AGE_PENSION_LINE).amount
+    - unswitched[i].lines.find((l) => l.description === AGE_PENSION_LINE).amount), 0);
+  assert.equal(unswitchedPensionGap, toCents(20.77));
+  assert.equal(monthAt(unswitched, '2035-12').assessableAssets - monthAt(months, '2035-12').assessableAssets, toCents(1_775.61));
+  // And the unswitched walk itself: $405,300.50 → $405,179.34 is the same $78.73 of cash at
+  // retirement plus $42.43 of pension, its income test also biting a month earlier (2035-12, $4.29)
+  // and ~$6.30 a month harder after it on ~$4,000 more assets.
+  assert.equal(toCents(405_300.50) - toCents(405_179.34), toCents(78.73) + toCents(42.43));
   assert.equal(toCents(406_275.54) - toCents(405_300.50), toCents(975.04));
   // Measured at the month's OPENING, which is where `Month.assessableAssets` is assessed.
   // **$25,161.69, not $31,777.43, since the switch**: the four sweeps before this June ($5,640) are
   // out of the account and so is the growth they would have earned there.
-  assert.equal(months.at(-1).assessableAssets - months.at(-1).openingBalance, toCents(25_161.69));
-  assert.ok(toCents(31_777.43) - toCents(25_161.69) > toCents(1_400 + 1_410 + 1_410 + 1_420), 'more than the sweeps left: their growth went with them');
-  assert.ok(toCents(25_161.69) > toCents(975.04) * 20, 'the Guarantee bought far more than the pension it cost');
-  // **The pension is the MAXIMUM rate from the retirement to 2035-12, so it steps only when the rate
-  // is indexed — ten distinct levels in those 54 months and never a step between them.** From
-  // 2036-01 the deemed income on the Offset AND the Guarantee's interest finally passes the free
-  // area and the income test starts biting, so the last six months each carry their own figure:
-  // sixteen levels over the sixty. Before chunk 2b the balance was smaller and the crossing never
-  // happened inside the walk, which is why this was eleven.
+  // **$27,753.05 since LR-3 (2026-09-30), $2,591.36 more**: the $2,391.83 extra at 2031-07 compounds
+  // at 6.5% for 59 months, less the $570 more swept out in the four Junes before this one (140, 140,
+  // 150, 140) with the growth they would have earned: $2,591.41 on a month-by-month hand walk, the
+  // 5 cents being each walk's own monthly rounding of growth to the cent. The four sweeps are $6,210.
+  assert.equal(months.at(-1).assessableAssets - months.at(-1).openingBalance, toCents(27_753.05));
+  assert.equal(toCents(27_753.05) - toCents(25_161.69), toCents(2_591.36));
+  assert.equal(unswitched.at(-1).assessableAssets - unswitched.at(-1).openingBalance, toCents(35_994.10));
+  assert.ok(toCents(35_994.10) - toCents(27_753.05) > toCents(1_540 + 1_550 + 1_560 + 1_560), 'more than the sweeps left: their growth went with them');
+  assert.ok(toCents(27_753.05) > toCents(975.04) * 20, 'the Guarantee bought far more than the pension it cost');
+  // **The pension is the MAXIMUM rate from the retirement to 2035-11, so it steps only when the rate
+  // is indexed — ten distinct levels in those 53 months and never a step between them.** From
+  // 2035-12 the deemed income on the Offset AND the Guarantee's interest finally passes the free
+  // area and the income test starts biting, so the last seven months each carry their own figure:
+  // seventeen levels over the sixty. Before chunk 2b the balance was smaller and the crossing never
+  // happened inside the walk, which is why this was eleven; until LR-3 (2026-09-30) the crossing was
+  // 2036-01, 54 + 6 months and sixteen levels — LR-3's extra ~$3,000 of assessed super moved it a month.
   const afterRetirement = months.filter((m) => m.month >= '2031-07');
   const rate = (m) => m.lines.find((l) => l.description === AGE_PENSION_LINE).amount;
-  assert.equal(new Set(afterRetirement.map(rate)).size, 16);
-  assert.equal(new Set(afterRetirement.filter((m) => m.month <= '2035-12').map(rate)).size, 10);
-  assert.equal(afterRetirement.filter((m) => m.month <= '2035-12').length, 54);
-  assert.equal(new Set(afterRetirement.filter((m) => m.month >= '2036-01').map(rate)).size, 6);
+  assert.equal(new Set(afterRetirement.map(rate)).size, 17);
+  assert.equal(new Set(afterRetirement.filter((m) => m.month <= '2035-11').map(rate)).size, 10);
+  assert.equal(afterRetirement.filter((m) => m.month <= '2035-11').length, 53);
+  assert.equal(new Set(afterRetirement.filter((m) => m.month >= '2035-12').map(rate)).size, 7);
+  assert.equal(rate(monthAt(months, '2035-11')) - rate(monthAt(months, '2035-12')), toCents(1.52));
   // And the working years did NOT move: the fix reaches the month `RETIRE` takes effect and no
   // earlier one. The two hand-worked 2026 figures above are the same to the cent as they were.
   assert.equal(months.filter((m) => m.month < '2031-07').length, 60);
@@ -469,7 +523,7 @@ test('NIL ASSESSABLE ASSETS IS NOT EXHAUSTION — a quarter of a million in the 
 
 // --- 4. THE SAME HOUSEHOLD, SPENDING HARD — the Offset and then the super drain, and the marker fires -
 
-test('the marker fires when the OFFSET and the SUPER both reach nil, 33 months after the salary stopped', () => {
+test('the marker fires when the OFFSET and the SUPER both reach nil, 34 months after the salary stopped', () => {
   // ⚠️ **FROM 2026-09-23 THIS WALK KEEPS SAM'S ACCOUNT OUT OF THE SWITCH AT RETIREMENT, and every
   // figure below is unchanged — the proof an opted-out plan walks as before.** With the switch his
   // account is an account-based pension from 2031-06-30, which limb 2 draws BEFORE the Offset, so
@@ -507,70 +561,101 @@ test('the marker fires when the OFFSET and the SUPER both reach nil, 33 months a
   //   $5,589.29 in March. **2034-04 is the first month that opens with neither cash nor super**,
   //   and that is the month the marker names. Three months of runway, bought by a Guarantee.
   // The marker did not move any of the three times; the EXHAUSTION did, and the marker followed it.
-  assert.equal(answer.firstPensionOnly.month, '2034-04');
-  //   Sam, born 1956-06-15, on 2034-04-01: 2034 − 1956 = 78, and 04-01 IS before 06-15, so 77.
-  //   Ali, born 1952-11-20, on 2034-04-01: 2034 − 1952 = 82, and 04-01 IS before 11-20, so 81.
+  //   **2034-04 → 2034-05 on 2026-09-30 (LR-3):** the low income super tax offset puts $2,391.83
+  //   more in Sam's super by 2031-07 and, because this account is kept in accumulation, a fourth
+  //   $702 (FY2030-31's) is credited in 2031-07 too; limb 5 draws that for one month more.
+  assert.equal(answer.firstPensionOnly.month, '2034-05');
+  //   Sam, born 1956-06-15, on 2034-05-01: 2034 − 1956 = 78, and 05-01 IS before 06-15, so 77.
+  //   Ali, born 1952-11-20, on 2034-05-01: 2034 − 1952 = 82, and 05-01 IS before 11-20, so 81.
+  // (Neither age moved with the month: both birthdays are still ahead in May.)
   assert.deepEqual(answer.firstPensionOnly.ages, [
     { name: 'Sam', age: 77 },
     { name: 'Ali', age: 81 },
   ]);
-  assert.equal(answer.monthsPensionOnly, 27); // 2034-04 → 2036-06 inclusive: 9 + 12 + 6
+  // 27 until LR-3 (2034-04 → 2036-06: 9 + 12 + 6).
+  assert.equal(answer.monthsPensionOnly, 26); // 2034-05 → 2036-06 inclusive: 8 + 12 + 6
 
-  // **THE LAST MONTH WITH ANY DRAWABLE MONEY IN IT IS 2034-03, AND WHAT IS LEFT IN IT IS SUPER.**
-  // The Offset itself runs out three months earlier, and the arithmetic of that is unchanged by
+  // **THE LAST MONTH WITH ANY DRAWABLE MONEY IN IT IS 2034-04, AND WHAT IS LEFT IN IT IS SUPER.**
+  // The Offset itself runs out four months earlier, and the arithmetic of that is unchanged by
   // chunk 2b because the Guarantee is not cash:
-  //   2033-11 opens $11,013.76, takes the maximum-rate pension $5,136.13 and pays $13,333.34 of
-  //   spending → closes $2,816.55, which is December's opening;
-  //   2033-12 then has $2,816.55 + $5,136.13 = $7,952.68 against the same $13,333.34, and the
-  //   $5,380.66 it is short is drawn from Sam's superannuation by limb 5 rather than recorded as a
+  //   2033-11 opens $10,935.03, takes the maximum-rate pension $5,136.13 and pays $13,333.34 of
+  //   spending → closes $2,737.82, which is December's opening;
+  //   2033-12 then has $2,737.82 + $5,136.13 = $7,873.95 against the same $13,333.34, and the
+  //   $5,459.39 it is short is drawn from Sam's superannuation by limb 5 rather than recorded as a
   //   shortfall. It closes at nil — and so does every month after it until the super is gone.
-  // January and February each draw $8,197.21 of super — the whole gap between the pension and the
-  // bill — and March finds only $5,589.29 left, draws all of it, and is short $2,607.92 for the
-  // first time. **2034-04 opens with nothing of either kind**, and that is the marker.
+  // **Since LR-3 (2026-09-30) the cash is $78.73 lower all the way down** — the $78.73 less banked
+  // before retirement (§3); from 2031-07 this walk is paid the maximum rate in both builds, so nothing
+  // after retirement adds to it. November opened $11,013.76 and closed $2,816.55, December drew
+  // $5,380.66, each $78.73 away.
+  // **And December's super is $30,751.02, $3,602.43 more than $27,148.59**: the $2,391.83 extra at
+  // 2031-07 plus the $702 credited that month, $3,093.83, compounded at 6.5% for the 29 months to
+  // 2033-12 is $3,093.83 × 1.065^(29/12) = $3,602.40, the 3 cents being monthly rounding to the cent.
+  // Then each month's super is last month's, less the draw, plus a month's 6.5% growth:
+  //   2034-01 $30,751.02 − $5,459.39 + $133.07 = $25,424.70 (was $21,882.46);
+  //   2034-02 − $8,197.21 (the whole gap between the $5,136.13 pension and the bill) + $90.64 = $17,318.13;
+  //   2034-03 − $8,197.21 + $47.99 = $9,168.91;  2034-04 − $8,197.21 + $5.11 = $976.81.
+  // So March, which until LR-3 found only $5,589.29 and was short $2,607.92, now draws the full
+  // $8,197.21 and is not short; April draws the last $976.81 against a pension indexed on 2034-03-20
+  // to $5,223.49, and is short $13,333.34 − $5,223.49 − $976.81 = **$7,133.04** for the first time.
+  // **2034-05 opens with nothing of either kind**, and that is the marker.
   const december = monthAt(months, '2033-12');
-  assert.equal(monthAt(months, '2033-11').closingBalance, toCents(2_816.55));
-  assert.equal(december.openingBalance, toCents(2_816.55));
-  assert.equal(december.assessableAssets - december.openingBalance, toCents(27_148.59), 'the rest of what it holds is the Guarantee’s interest');
+  assert.equal(monthAt(months, '2033-11').openingBalance, toCents(10_935.03));
+  assert.equal(toCents(11_013.76) - toCents(10_935.03), toCents(78.73));
+  assert.equal(monthAt(months, '2033-11').closingBalance, toCents(2_737.82));
+  assert.equal(toCents(10_935.03) + toCents(5_136.13) - toCents(13_333.34), toCents(2_737.82));
+  assert.equal(december.openingBalance, toCents(2_737.82));
+  assert.equal(december.assessableAssets - december.openingBalance, toCents(30_751.02), 'the rest of what it holds is the Guarantee’s interest');
+  assert.equal(toCents(30_751.02) - toCents(27_148.59), toCents(3_602.43));
+  assert.equal(monthAt(months, '2031-07').lines.find((l) => /income super tax offset/i.test(l.description)).amount, toCents(702), 'kept in accumulation, FY2030-31 is paid');
   assert.equal(december.protectedAssets, toCents(0));
   assert.equal(december.closingBalance, toCents(0));
   assert.deepEqual(
     december.lines.filter((l) => l.direction === 'inflow' && l.effect === 'cash').map((l) => l.description),
     [AGE_PENSION_LINE, 'Superannuation lump sum, Sam'],
   );
-  assert.equal(december.lines.find((l) => l.description === 'Superannuation lump sum, Sam').amount, toCents(5_380.66));
-  // The three months of nil cash and falling super, and then the month with neither.
+  assert.equal(december.lines.find((l) => l.description === 'Superannuation lump sum, Sam').amount, toCents(5_459.39));
+  assert.equal(toCents(13_333.34) - toCents(2_737.82) - toCents(5_136.13), toCents(5_459.39));
+  // The four months of nil cash and falling super, and then the month with neither.
+  const drain = ['2034-01', '2034-02', '2034-03', '2034-04', '2034-05'];
+  assert.deepEqual(drain.map((m) => monthAt(months, m).openingBalance), [0, 0, 0, 0, 0]);
   assert.deepEqual(
-    ['2034-01', '2034-02', '2034-03', '2034-04'].map((m) => monthAt(months, m).openingBalance),
-    [0, 0, 0, 0],
+    drain.map((m) => monthAt(months, m).assessableAssets),
+    [toCents(25_424.70), toCents(17_318.13), toCents(9_168.91), toCents(976.81), 0],
   );
   assert.deepEqual(
-    ['2034-01', '2034-02', '2034-03', '2034-04'].map((m) => monthAt(months, m).assessableAssets),
-    [toCents(21_882.46), toCents(13_757.25), toCents(5_589.29), 0],
+    drain.slice(0, 4).map((m) => monthAt(months, m).lines.find((l) => l.description === 'Superannuation lump sum, Sam').amount),
+    [toCents(8_197.21), toCents(8_197.21), toCents(8_197.21), toCents(976.81)],
   );
-  assert.equal(monthAt(months, '2034-03').lines.find((l) => l.description === SHORTFALL_LINE).amount, toCents(2_607.92));
+  assert.equal(toCents(13_333.34) - toCents(5_136.13), toCents(8_197.21));
+  assert.equal(monthAt(months, '2034-03').lines.find((l) => l.description === SHORTFALL_LINE), undefined, 'March is no longer short');
+  assert.equal(monthAt(months, '2034-04').lines.find((l) => l.description === SHORTFALL_LINE).amount, toCents(7_133.04));
+  assert.equal(toCents(13_333.34) - toCents(5_223.49) - toCents(976.81), toCents(7_133.04));
   // 2033-09 is no longer the month before the marker, and the reason is the extra pension: it now
   // opens with $27,494.07 rather than $4,236.53. $24,140.66 of that is Age Pension the walk
   // withheld from a retired Person before P4-8, banked over 26 months, less the $883.12 of deeming
   // on the Guarantee's own interest that §3 works out.
-  assert.equal(monthAt(months, '2033-09').openingBalance, toCents(27_494.07));
+  // **$27,415.34 since LR-3 (2026-09-30)**: the same $78.73 less cash at retirement, carried.
+  assert.equal(monthAt(months, '2033-09').openingBalance, toCents(27_415.34));
+  assert.equal(toCents(27_494.07) - toCents(27_415.34), toCents(78.73));
   assert.equal(toCents(28_377.19) - toCents(27_494.07), toCents(883.12));
 
-  // AND THE REFUSED PROXY IS THIRTY-THREE MONTHS OUT: it answers the month the wage stopped.
+  // AND THE REFUSED PROXY IS THIRTY-FOUR MONTHS OUT: it answers the month the wage stopped.
+  // (Thirty-three until LR-3 moved the marker a month.)
   assert.equal(refusedProxyMonth(months), '2031-07');
   assert.equal(
-    months.findIndex((m) => m.month === '2034-04') - months.findIndex((m) => m.month === '2031-07'),
-    33,
+    months.findIndex((m) => m.month === '2034-05') - months.findIndex((m) => m.month === '2031-07'),
+    34,
   );
 
   // **AND THE POINT OF NO RECOVERY IS THE MARKER MONTH, NOT THE START OF THE STATE.** Conditions 1
-  // to 4 hold unbroken from 2034-04 to the horizon — the month Sam's superannuation is finally
+  // to 4 hold unbroken from 2034-05 to the horizon — the month Sam's superannuation is finally
   // exhausted, since until then he holds something assessable besides the Offset — so a backward
   // walk from the horizon that did not stop at the marker would report that month anyway. What the
   // floor still prevents is the answer the state's own first month would give in §3's walk, where
   // it is 2031-07 and the marker is 'never'.
-  assert.equal(inStateMonths(months)[0].month, '2034-04');
-  assert.equal(inStateMonths(months).length, 27);
-  assert.equal(answer.pointOfNoRecovery.month, '2034-04');
+  assert.equal(inStateMonths(months)[0].month, '2034-05');
+  assert.equal(inStateMonths(months).length, 26);
+  assert.equal(answer.pointOfNoRecovery.month, '2034-05');
   assert.equal(answer.recoveredAt, undefined);
 
   // **The switched walk, on the rule rather than on a month.** Sam's account is limb 2's from

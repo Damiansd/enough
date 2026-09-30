@@ -254,6 +254,7 @@ import { SuperGuaranteeEarningsBaseError, qualifyingEarnings, superGuarantee, su
 import { MissingIndexNumberError, forecastAwoteIndexNumbers } from './superCaps.js';
 import type { IndexNumbers } from './superCaps.js';
 import { CGT_REFORM_START, INDEXATION_FACTOR_DECIMAL_PLACES, PRE_CGT_CUTOFF, standardDeductionAmountFor, taxYearAvailable } from '../data/assumptions/tax.js';
+import { lowIncomeSuperTaxOffset } from '../data/assumptions/super.js';
 import type { Cents } from './money.js';
 import type { AssetSplit, Household, HomeStatus, Mortgage, MortgageMonth, Parcel, Person, PersonAssetSplit, SuperInterest } from './household.js';
 import type { QualifyingEarnings } from './superContributions.js';
@@ -4333,6 +4334,17 @@ export const SUPER_EARNINGS_TAX_LINE = 'Superannuation fund earnings tax';
 export const SUPER_FRANKING_CREDIT_REFUND_LINE = 'Superannuation franking credit refund';
 
 /**
+ * **LR-3 — the low income super tax offset, paid by the ATO into the Person's accumulation account
+ * for a completed financial year.** Credited at the July settlement for that year (register O28's
+ * convention: nothing exists to credit until the year has ended), on complete years only.
+ *
+ * `'wealth'`, `'inflow'`, like `SUPER_FRANKING_CREDIT_REFUND_LINE`: the money goes to the fund and
+ * never through the Household's cash. It is not a contribution (Co-contribution Act s 12B), so it
+ * joins no cap total, no Division 293 base and no contributions tax.
+ */
+export const LOW_INCOME_SUPER_TAX_OFFSET_LINE = 'Low income super tax offset';
+
+/**
  * **The two halves of one home-loan repayment, as they appear on a month — P3-16 slice 1.**
  *
  * They are `'cash'` outflows and they sum to `MortgageMonth.payment` by construction, because both
@@ -4448,6 +4460,8 @@ export const superEarningsTaxDescription = (name: string, phase: Phase, fy: Fina
   `${SUPER_EARNINGS_TAX_LINE}, ${name} — ${superPoolName(phase)}, ${fy}`;
 export const superFrankingCreditRefundDescription = (name: string, phase: Phase, fy: FinancialYear): string =>
   `${SUPER_FRANKING_CREDIT_REFUND_LINE}, ${name} — ${superPoolName(phase)}, ${fy}`;
+/** `fy` is the completed year the offset is for, not the July it lands in. */
+export const lowIncomeSuperTaxOffsetDescription = (name: string, fy: FinancialYear): string => `${LOW_INCOME_SUPER_TAX_OFFSET_LINE}, ${name}, ${fy}`;
 
 // --- NOTE PROSE THAT NAMES A PERSON --------------------------------------------------------------
 //
@@ -4484,6 +4498,11 @@ export const concessionalCapExceededNoteText = (
   `build charges it the fund's 15% and no more. Every figure from this month is therefore FLATTERING by ${name}'s ` +
   'marginal rate less 15% on the excess, and on every concessional dollar still to go in this year. ' +
   'To stay within the cap, state a smaller sacrifice from this year.';
+
+export const lowIncomeSuperTaxOffsetNotPaidNoteText = (name: string, fy: Fact, amount: Fact): string =>
+  `${name} qualified for a low income super tax offset of ${amount} cents for FY${fy}, and every super account of ${name}'s ` +
+  'is a pension by the July it would be paid, so the forecast has nowhere to put it and leaves it out. The ATO would ' +
+  'still pay it, into a new account or to the person, so super from here is UNDERSTATED by that amount and what it would earn.';
 
 /** `frankedShare` is `Settings.investmentPayoutFrankedShare`, and absent is the unfranked sentence. */
 export const investmentDistributionNoteText = (name: string, distribution: Fact, payoutRate: Fact, frankedShare: Fact | undefined): string =>
@@ -5012,6 +5031,10 @@ export const UNATTRIBUTED = Object.freeze({
   division293TrueUp: Object.freeze({
     basis: 'not attributed',
     note: 'Assessed on twelve months of salary AND twelve months of concessional contributions, whose movements only an entry can cause; taxYearToDate accumulates the figures and not the entries that moved them.',
+  } as const),
+  lowIncomeSuperTaxOffset: Object.freeze({
+    basis: 'not attributed',
+    note: 'Worked out on twelve months of salary AND twelve months of concessional contributions, whose movements only an entry can cause; taxYearToDate accumulates the figures and not the entries that moved them.',
   } as const),
   pensionMinimum: Object.freeze({
     basis: 'not attributed',
@@ -8056,6 +8079,20 @@ export const project = (
     // the only way the amount measured against the cap and the amount paid into the fund cannot
     // drift apart.
     const guaranteeForTheYear: Cents[] = household.persons.map(() => toCents(0));
+    // **Back at work after retiring (retire flow S3), and in the month they stop again: an account
+    // that became a pension at retirement is closed to the Guarantee**, as a started TTR is, so an
+    // account kept in accumulation is its destination by derivation. Hoisted for LR-3, whose July
+    // credit asks the same question of the same month.
+    const closedThisMonth = household.persons.map((person, index) => {
+      const spell = spellIn(index, month);
+      return spell !== undefined && spell.at > 0
+        ? person.superInterests.map((_interest, slot) => {
+          // Switched at THIS stop: the month's final pay is for work before it, and is credited as it is.
+          const switched = switchedOn(index, slot, date);
+          return ttrStartDay[index]?.[slot] ?? (switched !== undefined && monthOf(switched) < month ? switched : undefined);
+        })
+        : ttrStartDay[index] ?? [];
+    });
     const guaranteesThisMonth = household.persons.flatMap((person, index) => {
       const earningsPaidToThePerson = assessableSalaries[index] ?? toCents(0);
       const salarySacrificedAmounts = sacrificedThisMonth[index] ?? toCents(0);
@@ -8063,18 +8100,10 @@ export const project = (
       // of the two limbs and not the paid half: a Person sacrificing the whole of their salary has
       // nothing paid to them and is still owed 12% of the lot, which is T17 in its purest form.
       if (addCents(earningsPaidToThePerson, salarySacrificedAmounts) <= 0) return [];
-      // **Back at work after retiring (retire flow S3), and in the month they stop again: an account
-      // that became a pension at retirement is closed to the Guarantee**, as a started TTR is, so an account kept in
-      // accumulation is its destination by derivation. With none left, a real fund opens a new
-      // accumulation account; the walk cannot, so it refuses by name.
+      // With no account left open (`closedThisMonth`), a real fund opens a new accumulation account;
+      // the walk cannot, so it refuses by name.
       const spell = spellIn(index, month);
-      const closed = spell !== undefined && spell.at > 0
-        ? person.superInterests.map((_interest, slot) => {
-          // Switched at THIS stop: the month's final pay is for work before it, and is credited as it is.
-          const switched = switchedOn(index, slot, date);
-          return ttrStartDay[index]?.[slot] ?? (switched !== undefined && monthOf(switched) < month ? switched : undefined);
-        })
-        : ttrStartDay[index] ?? [];
+      const closed = closedThisMonth[index] ?? [];
       if (spell?.change.kind === 'returned' && !person.superInterests.some((interest, slot) => interest.phase === 'accumulation' && closed[slot] === undefined)) {
         throw new RangeError(
           `${person.name} goes back to work on ${spell.change.date}, and every super account of ${person.name}'s is a pension by then. A pension account can't take contributions, so the employer's super has nowhere to go. A real fund would open a new accumulation account; the forecast can't open one part-way through the plan. To model it, give ${person.name} a second super account with a nil balance that stays as it is at retirement, and say which account the employer pays into`,
@@ -8922,6 +8951,70 @@ export const project = (
                 `assessed once on the twelve months of FY${completed.fy}`,
               ]),
               attribution: UNATTRIBUTED.taxTrueUp,
+            }),
+          );
+        });
+
+        // --- LR-3: THE LOW INCOME SUPER TAX OFFSET FOR THE YEAR JUST ENDED ----------------------
+        //
+        // Co-contribution Act ss 12C(1) and 12E(2), on the completed year's own figures and in this
+        // July, on the refund precedent (register O28): the ATO pays it after the year has ended.
+        // Concessional contributions are the Guarantee and the sacrifice (no deductible personal
+        // contribution exists in this walk). Adjusted taxable income is Rebate Income on the same
+        // inputs the assessment above used, with a rental LOSS taken as nil: Family Assistance Act
+        // Sch 3 adds a net investment loss back. The 10% test is the gross pay (salary plus the
+        // sacrifice, a reportable employer contribution) against total income: assessable income
+        // plus reportable contributions (s 8). Residency is assumed, and the line says so.
+        household.persons.forEach((person, index) => {
+          const salary = completed.salary[index] ?? toCents(0);
+          const sacrificed = completed.sacrificed[index] ?? toCents(0);
+          const guarantee = completed.guarantee[index] ?? toCents(0);
+          const rent = completed.rent[index] ?? toCents(0);
+          const rentNoLoss = rent > 0 ? rent : toCents(0);
+          const gains = addCents(distributedGains[index] ?? toCents(0), frankingCredit[index] ?? toCents(0));
+          const ati = asSaptoPerson(person, completed.fy, salary, sacrificed, gains, completed.qualified[index] === true, toCents(0), rentNoLoss).rebateIncome;
+          const employment = addCents(salary, sacrificed);
+          const totalIncome = addCents(addCents(employment, gains), rentNoLoss);
+          const concessional = addCents(guarantee, sacrificed);
+          const offset = lowIncomeSuperTaxOffset({
+            fy: completed.fy,
+            concessional,
+            ati,
+            employmentShare: totalIncome > 0 ? employment / totalIncome : 0,
+          });
+          if (offset.amount <= 0) return;
+          const closed = person.superInterests.map((_interest, slot) => closedThisMonth[index]?.[slot] ?? switchedOn(index, slot, date));
+          if (!person.superInterests.some((interest, slot) => interest.phase === 'accumulation' && closed[slot] === undefined)) {
+            notes.push(
+              Object.freeze({
+                subject: 'low income super tax offset not paid' as const,
+                person: person.name,
+                financialYear: completed.fy,
+                amount: offset.amount,
+                note: lowIncomeSuperTaxOffsetNotPaidNoteText(person.name, completed.fy, offset.amount),
+              }),
+            );
+            return;
+          }
+          const { slot } = superGuaranteeDestination(person, closed);
+          const held = balances[index];
+          if (held !== undefined) {
+            held.superInterestBalances[slot] = addCents(held.superInterestBalances[slot] ?? toCents(0), offset.amount);
+          }
+          lines.push(
+            Object.freeze({
+              direction: 'inflow',
+              effect: 'wealth',
+              description: lowIncomeSuperTaxOffsetDescription(person.name, completed.fy),
+              amount: offset.amount,
+              provenance: taxProvenance('low income superannuation tax offset', provenanceOf(completed.fy, offset.consumed), [
+                `15% of ${concessional} cents of FY${completed.fy} concessional contributions (${guarantee} Superannuation Guarantee, ${sacrificed} salary sacrificed), ` +
+                  `at least ${offset.minimum} and at most ${offset.maximum} cents`,
+                `adjusted taxable income ${ati} cents, not above the ${offset.threshold} cent threshold; ${employment} of ${totalIncome} cents of total income from employment`,
+                'assumes an Australian resident who held no temporary visa in the year (s 6(1)(f)) and whose fund has their tax file number',
+                'not a contribution (s 12B): counted against no cap, not in Division 293, and not taxed in the fund',
+              ]),
+              attribution: UNATTRIBUTED.lowIncomeSuperTaxOffset,
             }),
           );
         });

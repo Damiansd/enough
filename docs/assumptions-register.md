@@ -1777,6 +1777,45 @@ layer is not the gap here: every §3.5 figure except the commencement date is st
 sourced under `src/data/assumptions/super.ts`, and the §7 constant this section contributes is one
 the code genuinely reads.
 
+#### 3.5.2 Low income super tax offset (LISTO) — LR-3, 2026-09-30
+
+Superannuation (Government Co-contribution for Low Income Earners) Act 2003 ss 6(1)(b), 12B, 12C(1),
+12E(2), read on the ATO legal database (PAC/20030110) on **2026-09-30**. From the 2027-28 income
+year, Act No. 8 of 2026 (C2026A00008) Sch 4 items 1–3 replace the $37,000 with *"the dollar amount
+mentioned in item 1 of the table for that income year in Part I of Schedule 7 to the Income Tax
+Rates Act 1986"* and the $500 with the new s 12E(3A) amount. That amending text was read as the CCH
+note on the ATO legal database quotes it; the Act itself refused automated retrieval, so the two
+rows it creates are `secondary-only` until someone reads Sch 4 directly.
+
+| Name | Value | FY | Kind | Source | Confidence |
+|---|---|---|---|---|---|
+| Rate | **15%** of the year's concessional contributions | every year | constant | s 12E(2)(a) | primary-verified |
+| Minimum | **$10** | every year | constant | s 12E(2)(c) | primary-verified |
+| Share of total income from employment or business | **10% or more** (at least, so exactly 10% qualifies) | every year | constant | ss 12C(1)(c), 6(1)(b) | primary-verified |
+| Adjusted taxable income threshold | **$37,000** — not exceeded, so exactly $37,000 qualifies | to 2026-27 | config (effective 1 Jul 2017) | s 12C(1)(b) | primary-verified |
+| Maximum | **$500** | to 2026-27 | config (effective 1 Jul 2017) | s 12E(2)(b) | primary-verified |
+| Threshold from 2027-28 | top of Sch 7 Pt I item 1 for the year — **$45,000** for 2027-28 | 2027-28 on | config (derived) | C2026A00008 Sch 4 item 1; ITRA 1986 Sch 7 Pt I | secondary-only |
+| Maximum from 2027-28 | `threshold × SG charge % ÷ 100 × 15 ÷ 100` — **$810** for 2027-28 | 2027-28 on | config (derived) | C2026A00008 Sch 4 items 2–3 (s 12E(3A)); SGAA s 17A(2) | secondary-only |
+| Not a contribution | a Government co-contribution in law (s 12B), so outside ITAA 1997 s 292-90's non-concessional contributions (s 292-90(2)(c)(i)), outside the concessional total and Division 293's low tax contributions, and not taxed as a contribution in the fund | every year | constant | s 12B; ITAA 1997 s 292-90(2)(c)(i) | primary-verified |
+
+Neither FY2027-28 figure is stored: `lowIncomeSuperTaxOffsetThreshold` reads the year's own bracket
+table and `lowIncomeSuperTaxOffsetMaximum` multiplies it by the SG charge percentage, so both move
+if either does. The SG charge percentage is stamped FY2026-27, so every later year's figure carries
+O4's caveat.
+
+**How the walk applies it (`project()`, the July year-end settlement).** Complete financial years
+only, like the income tax true-up. Concessional contributions are the year's Superannuation
+Guarantee plus salary sacrificed (no deductible personal contribution exists in this model).
+Adjusted taxable income (Family Assistance Act Sch 3, disregarding cll 3 and 3A) is taken as Rebate
+Income on the settlement's own inputs, with a rental loss from `RENT_OUT_HOME` taken as nil, since
+Sch 3 adds a net investment loss back; reportable fringe benefits, target foreign income and child
+maintenance are nil in this model. The 10% test compares gross pay (salary plus the sacrifice)
+with assessable income plus reportable employer contributions (s 8). Residency and no temporary
+visa (s 6(1)(f)) are assumed and written on the line. The amount is credited in the July after the
+year it is for (the O28 refund-timing precedent) into the account the Guarantee would go to. **If
+every account is a pension or a started TTR by then, the offset is left out with a
+`low income super tax offset not paid` note: an understatement, since the ATO would still pay it.**
+
 ### 3.6 Division 293 — ITAA 1997 Div 293
 
 **Extended 2026-09-05** by `docs/research/p3-div293-income-base.md` (P3-5). That pass confirmed
@@ -4655,6 +4694,8 @@ this list is config and must be year-stamped.
 | Division 296 base rate | 15% | super |
 | Division 296 additional rate | 10% | super |
 | SG earnings base | qualifying earnings | super |
+| Low income super tax offset rate, minimum and work-income share | 15%, $10, 10% or more (§3.5.2) | super |
+| Low income super tax offset is not a contribution | a Government co-contribution in law (§3.5.2) | super |
 | LITO stage-1 taper | 5c per $1 | tax |
 | LITO stage-2 taper | 1.5c per $1 | tax |
 | LITO income base | taxable income | tax |

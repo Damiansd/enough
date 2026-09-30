@@ -575,6 +575,29 @@ If you live with a partner, press **{{name|Another person}}**. A second section 
 You don't need to type in the super your job pays for you. *enough* adds it by itself, based on
 your pay.
 
+### A top-up for lower earners
+
+If you earn up to $45,000 a year, the government adds a little to your super for each year you
+work. It's called the **low income super tax offset**. It gives back the 15% tax your super fund
+takes from the money your job (and any salary sacrifice) puts into your super: that is, 15% of it,
+at least $10 and at most $810 a year. It's paid after the financial year ends, so *enough* puts
+it into your super in the July after. It doesn't count towards the limits on how much you can put
+into super, and your fund takes no tax from it. Up to June 2027 the limits are lower: income up to
+$37,000, and at most $500.
+
+Two more rules decide it. At least a tenth of your income has to come from working, and your
+income is counted the tax office's way, so a salary sacrifice counts as income and a loss on a
+rented-out home doesn't bring it down. *enough* assumes you live in Australia for tax purposes.
+
+*enough* only works it out for a whole financial year, so it never pays one for the part-year your
+plan starts in. If all of your super has become a pension by the July it would be paid, *enough*
+leaves it out and says so in that month's notes. The tax office would still pay it, so from then
+on the forecast looks slightly worse than it should.
+
+In Pip and Jo's plan, Jo's pay is low enough for it in each of the four years from July 2027 to
+June 2031. Jo's last half-year of work, before they both retire in January 2034, would qualify too,
+but Jo's super is a pension by then, so that one is left out.
+
 ### Your pay goes up
 
 *enough* raises your pay a little every year, in line with how fast wages usually grow
@@ -1312,12 +1335,12 @@ have.
 
 **What-if:** Suppose Pip and Jo decide to spend about 40% more once they stop working, on top of
 the plan in [Chapter 83](#pip-and-jo-facts). Ask *enough*, and a Shortfall Age appears. The money runs short from around
-**{{fig shortfall-spending-40-percent-more month|March 2051}}**, when Pip is 80 and Jo is 78 — and at that higher spending, it never recovers.
+**{{fig shortfall-spending-40-percent-more month|May 2051}}**, when Pip is 80 and Jo is 78 — and at that higher spending, it never recovers.
 
 Two ways to push that day back, tried one at a time:
 
 - **Work one year longer.** Retiring in January 2035 instead of January 2034, with everything else
-  the same, pushes the shortfall all the way out to around **{{fig shortfall-spending-40-percent-more-retire-2035 month|October 2066}}** — Pip 95, Jo 93.
+  the same, pushes the shortfall all the way out to around **{{fig shortfall-spending-40-percent-more-retire-2035 month|September 2067}}** — Pip 96, Jo 94.
 - **Work two years longer.** Retiring in January 2036 removes the shortfall altogether — the money
   is never short again.
 
@@ -1473,11 +1496,11 @@ whether your figure is apart from a home loan still being repaid.
 
 ### Pip and Jo
 
-Ask *enough* this of Pip and Jo's real plan. The answer: **you could spend about {{fig sustainable-spend nearest-1|$80,796}} a
-year, in today's money, and still pay for every month of this forecast — {{fig sustainable-spend-rise-percent nearest-1|15%}} more than the {{fig spend-from-now nearest-1|$70,000}}
-a year your plan states.** Spend more than that, and {{fig sustainable-spend-first-short-month month|March 2058}} — Pip 87, Jo 85 — is the first month
+Ask *enough* this of Pip and Jo's real plan. The answer: **you could spend about {{fig sustainable-spend nearest-1|$80,932}} a
+year, in today's money, and still pay for every month of this forecast — {{fig sustainable-spend-rise-percent nearest-1|16%}} more than the {{fig spend-from-now nearest-1|$70,000}}
+a year your plan states.** Spend more than that, and {{fig sustainable-spend-first-short-month month|April 2058}} — Pip 87, Jo 85 — is the first month
 the plan would ask for money it doesn't have. The answer keeps the shape of their plan: all seven of
-their spending levels move up together, by the same {{fig sustainable-spend-rise-percent nearest-1|15%}}, not just the first one. They haven't set a
+their spending levels move up together, by the same {{fig sustainable-spend-rise-percent nearest-1|16%}}, not just the first one. They haven't set a
 **contingency buffer**, so this tests only that every month is covered — nothing is held back on top of
 that.
 
@@ -2656,8 +2679,8 @@ one who has still gets paid, but on the two of you tested together.
 ### Pip and Jo
 
 Pip turns 67 in January 2038. From that month, *enough* starts paying Pip an Age Pension — about
-**{{fig age-pension-first-month-today nearest-1|$1,545}} a month in today's money** to start with. Jo doesn't turn 67 until January 2040. Once Jo
-does, the household's Age Pension jumps to about **{{fig age-pension-both-eligible-today nearest-1|$3,862}} a month in today's money** — not because
+**{{fig age-pension-first-month-today nearest-1|$1,533}} a month in today's money** to start with. Jo doesn't turn 67 until January 2040. Once Jo
+does, the household's Age Pension jumps to about **{{fig age-pension-both-eligible-today nearest-1|$3,856}} a month in today's money** — not because
 the rules changed, but mostly because Jo is now eligible too, on the same combined test.
 
 ### Where you see it
@@ -3210,7 +3233,7 @@ Pip and Jo both have a **{{name|Retire}}** entry dated January 2034, so they see
 
 **{{name|Before retirement}}** reads:
 
-> **At 63 you'll have {{fig retire-super-today nearest-1|$801,752}} in super and {{fig retire-total-today nearest-1|$912,426}} in total.**
+> **At 63 you'll have {{fig retire-super-today nearest-1|$804,989}} in super and {{fig retire-total-today nearest-1|$915,663}} in total.**
 
 with a second line explaining this is Pip and Jo's combined position in January 2034, the month
 Pip turns 63 and they both retire.
@@ -3256,8 +3279,8 @@ Take Pip and Jo's own numbers, at the month they retire (January 2034):
 
 | View | Combined super | Combined total |
 |---|---|---|
-| The actual future amounts | {{fig retire-super-future nearest-1|$960,908}} | {{fig retire-total-future nearest-1|$1,093,552}} |
-| Today's money | {{fig retire-super-today nearest-1|$801,752}} | {{fig retire-total-today nearest-1|$912,426}} |
+| The actual future amounts | {{fig retire-super-future nearest-1|$964,788}} | {{fig retire-total-future nearest-1|$1,097,431}} |
+| Today's money | {{fig retire-super-today nearest-1|$804,989}} | {{fig retire-total-today nearest-1|$915,663}} |
 
 Both rows describe **exactly the same pile of money**. The top row is what a bank statement would
 actually say that month. The bottom row is what that same amount of money would buy if you had it
@@ -3270,7 +3293,7 @@ thing to check.
 
 ### Why today's money is what you see first
 
-A dollar figure fifty years in the future is hard to judge — is {{fig retire-total-future nearest-1|$1,093,552}} in 2034 a lot? Today's
+A dollar figure fifty years in the future is hard to judge — is {{fig retire-total-future nearest-1|$1,097,431}} in 2034 a lot? Today's
 money answers that by translating it into what it would buy right now, which is why *enough* shows
 it by default.
 

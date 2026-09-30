@@ -13,8 +13,11 @@
 //
 // This module holds no tax computation. Div 296's rates, thresholds and application year are
 // here; the calculation in register §3.7 belongs to P3.
-import { toCents } from '../../core/money.js'; // `.js` is correct in a `.ts` file — see tsconfig.json
+import { mulCents, toCents } from '../../core/money.js'; // `.js` is correct in a `.ts` file — see tsconfig.json
 import type { Cents } from '../../core/money.js';
+import { startOfFinancialYear } from '../../core/financialYear.js';
+import type { Consumed } from '../../core/provenance.js';
+import { taxYear } from './tax.js';
 import { deepFreeze } from './types.js';
 import type { Assumption, Confidence, Constant, FinancialYear, Formula, Money, Rate } from './types.js';
 
@@ -649,6 +652,151 @@ const SUPER_GUARANTEE = {
   } satisfies Constant<string>,
 };
 
+// --- Low income super tax offset (LR-3) --------------------------------------------------------
+//
+// Paid by the ATO into the Person's fund for a year in which their adjusted taxable income is at
+// or under a threshold and at least a tenth of their total income is from work. It is treated as
+// a Government co-contribution (Co-contribution Act s 12B), so it is not a contribution of any
+// kind: it counts towards no cap, is not a low tax contribution for Division 293, and the fund
+// pays no contributions tax on it. From FY2027-28 (Act No. 8 of 2026 Sch 4) the threshold is the
+// top of the first rated bracket and the maximum is derived from it — neither is stored.
+
+const LISTO_ACT = {
+  source:
+    'Superannuation (Government Co-contribution for Low Income Earners) Act 2003 ss 6(1)(b), 12B, 12C(1), 12E(2) · ' +
+    'ITAA 1997 s 292-90(2)(c)(i) · read on the ATO legal database (PAC/20030110)',
+  retrieved: '2026-09-30',
+  confidence: 'primary-verified',
+  registerSection: '§3.5.2',
+} as const;
+
+const LISTO_FROM_2027 = {
+  source:
+    'Treasury Laws Amendment (Building a Stronger and Fairer Super System) Act 2026 (C2026A00008) Sch 4 items 1–3, ' +
+    'amending Co-contribution Act ss 12C(1)(b), 12E(2)(b) and inserting s 12E(3A) · Income Tax Rates Act 1986 Sch 7 Pt I · SGAA s 17A(2)',
+  retrieved: '2026-09-30',
+  confidence: 'secondary-only',
+  registerSection: '§3.5.2',
+} as const;
+
+/** s 12C(1)(b) as amended: "the dollar amount mentioned in item 1 of the table for that income year in Part I of Schedule 7". */
+export const lowIncomeSuperTaxOffsetThreshold = (fy: FinancialYear): Cents => {
+  const itemOne = taxYear(fy).brackets?.value[1]?.upTo;
+  if (itemOne === undefined || itemOne === null) throw new RangeError(`no Schedule 7 item 1 for FY${fy}`);
+  return itemOne;
+};
+
+/** s 12E(3A): eligibility threshold amount × charge percentage ÷ 100 × 15 ÷ 100, in whole cents. */
+export const lowIncomeSuperTaxOffsetMaximum = (threshold: Cents, chargePercentage: number): Cents =>
+  Math.round((threshold * chargePercentage * 15) / 10_000) as Cents;
+
+const LOW_INCOME_SUPER_TAX_OFFSET = {
+  rate: {
+    ...LISTO_ACT,
+    kind: 'constant',
+    everyYear: true,
+    value: 0.15,
+    note: 's 12E(2)(a) — 15% of the year\'s concessional contributions: the Guarantee, salary sacrifice and deductible personal contributions alike.',
+  } satisfies Rate,
+  minimum: {
+    ...LISTO_ACT,
+    kind: 'constant',
+    everyYear: true,
+    value: toCents(10),
+    note: 's 12E(2)(c) — where 15% comes to less than $10, $10 is paid. Unchanged by Act No. 8 of 2026.',
+  } satisfies Money,
+  employmentIncomeShare: {
+    ...LISTO_ACT,
+    kind: 'constant',
+    everyYear: true,
+    value: 0.1,
+    note: 's 12C(1)(c), borrowing s 6(1)(b): 10% or more of total income (assessable income plus reportable employer superannuation contributions and reportable fringe benefits, s 8) is from employment or a business.',
+  } satisfies Rate,
+  incomeThreshold: {
+    ...LISTO_ACT,
+    kind: 'config',
+    effective: '2017-07-01',
+    value: toCents(37_000),
+    note: 's 12C(1)(b) — adjusted taxable income must not EXCEED it, so exactly the threshold qualifies. Income years to FY2026-27 only; `incomeThresholdFrom2027` replaces it.',
+  } satisfies Money,
+  maximum: {
+    ...LISTO_ACT,
+    kind: 'config',
+    effective: '2017-07-01',
+    value: toCents(500),
+    note: 's 12E(2)(b). Income years to FY2026-27 only; `maximumFrom2027` replaces it.',
+  } satisfies Money,
+  incomeThresholdFrom2027: {
+    ...LISTO_FROM_2027,
+    kind: 'config-derived',
+    effective: '2027-07-01',
+    value: lowIncomeSuperTaxOffsetThreshold,
+    derivation: 'the top of item 1 of the Sch 7 Pt I rate table for the income year — $45,000 for FY2027-28 and, while the brackets stay put, every year after',
+    note: 'The amending text was read as the CCH note quotes it on the ATO legal database; the Act itself (legislation.gov.au) refused automated retrieval, hence secondary-only. It moves whenever the first bracket does, so it is never stored.',
+  } satisfies Formula<typeof lowIncomeSuperTaxOffsetThreshold>,
+  maximumFrom2027: {
+    ...LISTO_FROM_2027,
+    kind: 'config-derived',
+    effective: '2027-07-01',
+    value: lowIncomeSuperTaxOffsetMaximum,
+    derivation: 'eligibility threshold amount × SG charge percentage ÷ 100 × 15 ÷ 100 — 45,000 × 12% × 15% = $810 for FY2027-28',
+    note: 's 12E(3A), read as the CCH note quotes it. Follows both the first bracket and the SG charge percentage.',
+  } satisfies Formula<typeof lowIncomeSuperTaxOffsetMaximum>,
+  notAContribution: {
+    ...LISTO_ACT,
+    kind: 'constant',
+    everyYear: true,
+    value: 'a Government co-contribution in law (s 12B): not a concessional or non-concessional contribution, not a low tax contribution for Division 293, and not taxed as a contribution in the fund',
+  } satisfies Constant<string>,
+};
+
+export interface LowIncomeSuperTaxOffsetInputs {
+  readonly fy: FinancialYear;
+  /** The year's concessional contributions: SG, salary sacrifice and deductible personal contributions. */
+  readonly concessional: Cents;
+  /** Adjusted taxable income (Family Assistance Act Sch 3, disregarding cll 3 and 3A). */
+  readonly ati: Cents;
+  /** The share of total income from employment or a business, 0 to 1. */
+  readonly employmentShare: number;
+}
+
+export interface LowIncomeSuperTaxOffset {
+  readonly fy: FinancialYear;
+  /** Nil where the year does not qualify. */
+  readonly amount: Cents;
+  readonly threshold: Cents;
+  readonly minimum: Cents;
+  readonly maximum: Cents;
+  readonly consumed: readonly Consumed[];
+}
+
+/** Co-contribution Act ss 12C(1) and 12E(2), for one Person and one income year. Residency (s 6(1)(f)) is the caller's. */
+export const lowIncomeSuperTaxOffset = (input: LowIncomeSuperTaxOffsetInputs): LowIncomeSuperTaxOffset => {
+  const rules = LOW_INCOME_SUPER_TAX_OFFSET;
+  const amended = startOfFinancialYear(input.fy) >= rules.incomeThresholdFrom2027.effective;
+  const threshold = amended ? rules.incomeThresholdFrom2027.value(input.fy) : rules.incomeThreshold.value;
+  const maximum = amended ? rules.maximumFrom2027.value(threshold, SUPER_GUARANTEE.chargePercentage.value) : rules.maximum.value;
+  const payable = input.concessional > 0 && input.ati <= threshold && input.employmentShare >= rules.employmentIncomeShare.value;
+  const fifteen = mulCents(input.concessional, rules.rate.value);
+  const amount = !payable ? toCents(0) : fifteen > maximum ? maximum : fifteen < rules.minimum.value ? rules.minimum.value : fifteen;
+  const consumed: Consumed[] = [
+    ['superannuation.lowIncomeSuperTaxOffset.rate', rules.rate],
+    ['superannuation.lowIncomeSuperTaxOffset.minimum', rules.minimum],
+    ['superannuation.lowIncomeSuperTaxOffset.employmentIncomeShare', rules.employmentIncomeShare],
+    ...(amended
+      ? ([
+        ['superannuation.lowIncomeSuperTaxOffset.incomeThresholdFrom2027', rules.incomeThresholdFrom2027],
+        ['superannuation.lowIncomeSuperTaxOffset.maximumFrom2027', rules.maximumFrom2027],
+        ['superannuation.superGuarantee.chargePercentage', SUPER_GUARANTEE.chargePercentage],
+      ] as const)
+      : ([
+        ['superannuation.lowIncomeSuperTaxOffset.incomeThreshold', rules.incomeThreshold],
+        ['superannuation.lowIncomeSuperTaxOffset.maximum', rules.maximum],
+      ] as const)),
+  ];
+  return Object.freeze({ fy: input.fy, amount, threshold, minimum: rules.minimum.value, maximum, consumed: Object.freeze(consumed) });
+};
+
 // --- Division 293 (T21) ------------------------------------------------------------------------
 
 const DIVISION_293 = {
@@ -1220,6 +1368,7 @@ export const SUPERANNUATION = deepFreeze({
   bringForward: BRING_FORWARD,
   carryForward: CARRY_FORWARD,
   superGuarantee: SUPER_GUARANTEE,
+  lowIncomeSuperTaxOffset: LOW_INCOME_SUPER_TAX_OFFSET,
   division293: DIVISION_293,
   division296: DIVISION_296,
   fundTax: FUND_TAX,

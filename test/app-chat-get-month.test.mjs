@@ -155,7 +155,11 @@ test('the copied fixture is the fd02679 fixture', () => {
   // RE-PINNED 2026-09-29 (LR-1 slice 3, Div 119's minimum tax): RICH moved only in the limb-3
   // `available` probe again, DOWN in 36 months from 2028-01 (after Wilhelmina's RETIRE, selling
   // everything would now pay the minimum tax). No line moved.
-  assert.equal(sha256(RICH_WALK), '39848c29809761dec63ecc1d855665934c5d1086466077f1efa2428091308ad4');
+  // RE-PINNED 2026-09-30 (LR-3, low income super tax offset): no figure moved. Wilhelmina qualifies for
+  // 81000 cents for FY2027-28, and her only account is a pension by July 2028 (her RETIRE), so one
+  // `low income super tax offset not paid` note is inserted in 2028-07; a whole-walk diff finds that note
+  // (and the later notes of that month shifted one place) and nothing else.
+  assert.equal(sha256(RICH_WALK), 'baa963b43878284e63b78f3318904bc400ddfd8241a90d26f0a1acc416b6edf0');
   // RE-PINNED 2026-09-29 (LR-1 slice 4): no figure moved. Dana's 11 `Income tax on capital gain` lines (2033-03 to 2035-05) each gained one `determination` entry, `CGT_MINIMUM_TAX_DETERMINATION`; a whole-walk diff finds those 11 and nothing else.
   assert.equal(sha256(project(DEMO_SETTINGS, DEMO_HOUSEHOLD, DEMO_ENTRIES)), 'a895e6545773fc348c834ab324eeb80882f678276716dca7b57cbaad43e7df28');
 });

@@ -889,9 +889,12 @@ test('the eight note subjects get eight DIFFERENT labels — one label for two w
   // **ELEVEN from 2026-09-24 (P9-1, slice 1): the Home Equity Access Scheme's capacity cap reached.**
   // Its label names what stopped (the loan payments) and what did not (interest), which is the
   // whole point of the note existing rather than a silent stop.
+  //
+  // **TWELVE from 2026-09-30 (LR-3): a low income super tax offset left out** because every account
+  // is a pension by the July it would be paid. Its label names the direction, like the cap note's.
   const labels = Object.values(NOTE_TEXT_LABELS);
-  assert.equal(labels.length, 11);
-  assert.equal(new Set(labels).size, 11, `two note subjects share a label: ${JSON.stringify(labels)}`);
+  assert.equal(labels.length, 12);
+  assert.equal(new Set(labels).size, 12, `two note subjects share a label: ${JSON.stringify(labels)}`);
   for (const label of labels) assert.ok(label.trim().length > 20, JSON.stringify(label));
   // And each subject of the walk carries its own. The withdrawal label is a PREFIX — the tax figure
   // is composed onto it, because folding a dollar amount away behind a disclosure would hide money.

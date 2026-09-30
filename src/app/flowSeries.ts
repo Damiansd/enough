@@ -500,8 +500,8 @@ export const flowSeries = (months: readonly Month[], household: Household, basis
 // | SHORTFALL_LINE                        | bare                                     | (none — `shortfall`, drawn separately, condition 3) |
 // | *four asset-move lines marked "inflow*"/"outflow*" are the NET of their family; the family's own dominant direction decides the side, and a line pushing the other way just makes the net smaller rather than switching sides.
 //
-// **The 11 wealth-only `*_LINE` constants left OUT of this table on purpose** (`effect: 'wealth'` at
+// **The 12 wealth-only `*_LINE` constants left OUT of this table on purpose** (`effect: 'wealth'` at
 // every emit site, so the classifier never sees them — flowSeries pre-filters on `effect === 'cash'`):
 // GROWTH_LINE, SALARY_SACRIFICE_LINE, SUPER_GUARANTEE_LINE, SUPER_ADMINISTRATION_FEE_LINE,
 // SUPER_INVESTMENT_FEE_LINE, SUPER_INSURANCE_LINE, SUPER_EARNINGS_TAX_LINE, SUPER_FRANKING_CREDIT_REFUND_LINE,
-// HEAS_INTEREST_LINE, AGED_CARE_RAD_RETENTION_LINE, DIVISION_293_RELEASE_LINE.
+// HEAS_INTEREST_LINE, AGED_CARE_RAD_RETENTION_LINE, DIVISION_293_RELEASE_LINE, LOW_INCOME_SUPER_TAX_OFFSET_LINE.

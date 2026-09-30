@@ -258,7 +258,9 @@ test('the DESCRIPTION names the financial year, and `Month` still has no financi
   // figure in it: the month's ONLY stamp is `2027-28`, in a month whose own year is `2028-29`.
   const july = months.find((m) => m.month === '2028-07');
   assert.deepEqual([...july.provenance.stamps], ['2027-28']);
-  assert.deepEqual([...july.provenance.registers], ['income tax year-end true-up']);
+  // LR-3 (2026-09-30): half a year's pay is under the threshold, so the low income super tax offset
+  // for FY2027-28 lands in the same July — a second legislated figure, stamped with the same settled year.
+  assert.deepEqual([...july.provenance.registers], ['income tax year-end true-up', 'low income superannuation tax offset']);
   assert.equal(line.provenance.basis, 'legislated');
   assert.equal(line.provenance.register, 'income tax year-end true-up');
   // The stamp on the LINE is the settled year and not the reporting month's year — P5-4, over the

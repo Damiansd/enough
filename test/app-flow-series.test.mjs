@@ -195,7 +195,7 @@ test('no module under src/ classifies a line description by prefix or regex — 
 
 // --- §2 THE STRUCTURAL SWEEP: EVERY *_LINE CONSTANT IS ACCOUNTED FOR ------------------------------
 
-// The eleven wealth-only lines: `effect: 'wealth'` at every emit site in projection.ts, so flowSeries's
+// The twelve wealth-only lines: `effect: 'wealth'` at every emit site in projection.ts, so flowSeries's
 // own `effect === 'cash'` filter means the classifier never sees them. Named here, once, so a new
 // `_LINE` constant can only join this file's coverage by a deliberate edit to one of the two lists.
 const WEALTH_ONLY_LINES = [
@@ -210,6 +210,7 @@ const WEALTH_ONLY_LINES = [
   'HEAS_INTEREST_LINE',
   'AGED_CARE_RAD_RETENTION_LINE',
   'DIVISION_293_RELEASE_LINE',
+  'LOW_INCOME_SUPER_TAX_OFFSET_LINE',
 ];
 
 // The 43 cash-effect line constants, each with a sample description this file can build and expect
@@ -264,7 +265,7 @@ const CASH_LINE_SAMPLES = (() => {
   };
 })();
 
-test('CASH_LINE_SAMPLES actually names all 43 non-wealth *_LINE constants, and none of the 11 wealth-only ones', () => {
+test('CASH_LINE_SAMPLES actually names all 43 non-wealth *_LINE constants, and none of the 12 wealth-only ones', () => {
   assert.equal(Object.keys(CASH_LINE_SAMPLES).length, 43);
   for (const name of WEALTH_ONLY_LINES) assert.equal(name in CASH_LINE_SAMPLES, false, name);
 });

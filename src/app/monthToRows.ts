@@ -212,6 +212,10 @@ export const REGISTER_DETAILS: Readonly<
     'A further 15% on money going into super, for a person whose income and those contributions' +
     ' together come to more than $250,000. It falls on the smaller of the two: the contributions,' +
     ' or the amount by which the pair passes $250,000.',
+  'low income superannuation tax offset':
+    'A top-up the tax office pays into the super of a person on a low income: 15% of the money that' +
+    ' went into their super before tax that year, between $10 and a yearly maximum. It is paid after' +
+    ' the financial year ends, so it arrives in July.',
   'Division 293 tax year-end true-up':
     'The Division 293 charge — a further 15% on money going into super for a person whose income' +
     ' and contributions together pass $250,000 — is worked out once on the whole financial year.' +
@@ -436,6 +440,7 @@ export const NOTE_SUBJECT_LABELS: Readonly<Record<MonthNote['subject'], string>>
   'pension at retirement': 'Super at retirement',
   'concessional cap exceeded': 'Over the before-tax super cap',
   'HEAS capacity cap reached': 'Home Equity Access Scheme — capacity reached',
+  'low income super tax offset not paid': 'Low income super tax offset left out',
 });
 
 const WATERFALL_LIMB_TITLES: Readonly<Record<WaterfallLimbNote['limb'], string>> =
@@ -493,6 +498,7 @@ export const NOTE_TEXT_LABELS: Readonly<Record<MonthNote['subject'], string>> = 
   'pension at retirement': 'What happened to this super at retirement, and why',
   'concessional cap exceeded': 'Over the cap — this forecast looks better than it should',
   'HEAS capacity cap reached': 'Why the loan payments stopped, and what keeps growing anyway',
+  'low income super tax offset not paid': 'Why this was left out — this forecast looks worse than it should',
 });
 
 /**
@@ -694,6 +700,18 @@ export const noteRow = (note: MonthNote, money: MoneyLens): NoteRow => {
           'The Home Equity Access Scheme lends against your home up to a limit set by your age and' +
           ' the home’s value. Once the loan reaches that limit, payments stop — but interest keeps' +
           ' being added to what you already owe.',
+      });
+    case 'low income super tax offset not paid':
+      // **One money column, the offset left out**: money that would have gone into super and did not.
+      return Object.freeze({
+        subject: 'low income super tax offset not paid' as const,
+        subjectLabel: NOTE_SUBJECT_LABELS['low income super tax offset not paid'],
+        of: `${note.person} — for ${note.financialYear}`,
+        available: formatDollars(money(note.amount)),
+        drawn: null,
+        note: wholeDollarsIn(note.note),
+        noteLabel: NOTE_TEXT_LABELS['low income super tax offset not paid'],
+        detail: REGISTER_DETAILS['low income superannuation tax offset'] ?? null,
       });
     default: {
       const unreachable: never = note;

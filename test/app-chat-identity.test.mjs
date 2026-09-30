@@ -81,6 +81,7 @@ const NAMED = [
   ['Superannuation investment fee, Wilhelmina Quartermaine — Account-Based Pension', 'Superannuation investment fee, Person A — Account-Based Pension'],
   ['Superannuation fund earnings tax, Wilhelmina Quartermaine — Superannuation, Accumulation Phase, 2026-27', 'Superannuation fund earnings tax, Person A — Superannuation, Accumulation Phase, 2026-27'],
   ['Superannuation franking credit refund, Wilhelmina Quartermaine — Account-Based Pension, 2026-27', 'Superannuation franking credit refund, Person A — Account-Based Pension, 2026-27'],
+  ['Low income super tax offset, Wilhelmina Quartermaine, 2026-27', 'Low income super tax offset, Person A, 2026-27'],
   ['Salary sacrifice into superannuation, Wilhelmina Quartermaine — Superannuation, Accumulation Phase', 'Salary sacrifice into superannuation, Person A — Superannuation, Accumulation Phase'],
   // The one line naming two Persons keeps its direction: who paid, then whose super it went into.
   ['Spouse contribution, Wilhelmina Quartermaine → May', 'Spouse contribution, Person A → Person B'],
@@ -368,7 +369,7 @@ test('the fixture reaches every named line kind, with the spouse contribution in
   const spouse = RICH_WALK.flatMap((month) => anonymousMonth(RICH_HOUSEHOLD, month).lines).filter((description) => description.startsWith('Spouse contribution'));
   assert.deepEqual(spouse, ['Spouse contribution, Person A → Person B']);
   const subjects = new Set(RICH_WALK.flatMap((month) => month.notes).filter((note) => NAME_PARTS.some((part) => note.note.includes(part))).map((note) => note.subject));
-  assert.deepEqual([...subjects].sort(), ['investment distribution', 'pension at retirement', 'salary sacrifice stopped', 'super withdrawal', 'waterfall limb']);
+  assert.deepEqual([...subjects].sort(), ['investment distribution', 'low income super tax offset not paid', 'pension at retirement', 'salary sacrifice stopped', 'super withdrawal', 'waterfall limb']);
   assert.ok(RICH_WALK.flatMap((month) => month.notes).some((note) => note.person === RICH_HOUSEHOLD.persons[1].name), 'a note whose `person` is Person B');
 });
 
@@ -420,7 +421,11 @@ test('the forecast did not move when its descriptions moved into helpers', () =>
   // RE-PINNED 2026-09-29 (LR-1 slice 3, Div 119's minimum tax): RICH moved only in the limb-3
   // `available` probe again, DOWN in 36 months from 2028-01 (after Wilhelmina's RETIRE, selling
   // everything would now pay the minimum tax). No line moved.
-  assert.equal(sha256(RICH_WALK), '39848c29809761dec63ecc1d855665934c5d1086466077f1efa2428091308ad4');
+  // RE-PINNED 2026-09-30 (LR-3, low income super tax offset): no figure moved. Wilhelmina qualifies for
+  // 81000 cents for FY2027-28, and her only account is a pension by July 2028 (her RETIRE), so one
+  // `low income super tax offset not paid` note is inserted in 2028-07; a whole-walk diff finds that note
+  // (and the later notes of that month shifted one place) and nothing else.
+  assert.equal(sha256(RICH_WALK), 'baa963b43878284e63b78f3318904bc400ddfd8241a90d26f0a1acc416b6edf0');
 });
 
 test('the financial-year summary goes out through the guard', () => {

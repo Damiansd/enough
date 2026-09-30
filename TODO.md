@@ -9642,9 +9642,22 @@ guide Chapter 85.
   quirk, noted by retire flow S3; cosmetic).
 - [ ] **RF-5 Retire flow S2, the "have you switched to an account-based pension? Done" confirmation
   — HELD by the user** until Open Items (below) is built. Not to be built on its own.
-- [ ] **LR-3 Low income super tax offset (LISTO) not modelled at all** — today $500; from 1 July
+- [x] **LR-3 Low income super tax offset (LISTO) not modelled at all** — today $500; from 1 July
   2027 a $45,000 threshold and $810 maximum (C2026A00008 Sch 4). Only matters for a partner
   earning under the threshold.
+  — ✅ 2026-09-30 built. Rule: `lowIncomeSuperTaxOffset` and eight records under
+  `superannuation.lowIncomeSuperTaxOffset` (`src/data/assumptions/super.ts`, register §3.5.2); from
+  FY2027-28 the threshold is read off the year's Sch 7 item 1 and the maximum derived from it with
+  the SG charge percentage, neither stored (the Sch 4 text was read via the ATO legal database's
+  CCH note, so those two rows are `secondary-only`). Walk: the July settlement for a complete year
+  credits `Low income super tax offset, <name>, <FY>` (`wealth`, inflow) into the Guarantee's
+  account; ATI is Rebate Income with a rental loss as nil; 10% test on gross pay; resident
+  assumed. With every account a pension by then it is left out with a
+  `low income super tax offset not paid` note. Demo couple: Sam $733.93, $759.62, $786.21, $810.00
+  for FY2027-28 to FY2030-31; FY2033-34's $449.64 is noted and not credited (Sam's only account is
+  a pension from the January 2034 retirement). Golden: 236 figures moved, all traced to those four
+  credits and their earnings (`test/core-low-income-super-tax-offset.test.mjs`, 14 tests; 13
+  mutations each killed).
 - [ ] **LR-4 Aged care accommodation supplement restructure — announced for 20 March 2027, not yet
   law.** Top tier $77.30 a day; `agedCare.ts` holds one $73.73 figure. Wait for the instrument.
 - [ ] **LR-5 The rate that turns a room deposit into a daily payment (MPIR) is to be replaced by 1
