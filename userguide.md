@@ -1351,6 +1351,33 @@ its own date — and *enough* will use whichever is current in any given month.
 One-off costs, like a new car or a big trip, don't belong in this figure at all: each of those is
 its own entry, covered next in [Chapter 21](#one-off-spend).
 
+### Not sure what to type? What other retirees spend
+
+If you don't know what figure to type, a good place to start is the **ASFA Retirement Standard**. ASFA
+(the Association of Superannuation Funds of Australia) is the group that speaks for super funds. It
+works out what two kinds of retired life cost, and updates the figures every three months:
+
+- **Modest** — a bit better than living on the Age Pension alone: the basics, a cheap car, not much
+  eating out, holidays close to home.
+- **Comfortable** — good health insurance, a decent car, eating out, and a trip overseas now and
+  then.
+
+For March 2026, for people aged 65 to 84 who own their home outright, ASFA's figures were:
+
+| | Modest | Comfortable |
+|---|---|---|
+| One person | $36,434 a year | $55,923 a year |
+| A couple | $52,473 a year | $78,566 a year |
+
+People aged 85 and over spend a little less: ASFA's comfortable figure for them is $53,656 for one
+person and $73,970 for a couple. Its modest figures for people who rent are higher: $51,164 for one
+person and $69,002 for a couple.
+
+These figures fit the box well. They're in today's money, and they assume there's no home loan
+left, so they already leave out the repayment. They're only a yardstick, though. Your own spending
+is a better guide than anyone else's. The latest figures are on
+[ASFA's website](https://www.superannuation.asn.au/consumers/retirement-standard/).
+
 ### Pip and Jo
 
 Pip and Jo's real plan has several spending levels, each dated ([Chapter 83](#pip-and-jo-facts)): **{{fig spend-from-now nearest-1|$70,000}}** a year from
@@ -4392,6 +4419,7 @@ Jump to a topic:
 | Source | Who publishes it | What it covers | Checked |
 |---|---|---|---|
 | [Retirement planner](https://moneysmart.gov.au/plan-for-your-retirement/retirement-planner) | Moneysmart (ASIC) | Another retirement planner, used as a cross-check against *enough*'s numbers. | 17 Sep 2026 |
+| [ASFA Retirement Standard](https://www.superannuation.asn.au/consumers/retirement-standard/) | ASFA, the group that speaks for super funds (not the government) | What a "modest" and a "comfortable" retirement cost each year, updated every three months. [Chapter 20](#spending-plan) quotes it as a starting point for your spending figure. *enough* doesn't use it in any sum. | 30 Sep 2026 |
 
 > **Keeping this up to date:** Run Claude Code every few months to gather the latest legislation,
 > update all logic based on the findings, and update all documentation (including this user guide).
