@@ -5121,6 +5121,15 @@ const agedCareProvenance = (fy: FinancialYear, period: AgedCarePeriod): FigurePr
     schedule === undefined
       ? [[AGED_CARE_GENERATED_KEY, AGED_CARE_FORWARD_SERIES]]
       : [[`agedCare.residentialSchedule.${period.scheduleEffective}`, schedule]];
+  // **LR-4 — a generated schedule from the supplement's own step on carries a supplement that is
+  // law, not forecast** (`agedCareScheduleThrough` substitutes it there and indexes it after). The
+  // rest of the schedule stays generated, so the leaf is consumed BESIDE the generated key.
+  const supplement = AGED_CARE.maxAccommodationSupplementFrom2027;
+  const supplementIsLaw =
+    schedule === undefined &&
+    AGED_CARE.residentialSchedule[supplement.effective] === undefined &&
+    period.scheduleEffective >= supplement.effective;
+  if (supplementIsLaw) consumed.push(['agedCare.maxAccommodationSupplementFrom2027', supplement]);
   consumed.push(
     [`agedCare.mpir.${period.mpirEffective}`, mpirRecord],
     ['agedCare.meansTestTaper', AGED_CARE.meansTestTaper],
@@ -5141,6 +5150,12 @@ const agedCareProvenance = (fy: FinancialYear, period: AgedCarePeriod): FigurePr
         ? [
             "the residential schedule for this date is PROJECTED, not published — generated from this " +
               "plan's own CPI growth rate and the walk's projected Age Pension single maximum basic rate",
+          ]
+        : []),
+      ...(supplementIsLaw
+        ? [
+            `maximum accommodation supplement ${formatCents(supplement.value)} from 20 March 2027 is law (F2026L01252 Sch 8); ` +
+              'later steps index it by CPI, rounded down',
           ]
         : []),
     ]),

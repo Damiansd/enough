@@ -6074,3 +6074,12 @@ and April 2027 is the first month on $78.73. Hidden in Rules in force (no row sh
 today). Hand-worked walk pin: a resident near $80/day pays hotelling of $6.27/day in March 2027 and
 $1.52/day in April 2027 (`test/core-projection-aged-care.test.mjs`); chain pins in
 `test/assumptions-aged-care.test.mjs`. Supersedes TODO LR-4's announced "$77.30 top tier".
+
+**Provenance (2026-09-30).** Every schedule from 20 Mar 2027 is generated, so its aged care lines stay
+`unverified` with the generated-schedule key and PROJECTED line (§12.3) for the other figures, but the
+supplement in them is this leaf or indexed from it: `agedCareProvenance` consumes
+`agedCare.maxAccommodationSupplementFrom2027` beside the generated key and adds the determination
+"maximum accommodation supplement $78.73 from 20 March 2027 is law (F2026L01252 Sch 8); later steps
+index it by CPI, rounded down". Only while the 2027-03-20 step is itself generated (a published set for
+that date would carry its own figure). Published periods, March 2027 included, never cite it. No
+figure moved: every `project()` walk in the suite, provenance stripped, hashes identical on both builds.

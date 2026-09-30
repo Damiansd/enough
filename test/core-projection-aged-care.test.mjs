@@ -927,6 +927,43 @@ test('LR-4 — hotelling drops by the $5.00 supplement step from April 2027: Mar
   assert.deepEqual(perDay['2027-04'], { amount: 8025, hotelling: 152 });
 });
 
+// The supplement in every schedule from 20 Mar 2027 on is the leaf or indexed from it, so those lines
+// cite it BESIDE the generated key: the other figures are still a forecast. Published periods (March
+// 2027 included, s 610-65(2)) never cite it. Entering care in October 2026 walks both kinds.
+test('LR-4 — from April 2027 the aged care lines cite the $78.73 leaf beside the generated schedule; published periods never do', () => {
+  const single = { persons: [person('Sam', '1957-06-01')], homeStatus: 'occupied', openingOffsetBalance: toCents(282_293) };
+  const enteredCare = entry('ec', 'ENTER_CARE', '2026-10-01', { homeValue: toCents(0), radPrice: toCents(0), radPaidAsLumpSum: toCents(0) }, 'personA');
+  const walked = project({ ...SETTINGS, planningHorizonAge: 72 }, single, [enteredCare]);
+  const cited = 'maximum accommodation supplement $78.73 from 20 March 2027 is law (F2026L01252 Sch 8); later steps index it by CPI, rounded down';
+  const generatedCaveat = /^agedCare\.indexation\.mechanism \(not published — generated .* is unverified$/;
+  const seen = { published: 0, march: 0, generated: 0 };
+  for (const month of walked) {
+    for (const line of month.lines.filter((each) => each.provenance?.register === 'Aged care')) {
+      const { basis, confidence, caveats, determination } = line.provenance;
+      assert.equal(basis, 'legislated');
+      if (month.month <= '2027-03') {
+        assert.ok(!determination.includes(cited), `${month.month} ${line.description}: the leaf is cited in March 2027 or earlier`);
+        assert.ok(determination.includes('schedule effective 2026-09-20'), `${month.month}: expected the published schedule`);
+        if (month.month === '2027-03') seen.march += 1;
+        seen.published += 1;
+        continue;
+      }
+      assert.ok(determination.includes(cited), `${month.month} ${line.description}: the leaf is not cited`);
+      assert.equal(confidence, 'unverified', `${month.month} ${line.description}: the rest of the schedule is still generated`);
+      assert.ok(caveats.some((caveat) => generatedCaveat.test(caveat)), `${month.month} ${line.description}: the generated schedule's caveat is gone`);
+      assert.ok(determination.some((each) => each.startsWith('the residential schedule for this date is PROJECTED')), `${month.month}: the PROJECTED line is gone`);
+      seen.generated += 1;
+    }
+  }
+  for (const line of walked.flatMap((month) => month.lines).filter((each) => each.provenance?.register === 'Aged care')) {
+    if (line.provenance.determination.includes('schedule effective 2026-09-20')) {
+      assert.ok(!line.provenance.determination.includes(cited), `${line.description}: the leaf is cited on a line in a published period`);
+    }
+  }
+  assert.ok(seen.march > 0 && seen.published > seen.march && seen.generated > 0, JSON.stringify(seen));
+  assert.equal(walked.at(-1).month, '2029-06', 'the walk crosses later indexation steps');
+});
+
 // --- HEAS debt against the former home (docs/research/p9-heas-debt-netting-2026-09-25.md) ---------
 
 test('HEAS debt — past the cliff, the OPENING HEAS debt comes off the vacated home in full (SS Act s 1121(5)); while it is exempt, nothing moves', () => {

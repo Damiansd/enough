@@ -9862,6 +9862,12 @@ guide Chapter 85.
   granularity; s 610-65(2)). Hidden in Rules in force; listed in the chat money locations. Walk pin:
   a resident near $80/day pays hotelling $6.27/day in March 2027, $1.52/day in April 2027 (the
   $5.00 step less $0.25 the indexed bands add). Five mutations each killed; 0 golden/demo digests moved.
+  — ✅ 2026-09-30 provenance: aged care lines on a generated schedule from 2027-03-20 keep the
+  generated key / `unverified` / PROJECTED line and now ALSO consume the leaf and cite it in a
+  determination ("maximum accommodation supplement $78.73 from 20 March 2027 is law (F2026L01252
+  Sch 8); later steps index it by CPI, rounded down"). March 2027 and every published period don't.
+  Whole-suite walk dump, provenance stripped: 6,948 walks, hashes identical; no digest re-pinned. One
+  test in `core-projection-aged-care.test.mjs`; four mutations each killed. Register §12.7.
   - **Checked 2026-09-30: NOW LAW — code not yet changed.** The instrument is the Aged Care Amendment
     (September Indexation and Other Measures) Rules 2026, **F2026L01252** (made 17 Sep 2026), Schedule 8,
     which **commences 20 March 2027**. It amends Aged Care Rules 2025 s 230-10(2)/(2A), s 230-15 and s 242B-25:
