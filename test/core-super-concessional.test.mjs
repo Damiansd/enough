@@ -99,15 +99,17 @@ const HISTORY = [
 //     remaining  = [11,000, 0, 0, 20,000, 24,000]  → available $55,000
 //     total cap  = general 32,500 + 55,000         = $87,500
 //
-//   FY2027-28, window FY2022-23…FY2026-27. FY2026-27's $7,500 over its cap spends the oldest
-//   standing amount, which is now FY2024-25's: 20,000 − 7,500 = $12,500. FY2022-23's own $4,000
-//   over has no earlier year left inside the window and is left alone.
-//     remaining  = [0, 0, 12,500, 24,000, 0]       → available $36,500
-//     total cap  = general 35,000 + 36,500         = $71,500
+//   FY2027-28, window FY2022-23…FY2026-27. FY2026-27's $7,500 over its cap spent the oldest amount
+//   standing in ITS OWN window, FY2021-22…FY2025-26 — FY2021-22's $11,000, which has since rolled
+//   out. So FY2024-25 is untouched. ~~FY2024-25's: 20,000 − 7,500 = $12,500 → $36,500, $71,500~~
+//   (CORRECTED 2026-09-30, P3-4b slice 2: the old loop could not see FY2021-22 once it had left
+//   this window, and charged the spend to a younger year.)
+//     remaining  = [0, 0, 20,000, 24,000, 0]       → available $44,000
+//     total cap  = general 35,000 + 44,000         = $79,000
 const CAP_2026_27 = toCents(32_500);
 const CAP_2027_28 = toCents(35_000);
 const AVAILABLE_2026_27 = toCents(55_000);
-const AVAILABLE_2027_28 = toCents(36_500);
+const AVAILABLE_2027_28 = toCents(44_000);
 
 const ELIGIBLE = { '2026-27': totalSuperBalance('2026-06-30', toCents(400_000)), '2027-28': totalSuperBalance('2027-06-30', toCents(400_000)) };
 // The test is `< $500,000` and never indexes (T21), so exactly $500,000 is outside it.
@@ -292,7 +294,7 @@ test('s 291-20 — inside the general cap, the carry-forward window is not touch
   assert.equal(y2.generalCap, CAP_2027_28);
   assert.equal(y2.unusedGeneralCapGenerated, toCents(15_000));
   assert.equal(y2.carryForwardAvailable, AVAILABLE_2027_28);
-  assert.equal(y2.totalCap, toCents(71_500));
+  assert.equal(y2.totalCap, toCents(79_000));
   assert.equal(y2.excess, toCents(0));
 });
 
@@ -326,13 +328,13 @@ test('s 291-20(7) — the window is consumed earliest year first, and the year i
   // FY2021-22 expires this year, so the difference is $7,500 of headroom lost for nothing.
   assert.equal(y1.carryForward[0].lastYearUsable, '2026-27');
 
-  // FY2027-28, remaining = [0, 0, 12,500, 24,000, 0] over FY2022-23…FY2026-27. The earliest
+  // FY2027-28, remaining = [0, 0, 20,000, 24,000, 0] over FY2022-23…FY2026-27. The earliest
   // standing amount is now FY2024-25's, so the $5,000 comes out of a different year.
   const y2 = assess('2027-28', 40_000);
   assert.deepEqual(y2.carryForward.map((each) => each.fy), ['2022-23', '2023-24', '2024-25', '2025-26', '2026-27']);
-  assert.deepEqual(y2.carryForward.map((each) => each.available), [0, 0, 1_250_000, 2_400_000, 0]);
+  assert.deepEqual(y2.carryForward.map((each) => each.available), [0, 0, 2_000_000, 2_400_000, 0]);
   assert.deepEqual(y2.carryForward.map((each) => each.applied), [0, 0, 500_000, 0, 0]);
-  assert.deepEqual(y2.carryForward.map((each) => each.remainingAfter), [0, 0, 750_000, 2_400_000, 0]);
+  assert.deepEqual(y2.carryForward.map((each) => each.remainingAfter), [0, 0, 1_500_000, 2_400_000, 0]);
 });
 
 test('the cap and the 15% read the total, whatever it is made of', () => {
@@ -377,10 +379,10 @@ test('the excess is what is above the general cap AND the whole window — and i
   // not priced here.
   assert.equal(y1.contributionsTax.amount, toCents(15_000));
 
-  // FY2027-28: the same $100,000 against 35,000 + 36,500 = $71,500 → excess $28,500.
+  // FY2027-28: the same $100,000 against 35,000 + 44,000 = $79,000 → excess $21,000.
   const y2 = assess('2027-28', 100_000);
   assert.equal(y2.carryForwardApplied, AVAILABLE_2027_28);
-  assert.equal(y2.excess, toCents(28_500));
+  assert.equal(y2.excess, toCents(21_000));
   assert.equal(y2.contributionsTax.amount, toCents(15_000));
   // Both years: nothing is created and nothing is lost.
   for (const year of [y1, y2]) {

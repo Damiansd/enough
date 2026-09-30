@@ -1555,10 +1555,15 @@ test('the new Month field is ADDED and moves nothing: without it the demo digest
   // above (which now strip it too) are unchanged: no figure moved. The old full digest is the new
   // walk without it.
   assert.equal(createHash('sha256').update(JSON.stringify(MONTHS.map(({ concessionalCapByPerson: _c, ...rest }) => rest))).digest('hex'), 'd73b27b0a9d520d4ef38da00ce082131a08a8d7cf43352f627de81836f410de5');
-  assert.equal(createHash('sha256').update(JSON.stringify(MONTHS)).digest('hex'), '99b663af8dfd7dd4eb4a37d6cab18eef401fe60a0afbf07dde162e8bd82fb918');
+  // P3-4b slice 2 (2026-09-30): the plan is dated 2026-09-01, not 1 July, and states no 30 June
+  // balance, so FY2026-27's `totalSuperBalance` is `null` (not known) for both Persons and Dana's
+  // window reads closed — 10 months, 90 bytes shorter, no other key and no figure moved (the
+  // stripped digest above did not). Re-pinned for that alone.
+  assert.notEqual(createHash('sha256').update(JSON.stringify(MONTHS)).digest('hex'), '99b663af8dfd7dd4eb4a37d6cab18eef401fe60a0afbf07dde162e8bd82fb918'); // pre-slice 2
+  assert.equal(createHash('sha256').update(JSON.stringify(MONTHS)).digest('hex'), 'bda4be63f4265595e8bd86a941e019cd594aa4b5afe2a6267b6138cc415f4c52');
   // O90 (2026-09-30): the SAPTO caveat names `baseRebateAmount.coupleEach`, the record actually read,
   // not the non-existent `.couple`: 4 bytes per caveat, no figure moved. Both digests above re-pinned for it.
   const renamed = JSON.stringify(MONTHS).split('baseRebateAmount.coupleEach is stamped').length - 1;
-  assert.equal(JSON.stringify(MONTHS).length, 3_623_969 + 11 * 377 + renamed * 4 + 200_812);
-  assert.equal(JSON.stringify(MONTHS).replaceAll('baseRebateAmount.coupleEach is stamped', 'baseRebateAmount.couple is stamped').length, 3_623_969 + 11 * 377 + 200_812);
+  assert.equal(JSON.stringify(MONTHS).length, 3_623_969 + 11 * 377 + renamed * 4 + 200_812 - 90);
+  assert.equal(JSON.stringify(MONTHS).replaceAll('baseRebateAmount.coupleEach is stamped', 'baseRebateAmount.couple is stamped').length, 3_623_969 + 11 * 377 + 200_812 - 90);
 });

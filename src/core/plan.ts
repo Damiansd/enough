@@ -2590,10 +2590,15 @@ export interface ConcessionalCapHeadroom {
   /**
    * The Total Super Balance the $500,000 test read: every super interest of the Person at the close
    * of the prior 30 June, before the July settlement credits. In the plan's first year it is the
-   * balance the plan states, as at `settings.asAtDate`, because the forecast holds no earlier one.
+   * balance the plan states when `settings.asAtDate` is 1 July, and otherwise
+   * `Person.statedTotalSuperBalanceAt30June`. `null` where neither is there: the balance is not
+   * known, and `closedByTotalSuperBalance` is then true — the window is treated as closed.
    */
-  readonly totalSuperBalance: Cents;
-  /** s 291-20(3): true where `totalSuperBalance` was $500,000 or more, so nothing carried forward is usable this year. */
+  readonly totalSuperBalance: Cents | null;
+  /**
+   * s 291-20(3): true where `totalSuperBalance` was $500,000 or more, or is not known (`null`), so
+   * nothing carried forward is usable this year.
+   */
   readonly closedByTotalSuperBalance: boolean;
   /**
    * The last financial year the oldest unused amount still left can be used in (five years after

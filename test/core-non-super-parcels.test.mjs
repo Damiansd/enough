@@ -551,7 +551,11 @@ test('P3-21f chunk 6 — a FUNDED Household no longer projects byte-identically,
   assert.notEqual(funded.sha256, 'e74464fcb98711d9972590b4faa49597694425a5aaadbaad0439fac0650e20f1'); // pre-P3-4b
   // **P3-4b (2026-09-30) ADDED `concessionalCapByPerson`, 89,373 bytes over 221 months, and moved no
   // figure: the stripped digest above (which now strips it too) is unchanged.**
-  assert.equal(funded.sha256, 'abc5d147131c1905d5a19390f8868b8b27b4f3c6f13a411ee3802687a7c710c0');
+  // P3-4b slice 2 (2026-09-30): dated 2026-09-16 with no 30 June balance stated, so FY2026-27's
+  // `totalSuperBalance` in that field is `null` and its window reads closed. The stripped digest
+  // did not move. Re-pinned for that alone.
+  assert.notEqual(funded.sha256, 'abc5d147131c1905d5a19390f8868b8b27b4f3c6f13a411ee3802687a7c710c0'); // pre-slice 2
+  assert.equal(funded.sha256, 'a2d7f8e374bb7bc3404bab98581af92618eaad2a3dc0cdebf8c889e0bbf81e75');
   // **P5-3's line → entry attribution (2026-09-18) moved it a FIFTH time, and this widening has a
   // PRICE too — a smaller one than the record it sits beside.** 702,218 bytes to 850,554, a 21.1%
   // rise on a 221-month walk, and the empty Household's 566,571 to 663,031 (17.0%). It is cheaper
@@ -602,7 +606,7 @@ test('P3-21f chunk 6 — a FUNDED Household no longer projects byte-identically,
   assert.equal(1_212_385, 1_212_385, 'the pre-thresholds full length, kept beside the new one');
   // 2026-09-25: plus `,"assetsTestThresholds":{"fullPensionUpTo":<8 digits>,"noPensionAbove":<9 digits>}`,
   // 79 bytes in each of the 221 months.
-  assert.equal(funded.bytes, 1_212_385 + 221 * 79 - 11 + 89_373);
+  assert.equal(funded.bytes, 1_212_385 + 221 * 79 - 11 + 89_373 - 100); // P3-4b slice 2: FY2026-27's balance `null`, 100 bytes
   assert.equal(495_717, 495_717, 'the pre-P5-3 length, kept beside the new one');
   assert.equal(702_218, 702_218, 'the pre-attribution length, kept beside the new one');
   assert.ok(funded.bytes > 176_166, 'the widening is an addition, so the bytes can only grow');
@@ -749,7 +753,9 @@ test('P3-21f chunk 1 — and an EMPTY one no longer does either, and WATERFALL L
   assert.equal(empty.withoutThresholds, '2db28bc82cdb9fcd93addd7f5723bfed77fae49dad0ecc40fd16be4b5b7479c4'); // pre-thresholds
   assert.notEqual(empty.sha256, 'e44199835ff40d37cfe9f93a642d476532f6276a19309d121575ca872e2cffec'); // pre-P3-4b
   // P3-4b (2026-09-30): plus `concessionalCapByPerson` a month, 89,096 bytes; the stripped digest did not move.
-  assert.equal(empty.sha256, 'd4f9a1b258f413646d92c8f1cb7e825367078e2dc69d0723a175bd2a939947eb');
+  // P3-4b slice 2: FY2026-27's `totalSuperBalance` is `null` (no 30 June balance stated), as above.
+  assert.notEqual(empty.sha256, 'd4f9a1b258f413646d92c8f1cb7e825367078e2dc69d0723a175bd2a939947eb'); // pre-slice 2
+  assert.equal(empty.sha256, '7105e15852ca236510381ec4d7437d396f18768b617dc98fc295f7998a032205');
   assert.equal(663_031, 663_031, 'the pre-limb-5 length, kept beside the new one');
   assert.equal(847_556, 847_556, 'the pre-P7-6 length, kept beside the new one');
   assert.equal(883_589, 883_589, 'the pre-P4-1e length, kept beside the new one');
@@ -764,7 +770,7 @@ test('P3-21f chunk 1 — and an EMPTY one no longer does either, and WATERFALL L
   assert.equal(1_068_245, 1_068_245, 'the pre-closing-wealth length, kept beside the new one');
   // AND T135 (2026-09-24) moved it 2 bytes LONGER: an Age Pension figure crossed a digit boundary.
   assert.equal(1_074_656, 1_074_656, 'the pre-thresholds full length, kept beside the new one');
-  assert.equal(empty.bytes, 1_074_656 + 221 * 79 + 89_096, 'the same 79 bytes a month as the funded walk, and the cap headroom');
+  assert.equal(empty.bytes, 1_074_656 + 221 * 79 + 89_096 - 100, 'the same 79 bytes a month as the funded walk, and the cap headroom');
   assert.equal(566_571, 566_571, 'the pre-attribution length, kept beside the new one');
   assert.equal(429_136, 429_136, 'the pre-P5-3 length, kept beside the new one');
   assert.ok(empty.bytes > 121_050);

@@ -32,6 +32,7 @@ import {
 } from './monthToRows.js';
 import { financialYearOfMonth } from '../core/financialYear.js';
 import type { AssetsSplitRows, CaveatCell, LineRow, MonthRow, NoteRow, ProvenanceCell } from './monthToRows.js';
+import { CATCH_UP_BUTTON } from './financialYearRows.js';
 import type { YearRow } from './financialYearRows.js';
 
 /**
@@ -67,6 +68,13 @@ const SOURCES_DETAIL =
   ' working this build cannot show, which financial year’s numbers were applied, and how well' +
   ' checked the least certain of them is. None of it changes a figure: it is the working behind' +
   ' them, so a number can be trusted for a reason rather than because it is printed.';
+
+/**
+ * P3-4b slice 2 — the catch-up column. The words in each cell are `financialYearRows.ts`'s, read off
+ * the walk; the explanation is the guide's.
+ */
+const CATCH_UP_HEADING = 'Unused super cap';
+const CATCH_UP_DETAIL = 'What is left of each person’s yearly limit on before-tax super contributions, as the forecast works it out.';
 
 /** A heading is its words, or its words and the sentence folded behind them. */
 const HEADINGS: readonly (string | readonly [string, string])[] = [
@@ -242,7 +250,7 @@ const splitPosition = (row: MonthRow, split: AssetsSplitRows): HTMLElement => {
  */
 const detail = (row: MonthRow): HTMLElement => {
   const cell = el('td', 'detail');
-  cell.colSpan = HEADINGS.length;
+  cell.colSpan = HEADINGS.length + 1;
 
   const cash = el('section', 'axis cash');
   cash.append(el('h3', '', `Cash — reconciles the balance (net ${row.cashNet})`));
@@ -324,7 +332,7 @@ const summaryRow = (row: MonthRow, expanded: HTMLTableRowElement): HTMLTableRowE
   tr.append(toggleCell, el('td', 'month', row.month));
   tr.append(el('td', 'num', row.openingBalance), el('td', 'num', row.cashNet), el('td', 'num', row.closingBalance));
   tr.append(el('td', 'num', row.superBalance), el('td', 'num', row.investments), el('td', 'num', row.totalWealth));
-  tr.append(el('td', 'num', row.incomeFromSuper), el('td', 'num', row.agePension));
+  tr.append(el('td', 'num', row.incomeFromSuper), el('td', 'num', row.agePension), el('td', 'catch-up'));
   return tr;
 };
 
@@ -336,7 +344,32 @@ const summaryRow = (row: MonthRow, expanded: HTMLTableRowElement): HTMLTableRowE
 let openers: ReadonlyMap<string, () => void> = new Map();
 
 /** The year's own row. Its months are `monthBodies`, shown and hidden together. */
-const yearRow = (year: YearRow, monthBodies: readonly HTMLElement[]): { readonly tr: HTMLTableRowElement; readonly open: () => void } => {
+/** What a click on "Add a catch-up" asks the page to do. The page checks and saves; this file only reports the click. */
+export type CatchUpRequest = (person: number, financialYear: YearRow['financialYear']) => void;
+
+/** One line per Person, and the button only where the pure layer offered a catch-up. Nothing is written until it is clicked. */
+const catchUpCell = (year: YearRow, onCatchUp: CatchUpRequest | undefined): HTMLElement => {
+  const cell = el('td', 'catch-up');
+  for (const room of year.catchUpRoom) {
+    if (room.text === '') continue;
+    const line = el('div', 'catch-up-room', room.text);
+    if (room.offer !== null && onCatchUp !== undefined) {
+      const add = el('button', 'catch-up-add', CATCH_UP_BUTTON);
+      add.type = 'button';
+      add.title = room.offerTitle;
+      add.addEventListener('click', (event?: Event) => {
+        // The row toggles its months on a click; this one is not that.
+        event?.stopPropagation();
+        onCatchUp(room.person, year.financialYear);
+      });
+      line.append(add);
+    }
+    cell.append(line);
+  }
+  return cell;
+};
+
+const yearRow = (year: YearRow, monthBodies: readonly HTMLElement[], onCatchUp: CatchUpRequest | undefined): { readonly tr: HTMLTableRowElement; readonly open: () => void } => {
   const tr = el('tr', 'year-summary');
   const toggleCell = el('td', '');
   const toggle = el('button', 'toggle', '▸');
@@ -357,7 +390,7 @@ const yearRow = (year: YearRow, monthBodies: readonly HTMLElement[]): { readonly
   tr.append(toggleCell, label);
   tr.append(el('td', 'num', year.openingBalance), el('td', 'num', year.cashNet), el('td', 'num', year.closingBalance));
   tr.append(el('td', 'num', year.superBalance), el('td', 'num', year.investments), el('td', 'num', year.totalWealth));
-  tr.append(el('td', 'num', year.incomeFromSuper), el('td', 'num', year.agePension));
+  tr.append(el('td', 'num', year.incomeFromSuper), el('td', 'num', year.agePension), catchUpCell(year, onCatchUp));
   return { tr, open: () => show(true) };
 };
 
@@ -365,7 +398,7 @@ const yearRow = (year: YearRow, monthBodies: readonly HTMLElement[]): { readonly
  * Writes the whole table into `container`, replacing whatever is there: one row per financial year,
  * EVERY one collapsed, each followed by its months, each month in the structure it has always had.
  */
-export const renderTable = (container: HTMLElement, years: readonly YearRow[]): void => {
+export const renderTable = (container: HTMLElement, years: readonly YearRow[], onCatchUp?: CatchUpRequest): void => {
   const table = el('table', 'months');
   const head = el('thead', '');
   const headRow = el('tr', '');
@@ -378,6 +411,9 @@ export const renderTable = (container: HTMLElement, years: readonly YearRow[]): 
       headRow.append(th);
     }
   }
+  const catchUpHead = el('th', '');
+  catchUpHead.append(infoButton(CATCH_UP_HEADING, CATCH_UP_DETAIL, 'guide:catch-up-contributions'));
+  headRow.append(catchUpHead);
   head.append(headRow);
   table.append(head);
   const built = new Map<string, () => void>();
@@ -394,7 +430,7 @@ export const renderTable = (container: HTMLElement, years: readonly YearRow[]): 
     });
     const yearBody = el('tbody', 'year');
     yearBody.dataset['financialYear'] = year.financialYear;
-    const { tr, open } = yearRow(year, monthBodies);
+    const { tr, open } = yearRow(year, monthBodies, onCatchUp);
     yearBody.append(tr);
     table.append(yearBody, ...monthBodies);
     built.set(year.financialYear, open);

@@ -100,6 +100,9 @@ import {
   employerAccountObjection,
   ttrStreamBoxesShown,
   valueJustBefore1July2027BoxShown,
+  totalSuperBalanceAt30JuneBoxShown,
+  thirtyJuneYear,
+  unusedCapYears,
   walkthroughPlan,
 } from './planEdits.js'; // `.js` is correct in a `.ts` file — see tsconfig.json
 import { formatDollars } from './displayMoney.js';
@@ -270,6 +273,13 @@ export const AT_RETIREMENT_NOTICE =
   'What happens to this account on the day you retire: it becomes a pension, or it stays as it is. Choose' +
   ' “Stays as it is” to keep this account out of the switch to a pension at retirement. The switch can' +
   ' change the Age Pension as well as the tax.';
+
+export const UNUSED_CAP_SUMMARY =
+  'Optional. What myGov shows as unused for each year; leave a year blank if you don’t know it.';
+
+export const UNUSED_CAP_NOTICE =
+  'A blank year counts as fully used, which can only make the forecast more careful. The box below it is' +
+  ' asked only when your plan’s date is not 1 July.';
 
 export const PRIOR_PENSION_SUMMARY =
   'Yes if they were already paid a pension from super before this plan.';
@@ -1023,6 +1033,32 @@ const parcelRow = (person: PersonFormValues, index: number, asAtDate: string): H
 };
 
 /**
+ * **P3-4b slice 2 — the unused concessional cap boxes, one per year the door accepts, and the
+ * 30 June balance box.** Every year `unusedCapYears` offers is drawn, and any year the plan already
+ * states besides, so no stated figure is dropped by a box that is missing. The 30 June box is on the
+ * page always and SHOWN only while `totalSuperBalanceAt30JuneBoxShown` — `parcelRow`'s rule, so a
+ * figure survives the date being changed and changed back.
+ */
+const unusedCapRows = (person: PersonFormValues, asAtDate: string): HTMLElement => {
+  const group = document.createElement('div');
+  group.className = 'unused-cap';
+  group.append(
+    paragraph('group-label', 'Unused concessional cap from myGov'),
+    infoButton(UNUSED_CAP_SUMMARY, UNUSED_CAP_NOTICE, 'guide:catch-up-contributions'),
+  );
+  const years = [...new Set([...unusedCapYears(asAtDate), ...Object.keys(person.unusedConcessionalCap)])].sort();
+  for (const year of years) {
+    group.append(label(`${year} $`, input('text', `unusedConcessionalCap-${year}`, person.unusedConcessionalCap[year] ?? '')));
+  }
+  const balance = document.createElement('span');
+  balance.className = 'total-super-balance-at-30-june';
+  balance.hidden = !totalSuperBalanceAt30JuneBoxShown(asAtDate);
+  balance.append(label(`Total super balance on 30 June ${thirtyJuneYear(asAtDate) ?? ''} $`, input('text', 'totalSuperBalanceAt30June', person.totalSuperBalanceAt30June)));
+  group.append(balance);
+  return group;
+};
+
+/**
  * The position form, rebuilt from a values object rather than patched. `show` is how it puts a new
  * version of itself on screen: the three Add buttons read what is currently typed, hand it to one
  * of `planEdits.ts`'s pure add functions, and redraw from the result — so adding a row never loses
@@ -1043,6 +1079,10 @@ const renderPosition = (
   asAtDate.addEventListener('input', () => {
     form.querySelectorAll<HTMLElement>('.value-just-before-1-july-2027').forEach((stamp) => {
       stamp.hidden = !valueJustBefore1July2027BoxShown(asAtDate.value);
+    });
+    // P3-4b slice 2: the 30 June box, on the same rule and for the same reason.
+    form.querySelectorAll<HTMLElement>('.total-super-balance-at-30-june').forEach((box) => {
+      box.hidden = !totalSuperBalanceAt30JuneBoxShown(asAtDate.value);
     });
   });
 
@@ -1110,6 +1150,12 @@ const renderPosition = (
         releaseAuthorityInterest: field('releaseAuthorityInterest'),
         employerPaysInto: field('employerPaysInto'),
         priorRetirementPhase: field('priorRetirementPhase'),
+        // One box per year drawn; the years are read off the boxes that are there.
+        unusedConcessionalCap: Object.fromEntries(
+          Array.from(block.querySelectorAll<HTMLInputElement>('[name^="unusedConcessionalCap-"]'), (box) => box.name.slice('unusedConcessionalCap-'.length))
+            .map((year) => [year, field(`unusedConcessionalCap-${year}`)]),
+        ),
+        totalSuperBalanceAt30June: field('totalSuperBalanceAt30June'),
       };
     }),
   });
@@ -1153,6 +1199,7 @@ const renderPosition = (
       electionRow(person),
       label('Already had a super pension before this plan ', select('priorRetirementPhase', PRIOR_PENSION_CHOICES, person.priorRetirementPhase)),
       infoButton(PRIOR_PENSION_SUMMARY, PRIOR_PENSION_NOTICE, 'guide:becomes-a-pension'),
+      unusedCapRows(person, values.asAtDate),
       // Heads the holdings AND the button (user ruling, 2026-09-25), so it sits above both.
       paragraph('group-label', 'Other investments'),
       infoButton(INVESTMENTS_SUMMARY, INVESTMENTS_NOTICE, 'guide:investment-parcels'),

@@ -32,7 +32,7 @@
 // This module is `core/`: pure, no I/O, no clock, no knowledge that a file or a server exists.
 // `app/loadPlan.ts` is what puts it together with the transport.
 import { ageAt, assertIsoDate, hasReachedAgePensionAge, homeTreatment, mortgageMonth, offsetSharesOf } from './household.js'; // `.js` is correct in a `.ts` file — see tsconfig.json
-import { daysInclusive, financialYearContaining, financialYearStartYear, financialYearsBefore, nthBirthday } from './financialYear.js'; // `.js` is correct in a `.ts` file — see tsconfig.json
+import { daysInclusive, financialYearContaining, financialYearStartYear, financialYearsBefore, nthBirthday, startOfFinancialYear } from './financialYear.js'; // `.js` is correct in a `.ts` file — see tsconfig.json
 import { inflateStated, monthsBetween } from './priceLevel.js'; // `.js` is correct in a `.ts` file — see tsconfig.json
 import { HEAS, heasAdvanceCap, heasFortnightlyCap } from '../data/assumptions/heas.js'; // `.js` is correct in a `.ts` file — see tsconfig.json
 import { agePensionPeriodAt, maximumPaymentRate } from '../data/assumptions/agePension.js'; // `.js` is correct in a `.ts` file — see tsconfig.json
@@ -935,6 +935,7 @@ const parsePerson = (value: unknown, path: string): Person => {
     'workBonusBalance',
     'statedPriorRetirementPhase',
     'statedUnusedConcessionalCap',
+    'statedTotalSuperBalanceAt30June',
   ]);
   return {
     name: string(PlanFileHouseholdError, record['name'], `${path}.name`),
@@ -949,6 +950,8 @@ const parsePerson = (value: unknown, path: string): Person => {
       member(PlanFileHouseholdError, raw, `${path}.statedPriorRetirementPhase`, PRIOR_RETIREMENT_PHASES))),
     ...optionally('statedUnusedConcessionalCap', optional(record, 'statedUnusedConcessionalCap', (raw) =>
       parseStatedUnusedConcessionalCap(raw, `${path}.statedUnusedConcessionalCap`))),
+    ...optionally('statedTotalSuperBalanceAt30June', optional(record, 'statedTotalSuperBalanceAt30June', (raw) =>
+      nonNegativeCents(raw, `${path}.statedTotalSuperBalanceAt30June`, 'a total super balance is what the accounts held, and cannot be below nil'))),
   };
 };
 
@@ -987,6 +990,13 @@ const checkStatedUnusedConcessionalCaps = (household: Household, settings: Setti
   const firstYear = financialYearContaining(settings.asAtDate);
   const window = financialYearsBefore(firstYear, SUPERANNUATION.carryForward.lookBackYears.value);
   household.persons.forEach((person, personIndex) => {
+    // P3-4b slice 2: the 30 June balance is asked for only where the plan's own balances are at a
+    // later date. On a 1 July plan they ARE that 30 June's, and a second figure would be a second
+    // answer to the same question.
+    if (person.statedTotalSuperBalanceAt30June !== undefined && settings.asAtDate === startOfFinancialYear(firstYear)) {
+      fail(PlanFileHouseholdError, `household.persons[${personIndex}].statedTotalSuperBalanceAt30June`,
+        `is stated on a plan dated ${settings.asAtDate}: that plan's own super balances already are the 30 June ones the $500,000 test reads. Leave it out`);
+    }
     for (const [year, amount] of Object.entries(person.statedUnusedConcessionalCap ?? {})) {
       const path = `household.persons[${personIndex}].statedUnusedConcessionalCap["${year}"]`;
       if (!window.includes(year as FinancialYear)) {

@@ -46,6 +46,9 @@ import {
 } from '../dist/app/settingsPanel.js';
 import {
   valueJustBefore1July2027BoxShown,
+  totalSuperBalanceAt30JuneBoxShown,
+  thirtyJuneYear,
+  unusedCapYears,
   BLANK_PARCEL,
   BLANK_PERSON,
   EMPLOYER_ACCOUNT_NEEDED,
@@ -981,8 +984,9 @@ test('the fee BUILDER has one writer per key, and the slice-1 carry-by-position 
   // nothing, so the same blank-omits-the-key expression is exactly right and a typed 0 must survive
   // it — which `core-cash-interest.test.mjs` asserts.
   // P3-17b (2026-09-28): the income protection premium makes seventeen; the two cover end ages
-  // (2026-09-29) nineteen; a parcel's value just before 1 July 2027 (LR-1 slice 4) twenty.
-  assert.equal([...EDITS.matchAll(/statedFee\(/g)].length, 20, 'the optional-figure keys are no longer written by one shared expression');
+  // (2026-09-29) nineteen; a parcel's value just before 1 July 2027 (LR-1 slice 4) twenty; a
+  // Person's total super balance on 30 June (P3-4b slice 2) twenty-one.
+  assert.equal([...EDITS.matchAll(/statedFee\(/g)].length, 21, 'the optional-figure keys are no longer written by one shared expression');
   assert.equal([...EDITS.matchAll(/const statedFee = /g)].length, 1, 'there is a second "blank omits the key" expression');
   assert.match(EDITS, /\(typed\.trim\(\) === "" \? \{\} : \{ \[key\]: convert\(typed\) \}\)/);
   // ⚠️ The WRITER names each key inside a string literal, which `executableCode` blanks — so the
@@ -1372,7 +1376,12 @@ test('the SETTINGS builder cannot write a date at all — the clock has exactly 
   // LR-1 slice 4 adds three READS, none a write: `valueJustBefore1July2027BoxShown`'s parameter and
   // its one use (2), and the builder asking it about `values.asAtDate` (1).
   assert.equal([...EDITS.matchAll(/valueJustBefore1July2027BoxShown\(values\.asAtDate\)/g)].length, 1);
-  assert.equal([...EDITS.matchAll(/asAtDate/g)].length, 12, 'the asAtDate occurrences in planEdits.ts have moved — check which of them is a WRITE');
+  // P3-4b slice 2 adds eleven more READS, none a write: the three helpers' parameters and uses
+  // (`firstYearOf` 2, `unusedCapYears` 2, `totalSuperBalanceAt30JuneBoxShown` 3, `thirtyJuneYear` 2),
+  // the builder asking the 30 June box's question of `values.asAtDate` (1), and `positionFormValues`
+  // offering the plan's own window years (1).
+  assert.equal([...EDITS.matchAll(/totalSuperBalanceAt30JuneBoxShown\(values\.asAtDate\)/g)].length, 1);
+  assert.equal([...EDITS.matchAll(/asAtDate/g)].length, 23, 'the asAtDate occurrences in planEdits.ts have moved — check which of them is a WRITE');
 });
 
 test('a values object with no asAtDate does not COMPILE, and the spread cannot launder one away', () => {
@@ -2185,8 +2194,11 @@ const controlNames = (source) => {
 const PANEL_CONTROLS = controlNames(PANEL_RAW);
 const FIRST_RUN_RAW = read('app', 'firstRunPanel.ts');
 const FIRST_RUN_CONTROLS = controlNames(FIRST_RUN_RAW);
-/** A repeated row names its boxes `balance-0`, `balance-1`, …; the field is what is left. */
-const FIELD_OF = (name) => name.replace(/-\$\{index\}$/, '');
+/**
+ * A repeated row names its boxes `balance-0`, `balance-1`, …; the field is what is left. P3-4b
+ * slice 2's unused-cap boxes are one per financial year, `unusedConcessionalCap-2025-26`, …
+ */
+const FIELD_OF = (name) => name.replace(/-\$\{(?:index|year)\}$/, '');
 const DISCOVERED = [...PANEL_CONTROLS.names, ...FIRST_RUN_CONTROLS.names].map(FIELD_OF);
 
 const withParcel = (values, index, position, changes) =>
@@ -2230,6 +2242,10 @@ const ROUND_TRIPS = {
   employerPaysInto: { form: 'person', value: '1', also: { superInterests: [BLANK_TWO[0], BLANK_TWO[1]] } },
   // **The switch at retirement (2026-09-23).** Yes is the stated prior pension; No is the default.
   priorRetirementPhase: { form: 'person', value: PRIOR_PENSION_YES },
+  // **P3-4b slice 2.** One box per window year; the demo plan (2026-09-01) offers FY2021-22 to
+  // FY2025-26, and FY2025-26 is typed. The 30 June box is shown because the date is not 1 July.
+  unusedConcessionalCap: { form: 'unusedCap', key: '2025-26', value: '1234.00' },
+  totalSuperBalanceAt30June: { form: 'person', value: '480000.00' },
 
   phase: { form: 'interest', value: otherThan(SUPER_PHASE_OPTIONS, POSITION.persons[0].superInterests[0].phase) },
   balance: { form: 'interest', value: '654321.00' },
@@ -2310,6 +2326,10 @@ const SAVED = {
   stampedParcel: (patch) =>
     positionFormValues(parsePlan(planWithStatedPosition(PLAN, { ...withParcel(POSITION, 0, 0, patch), asAtDate: AFTER_THE_REFORM }))).persons[0].parcels[0],
   settings: (patch) => settingsFormValues(parsePlan(planWithSettings(PLAN, { ...SETTINGS, ...patch }))),
+  unusedCap: (patch) =>
+    positionFormValues(parsePlan(planWithStatedPosition(PLAN, withPerson(POSITION, 0, {
+      unusedConcessionalCap: { ...POSITION.persons[0].unusedConcessionalCap, ...patch },
+    })))).persons[0].unusedConcessionalCap,
   walkthrough: (patch) => positionFormValues(parsePlan(walkthroughPlan({ ...patch }))).persons[0],
 };
 
@@ -2321,6 +2341,7 @@ const BEFORE = {
   parcel: POSITION.persons[0].parcels[0],
   stampedParcel: POSITION.persons[0].parcels[0],
   settings: SETTINGS,
+  unusedCap: POSITION.persons[0].unusedConcessionalCap,
   walkthrough: POSITION.persons[0],
 };
 
@@ -3020,7 +3041,9 @@ test('the boxes are SHOWN for a ttr interest only, and a hidden box writes nothi
   // FOUR from LR-1 slice 4: a parcel's value just before 1 July 2027, set when the row is built and
   // again as the as-at date is typed, both by its own predicate (asserted in its own test).
   // FIVE from register O82: the employer-pays-into row, by `employerPaysIntoShown` (asserted in its own test).
-  assert.equal([...PANEL.matchAll(/\.hidden\s*=/g)].length, 5, 'a sixth show/hide was added to the panel');
+  // SEVEN from P3-4b slice 2: the 30 June balance box, set when it is built and again as the as-at
+  // date is typed, both by `totalSuperBalanceAt30JuneBoxShown` (asserted in its own test).
+  assert.equal([...PANEL.matchAll(/\.hidden\s*=/g)].length, 7, 'an eighth show/hide was added to the panel');
   assert.match(EDITS, /if \(ttrStreamBoxesShown\(interest\.phase\)\)/);
   // A value sitting in a hidden box is not saved: an accumulation interest with a date typed in
   // stays an accumulation interest with no stream settings.
@@ -3204,8 +3227,9 @@ test('P17-3 — every ⓘ box on the panel names a guide page, and no box restat
   const calls = [...PANEL_RAW.matchAll(/infoButton\(([A-Z_]+), ([A-Z_]+)(?:, '(guide:[a-z0-9-]+)')?\)/g)];
   // 27 since the insurance group's own box (2026-09-29); 28 with the value just before 1 July 2027.
   // 29 with the employer-pays-into select (register O82). 35 with the rules-in-force fold (2026-09-30):
-  // one for the fold and one per area, each pointing at the area's sources in Chapter 85.
-  assert.equal(calls.length, 35, 'the panel no longer has the 35 ⓘ boxes this pass covered');
+  // one for the fold and one per area, each pointing at the area's sources in Chapter 85. 36 with the
+  // unused concessional cap group (P3-4b slice 2), pointing at the catch-up section.
+  assert.equal(calls.length, 36, 'the panel no longer has the 36 ⓘ boxes this pass covered');
   assert.equal([...PANEL_RAW.matchAll(/infoButton\(/g)].length, calls.length, 'an ⓘ box is built some other way');
   for (const [, summary, notice, guide] of calls) {
     assert.ok(guide !== undefined, `${summary} links to no page of the guide`);
@@ -3268,4 +3292,41 @@ test('a hidden employer-pays-into select writes nothing', () => {
 test('the employer-pays-into blank writes nothing, so a salaried two-account plan that names nothing is still refused (O82)', () => {
   const unchosen = parsePlan(planWithStatedPosition(PLAN, twoAccounts({ employerPaysInto: '' })));
   assert.throws(() => project(unchosen.settings, unchosen.household, unchosen.entries), /UNDETERMINED \(register O82\)/);
+});
+
+// --- P3-4b slice 2: the unused concessional cap and the 30 June balance ------------------------------
+
+test('P3-4b — the form offers exactly the five years before the plan, and the door refuses any other year typed', () => {
+  assert.deepEqual(unusedCapYears('2026-09-01'), ['2021-22', '2022-23', '2023-24', '2024-25', '2025-26']);
+  assert.deepEqual(unusedCapYears('2027-07-01'), ['2022-23', '2023-24', '2024-25', '2025-26', '2026-27']);
+  assert.deepEqual(unusedCapYears(''), [], 'a half-typed date offers nothing rather than throwing');
+  assert.deepEqual(Object.keys(POSITION.persons[0].unusedConcessionalCap), unusedCapYears(PLAN.settings.asAtDate));
+  // Blank everywhere writes no key, so a plan stating none re-writes to one stating none.
+  assert.equal('statedUnusedConcessionalCap' in parsePlan(planWithStatedPosition(PLAN, POSITION)).household.persons[0], false);
+  // A year outside the window reaching the builder is written as typed and refused BY THE DOOR.
+  for (const year of ['2020-21', '2026-27']) {
+    assert.throws(
+      () => parsePlan(planWithStatedPosition(PLAN, withPerson(POSITION, 0, { unusedConcessionalCap: { [year]: '1000.00' } }))),
+      (error) => error instanceof PlanFileHouseholdError && error.message.includes(`statedUnusedConcessionalCap["${year}"]`) && /outside the carry-forward window/.test(error.message),
+      year,
+    );
+  }
+});
+
+test('P3-4b — the 30 June box is shown, and writes, only on a plan not dated 1 July', () => {
+  assert.equal(totalSuperBalanceAt30JuneBoxShown('2026-09-01'), true);
+  assert.equal(totalSuperBalanceAt30JuneBoxShown('2027-07-01'), false);
+  assert.equal(totalSuperBalanceAt30JuneBoxShown('2027-06-30'), true);
+  assert.equal(totalSuperBalanceAt30JuneBoxShown(''), false);
+  assert.equal(thirtyJuneYear('2026-09-01'), 2026);
+  assert.equal(thirtyJuneYear('2027-06-30'), 2026);
+  const typed = withPerson(POSITION, 0, { totalSuperBalanceAt30June: '480000.00' });
+  assert.equal(parsePlan(planWithStatedPosition(PLAN, typed)).household.persons[0].statedTotalSuperBalanceAt30June, 48_000_000);
+  // Moved to 1 July, the box is hidden and writes nothing — the door would refuse it there.
+  const july = parsePlan(planWithStatedPosition(PLAN, { ...typed, asAtDate: '2026-07-01' }));
+  assert.equal('statedTotalSuperBalanceAt30June' in july.household.persons[0], false);
+  // Blank is not stated: no key, never a nil balance.
+  assert.equal('statedTotalSuperBalanceAt30June' in parsePlan(planWithStatedPosition(PLAN, POSITION)).household.persons[0], false);
+  assert.match(PANEL, /balance\.hidden = !totalSuperBalanceAt30JuneBoxShown\(asAtDate\);/);
+  assert.match(PANEL, /box\.hidden = !totalSuperBalanceAt30JuneBoxShown\(asAtDate\.value\);/);
 });

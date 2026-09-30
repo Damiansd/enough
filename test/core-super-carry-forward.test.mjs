@@ -212,12 +212,17 @@ test('§3.4 — s 291-20(7): an over-cap year inside the window spends the earli
   assert.equal(y1.headroom, toCents(87_500));
   assert.notEqual(y1.headroom, toCents(91_500));
 
-  // FY2027-28, window FY2022-23…FY2026-27. FY2021-22 has rolled off, so FY2022-23's $4,000 over
-  // its cap now has nothing earlier to consume and is simply left. FY2026-27 contributed $40,000
-  // against $32,500, and its $7,500 over is met from the earliest amount standing — FY2024-25's:
-  //   FY2024-25 remaining = 20,000 − 7,500 = $12,500
-  //   available = 0 + 0 + 12,500 + 24,000 + 0 = $36,500
-  //   headroom  = general cap 35,000 + 36,500 = $71,500      (gross sum would be $79,000)
+  // FY2027-28, window FY2022-23…FY2026-27. FY2026-27 contributed $40,000 against $32,500, and its
+  // $7,500 over is met from the earliest amount standing IN FY2026-27's OWN WINDOW
+  // (FY2021-22…FY2025-26) — FY2021-22's $11,000, which then rolls out with $3,500 unused:
+  //   FY2024-25 remaining = $20,000, untouched
+  //   available = 0 + 0 + 20,000 + 24,000 + 0 = $44,000
+  //   headroom  = general cap 35,000 + 44,000 = $79,000
+  // ~~FY2024-25 remaining = 20,000 − 7,500 = $12,500 → $36,500 → $71,500~~ **CORRECTED 2026-09-30
+  // (P3-4b slice 2).** The old loop searched only THIS window, where FY2021-22 no longer is, and so
+  // charged FY2026-27's spend to FY2024-25 — a younger year. The walk's own year-end settlement had
+  // it right, and this figure now agrees with it. (Here the right answer is also the gross sum; the
+  // FY2026-27 half above is where the gross sum is wrong.)
   const y2 = headroom('2027-28', ELIGIBLE_2027);
   assert.deepEqual(
     y2.window.map((each) => each.unused),
@@ -225,12 +230,61 @@ test('§3.4 — s 291-20(7): an over-cap year inside the window spends the earli
   );
   assert.deepEqual(
     y2.window.map((each) => each.remaining),
-    [toCents(0), toCents(0), toCents(12_500), toCents(24_000), toCents(0)],
+    [toCents(0), toCents(0), toCents(20_000), toCents(24_000), toCents(0)],
   );
-  assert.equal(y2.unusedAvailable, toCents(36_500));
+  assert.equal(y2.unusedAvailable, toCents(44_000));
   assert.equal(y2.generalCap, CAP_2027_28);
-  assert.equal(y2.headroom, toCents(71_500));
-  assert.notEqual(y2.headroom, toCents(79_000));
+  assert.equal(y2.headroom, toCents(79_000));
+  assert.notEqual(y2.headroom, toCents(71_500), 'the spend charged to a younger year');
+
+  // The same year from the window ALONE, FY2021-22 not supplied: it is counted as fully used, so
+  // FY2026-27's spend has nowhere older to go and the answer is the LOWER one. Short history, lower
+  // figure — never a higher one.
+  const short = headroom('2027-28', ELIGIBLE_2027, priorTo('2027-28').filter((each) => each.fy !== '2021-22'));
+  assert.equal(short.unusedAvailable, toCents(36_500));
+});
+
+test('P3-4b slice 2 — the headroom agrees with the walk: an over-cap year spends from ITS OWN window, even a year since rolled out', () => {
+  // A history built so the two readings part by exactly $5,000. FY2022-23 left $5,000 unused and
+  // FY2026-27 $20,000; FY2027-28 went $8,000 over its $35,000 general cap. It spent FY2022-23's
+  // $5,000 first (its own window is FY2022-23…FY2026-27) and $3,000 of FY2026-27's. In FY2028-29
+  // FY2022-23 has rolled out, and what is left is FY2026-27's $17,000.
+  const history = [
+    { fy: '2022-23', cap: toCents(5_000), concessionalContributions: toCents(0) },
+    { fy: '2023-24', cap: toCents(0), concessionalContributions: toCents(0) },
+    { fy: '2024-25', cap: toCents(0), concessionalContributions: toCents(0) },
+    { fy: '2025-26', cap: toCents(0), concessionalContributions: toCents(0) },
+    { fy: '2026-27', cap: toCents(20_000), concessionalContributions: toCents(0) },
+    { fy: '2027-28', cap: toCents(35_000), concessionalContributions: toCents(43_000) },
+  ];
+  const INDEX_2028_29 = [...INDEX_NUMBERS, awote('2028-29', 2_300.0, 'unverified', 'synthetic test driver — not published')];
+  const at = carryForwardHeadroom({
+    fy: '2028-29',
+    cap: concessionalContributionsCap('2028-29', INDEX_2028_29),
+    totalSuperBalance: totalSuperBalance('2028-06-30', toCents(400_000)),
+    priorYears: history,
+  });
+  assert.deepEqual(at.window.map((each) => each.fy), ['2023-24', '2024-25', '2025-26', '2026-27', '2027-28']);
+  assert.deepEqual(at.window.map((each) => each.remaining), [0, 0, 0, toCents(17_000), 0]);
+  assert.equal(at.unusedAvailable, toCents(17_000), 'the old loop gave $12,000: all $8,000 charged to FY2026-27');
+  // A closed year's over-cap part was an excess and spent nothing: all $20,000 is still there.
+  const closed = history.map((each) => (each.fy === '2027-28' ? { ...each, carryForwardClosed: true } : each));
+  assert.equal(carryForwardHeadroom({
+    fy: '2028-29',
+    cap: concessionalContributionsCap('2028-29', INDEX_2028_29),
+    totalSuperBalance: totalSuperBalance('2028-06-30', toCents(400_000)),
+    priorYears: closed,
+  }).unusedAvailable, toCents(20_000));
+  // A gap in the history before the window is refused: FY2022-23 supplied, FY2023-24 not.
+  assert.throws(
+    () => carryForwardHeadroom({
+      fy: '2028-29',
+      cap: concessionalContributionsCap('2028-29', INDEX_2028_29),
+      totalSuperBalance: totalSuperBalance('2028-06-30', toCents(400_000)),
+      priorYears: [{ fy: '2021-22', cap: toCents(1_000), concessionalContributions: toCents(0) }, ...history.slice(1)],
+    }),
+    (error) => error instanceof RangeError && /skips FY2022-23/.test(error.message),
+  );
 });
 
 test('P3-4b — the headroom is a per-year figure a Person can read, not an opaque total', () => {
@@ -269,7 +323,7 @@ test('§3.4 — the $500,000 test is strict, unindexed (T21), and nils the whole
     // One cent under, and the whole increase is available.
     const under = headroom(fy, totalSuperBalance(thirtyJune, toCents(499_999.99)));
     assert.equal(under.eligible, true);
-    assert.equal(under.headroom, fy === '2026-27' ? toCents(87_500) : toCents(71_500));
+    assert.equal(under.headroom, fy === '2026-27' ? toCents(87_500) : toCents(79_000));
     assert.equal(at.eligibilityThreshold, toCents(500_000));
   }
 });

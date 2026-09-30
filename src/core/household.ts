@@ -771,6 +771,15 @@ export interface Person {
    * outside the window, a negative amount, and an amount above a cap this build can state.
    */
   readonly statedUnusedConcessionalCap?: Readonly<Record<FinancialYear, Cents>>;
+  /**
+   * **P3-4b slice 2 — this Person's total super balance at the close of the 30 June just before the
+   * plan's first financial year, as myGov shows it**, in cents. Read only for a plan whose
+   * `asAtDate` is not 1 July: the $500,000 carry-forward test reads that 30 June, and such a plan's
+   * own balances are stated at a later date. Absent there, the first year's carry-forward window is
+   * treated as CLOSED (ruled 2026-09-30) — conservative, never an invented window. `parsePlan`
+   * refuses it on a plan stated as at 1 July, whose balances already are that 30 June's.
+   */
+  readonly statedTotalSuperBalanceAt30June?: Cents;
 }
 
 /**

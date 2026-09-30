@@ -15,7 +15,8 @@ import { moneyBasis, moneyLens } from '../dist/app/todaysDollars.js';
 import { formatDollars } from '../dist/app/displayMoney.js';
 import { AGE_DIED } from '../dist/app/monthsToSeries.js';
 import { monthsToRows } from '../dist/app/monthToRows.js';
-import { financialYearRows } from '../dist/app/financialYearRows.js';
+import { CATCH_UP_BUTTON, catchUpOffer, catchUpRoomText, financialYearRows } from '../dist/app/financialYearRows.js';
+import { readFileSync } from 'node:fs';
 import { renderTable, revealMonth, revealMonthInHash } from '../dist/app/renderTable.js';
 import { financialYearSummaries } from '../dist/app/chat/tools/financialYearSummary.js';
 
@@ -154,9 +155,9 @@ class FakeElement {
 
 globalThis.document = { createElement: (tag) => new FakeElement(tag) };
 
-const draw = (years = YEARS) => {
+const draw = (years = YEARS, onCatchUp = undefined) => {
   const container = new FakeElement('div');
-  renderTable(container, years);
+  renderTable(container, years, onCatchUp);
   const bodies = container.all((node) => node.tagName === 'TBODY');
   const yearBodies = bodies.filter((body) => body.className === 'year');
   const monthBodies = bodies.filter((body) => body.className === '');
@@ -183,10 +184,14 @@ test('the table: one row per year followed by its months, EVERY year collapsed o
     assert.equal(months.length, year.months.length);
     const cells = row.children.map((cell) => cell.textContent);
     assert.equal(cells[1], `${year.label}${year.ages}`);
-    assert.deepEqual(cells.slice(2), [
+    assert.deepEqual(cells.slice(2, 10), [
       year.openingBalance, year.cashNet, year.closingBalance, year.superBalance,
       year.investments, year.totalWealth, year.incomeFromSuper, year.agePension,
     ]);
+    // P3-4b slice 2: the tenth cell is the catch-up room, and a button only where one is offered
+    // (none here: no `onCatchUp` was handed over).
+    assert.equal(cells[10], year.catchUpRoom.map((room) => room.text).join(''));
+    assert.equal(row.children.length, 11);
     // Each month keeps its own two rows: the summary line and its hidden detail.
     for (const body of months) {
       assert.deepEqual(body.children.map((tr) => tr.className), ['summary', 'expanded']);
@@ -241,4 +246,84 @@ test('a #month-… address opens its year, a line’s address included; a new ta
   revealMonth('2027-01');
   assert.deepEqual(again.openYears(), ['2026-27']);
   assert.deepEqual(table.openYears(), ['2039-40', '2040-41'], 'a reveal reached a table no longer on screen');
+});
+
+// --- P3-4b slice 2: the catch-up room, READ off the Month field, and the button ----------------------
+
+const cap = (fields) => ({
+  generalCap: 3_000_000,
+  carriedForwardAvailable: 1_000_000,
+  usedSoFar: 1_500_000,
+  remaining: 2_500_000,
+  totalSuperBalance: 40_000_000,
+  closedByTotalSuperBalance: false,
+  oldestUnusedUsableUntil: '2031-32',
+  ...fields,
+});
+/** A year of months holding nothing but the cap field — the only thing the cell may read. */
+const yearOfCaps = (last, first = '2028-07') => Array.from({ length: 12 }, (_unused, index) => {
+  const monthNumber = (Number(first.slice(5)) - 1 + index) % 12 + 1;
+  const year = Number(first.slice(0, 4)) + Math.floor((Number(first.slice(5)) - 1 + index) / 12);
+  return { month: `${year}-${String(monthNumber).padStart(2, '0')}`, concessionalCapByPerson: [index === 11 ? last : cap({})] };
+});
+
+test('the catch-up cell is the walk’s own figures, in words, whole dollars rounded DOWN', () => {
+  // DOCTORED on purpose: `remaining` agrees with nothing the other fields add up to (30,000 +
+  // 10,000 − 15,000 is 25,000). A cell that worked the room out would print $25,000.
+  const doctored = cap({ remaining: 1_234_599 });
+  assert.equal(catchUpRoomText(doctored), '$12,345 unused · oldest expires 2031-32');
+  assert.equal(catchUpRoomText(cap({ oldestUnusedUsableUntil: null, remaining: 99 })), '$0 unused');
+  assert.equal(catchUpRoomText(cap({ closedByTotalSuperBalance: true })), 'closed · super $500,000 or more');
+  assert.equal(catchUpRoomText(cap({ closedByTotalSuperBalance: true, totalSuperBalance: null })), 'closed · 30 June balance not stated');
+  assert.equal(catchUpRoomText(null), '', 'nothing where there is no cap');
+  // The offer is the same remaining room, rounded DOWN to whole dollars — never up.
+  assert.equal(catchUpOffer(yearOfCaps(doctored), 0), 1_234_500);
+  assert.equal(catchUpOffer(yearOfCaps(cap({ remaining: 99 })), 0), null, 'under a dollar is no offer');
+  // Offered only for a whole year from July, with carried-forward room open, to a Person contributing.
+  assert.equal(catchUpOffer(yearOfCaps(doctored).slice(1), 0), null);
+  assert.equal(catchUpOffer(yearOfCaps(doctored, '2028-08'), 0), null);
+  assert.equal(catchUpOffer(yearOfCaps(cap({ carriedForwardAvailable: 0 })), 0), null);
+  assert.equal(catchUpOffer(yearOfCaps(cap({ closedByTotalSuperBalance: true })), 0), null);
+  assert.equal(catchUpOffer(yearOfCaps(cap({ usedSoFar: 0 })), 0), null);
+  assert.equal(catchUpOffer(yearOfCaps(null), 0), null);
+});
+
+test('every year row’s catch-up cell is its LAST month’s field, by name for a couple', () => {
+  for (const year of YEARS) {
+    const last = monthsOf(year).at(-1);
+    year.catchUpRoom.forEach((room, index) => {
+      const text = catchUpRoomText(last.concessionalCapByPerson[index]);
+      assert.equal(room.text, text === '' ? '' : `${DEMO_HOUSEHOLD.persons[index].name}: ${text}`, `${year.label} ${index}`);
+      assert.equal(room.offer, catchUpOffer(monthsOf(year), index));
+    });
+  }
+  // The demo is dated 2026-09-01 and states no 30 June balance: its first year is closed, not open.
+  assert.deepEqual(YEARS[0].catchUpRoom.map((room) => room.text), ['Dana: closed · 30 June balance not stated', 'Ash: closed · 30 June balance not stated']);
+  assert.ok(YEARS.some((year) => year.catchUpRoom.some((room) => room.offer !== null)), 'the demo offers no catch-up anywhere — the button test below proves nothing');
+  // The cell is the same in either money view: a cap is a nominal amount.
+  assert.deepEqual(FUTURE_YEARS.map((year) => year.catchUpRoom), YEARS.map((year) => year.catchUpRoom));
+  // In source: the file reads the field and imports nothing that could work a cap out.
+  const source = readFileSync(new URL('../src/app/financialYearRows.ts', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /from '\.\.\/core\/(superCaps|superConcessional|projection)\.js'/);
+  assert.doesNotMatch(source, /carryForwardHeadroom|applyConcessional|concessionalContributionsCap/);
+});
+
+test('"Add a catch-up" writes nothing until it is clicked, and a click asks for exactly that Person and year', () => {
+  const asked = [];
+  const table = draw(YEARS, (person, financialYear) => asked.push([person, financialYear]));
+  const offered = YEARS.filter((year) => year.catchUpRoom.some((room) => room.offer !== null));
+  const buttons = table.yearBodies.flatMap((body) => body.all((node) => node.tagName === 'BUTTON' && node.className === 'catch-up-add'));
+  assert.equal(buttons.length, offered.reduce((count, year) => count + year.catchUpRoom.filter((room) => room.offer !== null).length, 0));
+  assert.deepEqual(asked, [], 'drawing the table asked for a catch-up');
+  assert.ok(buttons.every((button) => button.textContent === CATCH_UP_BUTTON));
+  buttons[0].click();
+  const first = offered[0];
+  assert.deepEqual(asked, [[first.catchUpRoom.find((room) => room.offer !== null).person, first.financialYear]]);
+  // And with no handler there is no button at all.
+  assert.equal(draw(YEARS).yearBodies.flatMap((body) => body.all((node) => node.className === 'catch-up-add')).length, 0);
+  // main.ts: the one call that builds a catch-up is inside the click handler, which is only handed to the table.
+  const main = readFileSync(new URL('../src/app/main.ts', import.meta.url), 'utf8');
+  assert.equal([...main.matchAll(/checkedCatchUp\(/g)].length, 1);
+  assert.match(main, /const catchUp = \(person: number, financialYear: FinancialYear\): void => \{/);
+  assert.equal([...main.matchAll(/\bcatchUp\b/g)].length, 2, 'catchUp is called somewhere other than the table’s click');
 });

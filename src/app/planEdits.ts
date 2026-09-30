@@ -33,7 +33,7 @@ import type { StatedPriorRetirementPhase, StatedStreamSettings } from '../core/h
 import { INCOME_PROTECTION_BENEFIT_PERIODS, INSURANCE_COVER_KINDS } from '../core/superInsurance.js';
 import type { IncomeProtectionBenefitPeriod, InsuranceCoverKind } from '../core/superInsurance.js';
 import { ENTRY_TYPES, resolvedEntryEnabled } from '../core/plan.js';
-import type { EntryOverrides, EntryType, Month, Scenario } from '../core/plan.js';
+import type { Entry, EntryOverrides, EntryType, Month, Scenario } from '../core/plan.js';
 import { CGT_REFORM_START } from '../data/assumptions/tax.js';
 // Only the FORECAST ASSUMPTIONS are taken from the demo module, never its household or entries:
 // see `walkthroughPlan` below, which states why that is not a back door for example figures.
@@ -42,7 +42,12 @@ import type { LabelledOption } from './entryLabels.js';
 export type { LabelledOption };
 import { PlanWriteFailure } from './loadPlan.js';
 import type { ScenarioDeletion } from './scenarioList.js';
-import { scenarioWalks } from './scenarioWalks.js';
+import { scenarioById, scenarioEntries, scenarioWalks } from './scenarioWalks.js';
+import { catchUpOffer } from './financialYearRows.js';
+import { financialYearContaining, financialYearOfMonth, financialYearsBefore, startOfFinancialYear, toFinancialYear, financialYearStartYear } from '../core/financialYear.js';
+import { SUPERANNUATION } from '../data/assumptions/super.js';
+import type { Cents } from '../core/money.js';
+import type { FinancialYear } from '../data/assumptions/types.js';
 import type { ScenarioWalks } from './scenarioWalks.js';
 
 /**
@@ -1100,7 +1105,8 @@ export const superContributionStopEntry = (values: EntryFormValues, id: string, 
  *     concessional contributions, not $27,000, and is refused where it was accepted before that
  *     date. A total above the year's cap is refused by name rather than forecast, because this
  *     build does not price Division 291's excess treatment. A total below it is still NOT a finding
- *     that you are inside the cap: unused cap carried forward from earlier years is not applied
+ *     that you are inside the cap: ~~unused cap carried forward from earlier years is not applied~~
+ *     (P3-4b: it is applied now, and a year before the plan counts only if its unused cap is stated)
  *     (it would give you MORE room), and personal contributions you claim a deduction for are not
  *     held by this model at all (they would use room up).
  *   * **After June 2027 the room is smaller than the cap, because the cap itself is unknown.** The
@@ -1592,6 +1598,17 @@ export interface PersonFormValues {
    * 'startedRetirementPhaseBeforeTheForecast'`; No leaves an absent key absent.
    */
   readonly priorRetirementPhase: string;
+  /**
+   * **P3-4b slice 2 — the unused concessional cap myGov shows, DOLLARS as typed, keyed by financial
+   * year** (`unusedCapYears`). Blank is NOT STATED — the year counts as fully used — and a blank box
+   * writes nothing, `statedFee`'s rule. `Person.statedUnusedConcessionalCap` is the one writer.
+   */
+  readonly unusedConcessionalCap: Readonly<Record<string, string>>;
+  /**
+   * DOLLARS as typed: the Person's total super balance on the 30 June before the plan's first year.
+   * Written only while `totalSuperBalanceAt30JuneBoxShown`; blank is not stated.
+   */
+  readonly totalSuperBalanceAt30June: string;
 }
 
 /**
@@ -1878,6 +1895,41 @@ export const atRetirementBoxShown = (phase: string): boolean => phase !== 'accou
  * is refused), so a hidden box can never write a figure the door would refuse.
  */
 export const valueJustBefore1July2027BoxShown = (asAtDate: string): boolean => asAtDate > CGT_REFORM_START;
+
+/** `financialYearContaining` for a date as typed: `undefined` rather than a throw for a half-typed one. */
+const firstYearOf = (asAtDate: string): FinancialYear | undefined => {
+  try {
+    return financialYearContaining(asAtDate as Parameters<typeof financialYearContaining>[0]);
+  } catch {
+    return undefined;
+  }
+};
+
+/**
+ * **P3-4b slice 2 — the years an unused concessional cap can be typed for: the five before the
+ * plan's first financial year**, earliest first. The window `parsePlan` checks, read off the same
+ * register figure, so the form offers exactly the years the door accepts.
+ */
+export const unusedCapYears = (asAtDate: string): readonly FinancialYear[] => {
+  const first = firstYearOf(asAtDate);
+  return first === undefined ? [] : financialYearsBefore(first, SUPERANNUATION.carryForward.lookBackYears.value);
+};
+
+/**
+ * **Whether the "Total super balance on 30 June" box is shown, and so whether it writes** —
+ * `valueJustBefore1July2027BoxShown`'s rule. Only for a plan NOT dated 1 July: a 1 July plan's own
+ * balances are that 30 June's, and the door refuses a second figure there.
+ */
+export const totalSuperBalanceAt30JuneBoxShown = (asAtDate: string): boolean => {
+  const first = firstYearOf(asAtDate);
+  return first !== undefined && asAtDate !== startOfFinancialYear(first);
+};
+
+/** The calendar year of the 30 June that box asks about: the one just before the plan's first year. */
+export const thirtyJuneYear = (asAtDate: string): number | undefined => {
+  const first = firstYearOf(asAtDate);
+  return first === undefined ? undefined : financialYearStartYear(first);
+};
 
 /** The two answers to "has this Person had a retirement-phase pension before". No is the default. */
 export const PRIOR_PENSION_NO = 'No';
@@ -2194,6 +2246,11 @@ export const planWithStatedPosition = (plan: PlanFile, values: StatedPositionFor
         employmentIncomePerFortnight: dollarsToCents(person.employmentIncomePerFortnight),
         workBonusBalance: dollarsToCents(person.workBonusBalance),
         ...priorRetirementPhase(person, held?.statedPriorRetirementPhase),
+        // P3-4b slice 2: one writer each, the boxes. Only typed years are written; none is no key.
+        ...statedUnusedCap(person.unusedConcessionalCap),
+        ...(totalSuperBalanceAt30JuneBoxShown(values.asAtDate)
+          ? statedFee('statedTotalSuperBalanceAt30June', person.totalSuperBalanceAt30June, dollarsToCents)
+          : {}),
       };
     }),
     homeStatus: values.homeStatus,
@@ -2207,6 +2264,12 @@ export const planWithStatedPosition = (plan: PlanFile, values: StatedPositionFor
     ...statedMortgage(values),
   },
 });
+
+/** The unused-cap boxes → `statedUnusedConcessionalCap`, or no key when every box is blank. */
+const statedUnusedCap = (boxes: Readonly<Record<string, string>>): Record<string, unknown> => {
+  const typed = Object.entries(boxes).filter(([, text]) => text.trim() !== '');
+  return typed.length === 0 ? {} : { statedUnusedConcessionalCap: Object.fromEntries(typed.map(([year, text]) => [year, dollarsToCents(text)])) };
+};
 
 /**
  * **A couple's offset share box → `offsetShares`, or nothing at all.** A single Person owns the
@@ -2339,6 +2402,13 @@ export const positionFormValues = (plan: PlanFile): StatedPositionFormValues => 
     })(),
     priorRetirementPhase:
       person.statedPriorRetirementPhase === 'startedRetirementPhaseBeforeTheForecast' ? PRIOR_PENSION_YES : PRIOR_PENSION_NO,
+    // Every year the form offers, blank where nothing is stated, and any stated year besides — so a
+    // figure is never dropped by a box that is not drawn.
+    unusedConcessionalCap: Object.fromEntries([
+      ...unusedCapYears(plan.settings.asAtDate).map((year) => [year, ''] as const),
+      ...Object.entries(person.statedUnusedConcessionalCap ?? {}).map(([year, amount]) => [year, centsToDollars(amount)] as const),
+    ]),
+    totalSuperBalanceAt30June: feeBox(person.statedTotalSuperBalanceAt30June, centsToDollars),
     // **The election as the box holds it, and NOT pre-selected when there is none** (register O84,
     // residual (iii)): a Person with one accumulation interest and no election comes back as
     // `NO_RELEASE_ELECTION`, exactly like a Person with none, because silence is a DECLINED
@@ -2416,6 +2486,8 @@ export const BLANK_PERSON: PersonFormValues = {
   releaseAuthorityInterest: NO_RELEASE_ELECTION,
   employerPaysInto: '',
   priorRetirementPhase: PRIOR_PENSION_NO,
+  unusedConcessionalCap: {},
+  totalSuperBalanceAt30June: '',
 };
 
 /**
@@ -2608,6 +2680,109 @@ export const validatedPlan = (candidate: unknown): ValidatedPlan => {
   const plan = parsePlan(candidate);
   const walks = scenarioWalks(plan);
   return { plan, months: walks.active, walks };
+};
+
+// --- P3-4b slice 2: the offered catch-up (ADR-0004: offered, never bound) ------------------------
+
+/**
+ * **Why a catch-up was not written, by name.** Thrown before anything reaches `savePlan`, so the
+ * page shows it on the same banner as any refused edit and the file is untouched.
+ */
+export class CatchUpRefusedError extends RangeError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'CatchUpRefusedError';
+  }
+}
+
+/**
+ * **The catch-up as a PAIR of entries: a salary sacrifice from 1 July of the year and its stop on
+ * the next 1 July** — `superContributionEntry` and `superContributionStopEntry`, the form's own two
+ * builders, so the file holds nothing a user could not have typed. It lands in the account the
+ * employer pays into where one is named, else the Person's first accumulation account. Appended to
+ * the active Scenario, like every entry. Nothing here validates: `checkedCatchUp` walks it.
+ */
+export const planWithCatchUp = (
+  plan: PlanFile,
+  catchUp: { readonly person: number; readonly financialYear: FinancialYear; readonly amount: Cents },
+  ids: readonly [string, string],
+  createdAt: string,
+): unknown => {
+  const holder = plan.household.persons[catchUp.person];
+  const named = holder?.superInterests.findIndex((interest) => interest.statedEmployerContributionDestination === 'superannuationGuarantee') ?? -1;
+  const into = named !== -1 ? named : holder?.superInterests.findIndex((interest) => interest.phase === 'accumulation') ?? -1;
+  const owner = catchUp.person === 0 ? 'personA' : 'personB';
+  const next = toFinancialYear(financialYearStartYear(catchUp.financialYear) + 1);
+  const note = `Catch-up for FY${catchUp.financialYear}, sized to the unused cap the forecast showed.`;
+  const start = superContributionEntry(
+    { date: startOfFinancialYear(catchUp.financialYear), owner, note, annualAmount: centsToDollars(catchUp.amount), interestIndex: String(into + 1) },
+    ids[0],
+    createdAt,
+  );
+  const stop = superContributionStopEntry({ date: startOfFinancialYear(next), owner, note }, ids[1], createdAt);
+  return planWithEntry(planWithEntry(plan, start) as PlanFile, stop);
+};
+
+/**
+ * **The catch-up for one Person's year, WALKED before it is offered to `save`.** Sized by
+ * `catchUpOffer` off the walk on screen (`months`, the active Scenario's), then the candidate is
+ * parsed and projected — `validatedPlan`, the save door's own two halves — and the new walk has to
+ * show three things, or the catch-up is refused by name and nothing is written:
+ *
+ *   * **no sacrifice of that Person already running into the year or changing inside it.** A new
+ *     arrangement REPLACES a standing one, and the stop would then end it for good;
+ *   * **the year's contributions rose by the whole amount.** Less means the pay could not carry it
+ *     (the walk drops what is above the salary);
+ *   * **the year stayed inside its total cap.** A twelfth of a whole-dollar amount can round a few
+ *     cents up; one dollar less is tried once before refusing.
+ *
+ * Returns the candidate for the caller to hand to `save`, which parses and walks it once more.
+ */
+export const checkedCatchUp = (
+  plan: PlanFile,
+  months: readonly Month[],
+  person: number,
+  financialYear: FinancialYear,
+  ids: readonly [string, string],
+  createdAt: string,
+): unknown => {
+  const name = plan.household.persons[person]?.name ?? `Person ${person + 1}`;
+  const yearOf = (walk: readonly Month[]): readonly Month[] => walk.filter((month) => financialYearOfMonth(month.month) === financialYear);
+  const offered = catchUpOffer(yearOf(months), person);
+  if (offered === null) {
+    throw new CatchUpRefusedError(`${name} has no carried-forward cap room to catch up in FY${financialYear}, so nothing was added.`);
+  }
+  const owner = person === 0 ? 'personA' : 'personB';
+  const start = startOfFinancialYear(financialYear);
+  const end = startOfFinancialYear(toFinancialYear(financialYearStartYear(financialYear) + 1));
+  const sacrifices = scenarioEntries(plan, scenarioById(plan, plan.activeScenarioId))
+    .filter((entry): entry is Extract<Entry, { type: 'SUPER_CONTRIBUTION' }> =>
+      entry.enabled && entry.type === 'SUPER_CONTRIBUTION' && entry.owner === owner && entry.date <= end);
+  const standing = sacrifices.filter((entry) => entry.date < start).at(-1);
+  if (sacrifices.some((entry) => entry.date >= start) || (standing !== undefined && standing.params.kind !== 'stopped')) {
+    throw new CatchUpRefusedError(
+      `${name} already has a salary sacrifice running in FY${financialYear}. A catch-up would replace it for the year and its stop would end it, so nothing was added: change that arrangement instead.`,
+    );
+  }
+  const before = yearOf(months).at(-1)?.concessionalCapByPerson[person];
+  let amount = offered;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const candidate = planWithCatchUp(plan, { person, financialYear, amount }, ids, createdAt);
+    const after = yearOf(validatedPlan(candidate).months).at(-1)?.concessionalCapByPerson[person];
+    if (before === null || before === undefined || after === null || after === undefined) {
+      throw new CatchUpRefusedError(`The forecast has no concessional cap for ${name} in FY${financialYear}, so nothing was added.`);
+    }
+    const added = after.usedSoFar - before.usedSoFar;
+    // A twelfth a month is rounded to the cent, so twelve of them can differ from the year by a few.
+    if (added < amount - 12) {
+      throw new CatchUpRefusedError(
+        `${name}'s pay in FY${financialYear} cannot carry a ${centsToDollars(amount)} dollar sacrifice: the forecast would sacrifice only ${centsToDollars(added)} of it. Nothing was added.`,
+      );
+    }
+    if (after.usedSoFar <= after.generalCap + after.carriedForwardAvailable) return candidate;
+    amount = (amount - 100) as Cents;
+  }
+  throw new CatchUpRefusedError(`A catch-up for ${name} in FY${financialYear} would take the year over its total concessional cap, so nothing was added.`);
 };
 
 /** The one thing `savePlan` needs off `store/files.ts`. Injected, so this is testable without a socket. */

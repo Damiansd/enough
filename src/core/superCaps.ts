@@ -560,6 +560,12 @@ export interface ConcessionalYearHistory {
   /** That year's **general** cap. Branded, so a non-concessional cap cannot be filed here. */
   readonly cap: ConcessionalCap;
   readonly concessionalContributions: Cents;
+  /**
+   * True where that year's own Total Super Balance test failed (s 291-20(3)), so its contributions
+   * above its general cap were an excess and spent no earlier year's unused amount. Absent is false:
+   * the over-cap part is taken as spent, which leaves LESS headroom, never more.
+   */
+  readonly carryForwardClosed?: boolean;
 }
 
 export interface CarryForwardYear {
@@ -616,6 +622,14 @@ const EARLIEST_GENERATING_YEAR = CARRY_FORWARD.earliestGeneratingYear.value as F
  * Two refusals rather than a plausible number: a look-back year with no history throws, and a
  * Total Super Balance measured at any date but the prior 30 June throws. Both are cases where the
  * arithmetic would happily produce a larger headroom than the Person has.
+ *
+ * **`priorYears` may reach back BEFORE the window, and should wherever a year inside it ran over
+ * its general cap** (P3-4b slice 2). That year spent the oldest unused amount standing in ITS OWN
+ * window, which reaches five years further back than this one's. The years supplied are one
+ * unbroken run ending at the year before `fy`; a gap in it is refused, because a missing year could
+ * have spent what an earlier one left. A year before the earliest supplied one is counted as fully
+ * used, so a history cut short gives the LOWER headroom, and the exact one once it reaches back
+ * five years before every over-cap year.
  */
 export const carryForwardHeadroom = (input: {
   readonly fy: FinancialYear;
@@ -636,47 +650,68 @@ export const carryForwardHeadroom = (input: {
       throw new RangeError(`FY${year.fy} is not before FY${fy}: contribution history is prior years only`);
     }
     if (byYear.has(year.fy)) throw new RangeError(`FY${year.fy} appears twice in the contribution history`);
+    if (year.concessionalContributions < 0) throw new RangeError(`FY${year.fy} concessional contributions cannot be negative`);
     byYear.set(year.fy, year);
   }
   const missing = lookBack.filter((each) => !byYear.has(each));
   if (missing.length > 0) throw new MissingContributionHistoryError(fy, missing);
 
-  const arising = lookBack.map((each) => {
+  // Every supplied year, earliest first, and the run has to be unbroken back to the earliest.
+  const supplied = [...byYear.keys()].sort(compareFinancialYears);
+  const earliest = supplied[0];
+  const run = earliest === undefined ? [] : financialYearsBefore(fy, financialYearStartYear(fy) - financialYearStartYear(earliest));
+  const gaps = run.filter((each) => !byYear.has(each));
+  if (gaps.length > 0) {
+    throw new RangeError(
+      `the contribution history before FY${fy} skips FY${gaps.join(', FY')}. A year left out between two ` +
+        'supplied ones could have spent what the earlier one left unused, so the later years cannot be ' +
+        'placed: supply every year from the earliest one given',
+    );
+  }
+
+  const yearOf = (each: FinancialYear) => {
     const year = byYear.get(each) as ConcessionalYearHistory;
     const used = year.concessionalContributions;
-    if (used < 0) throw new RangeError(`FY${each} concessional contributions cannot be negative`);
+    const generates = compareFinancialYears(each, EARLIEST_GENERATING_YEAR) >= 0;
     return {
       fy: each,
       cap: year.cap as Cents,
       used,
-      unused: used >= year.cap ? toCents(0) : subCents(year.cap, used),
-      overCap: used > year.cap ? subCents(used, year.cap) : toCents(0),
+      unused: !generates || used >= year.cap ? toCents(0) : subCents(year.cap, used),
+      overCap: used > year.cap && year.carryForwardClosed !== true ? subCents(used, year.cap) : toCents(0),
       lastYearUsable: toFinancialYear(financialYearStartYear(each) + CARRY_FORWARD.lookBackYears.value),
     };
-  });
+  };
 
   // s 291-20(7) — the increase is applied **earliest year first**, and that is not merely a display
-  // order. A year inside the window whose contributions ran over its own general cap did not
-  // thereby make an excess contribution: it spent the oldest unused amount then standing. Adding up
-  // each year's gross `cap − contributions` keeps offering headroom that has already been consumed,
-  // so the naive sum runs *high* — and an over-stated headroom is exactly what causes the excess
-  // contributions determination this figure exists to avoid. The assumptions layer has carried
-  // `carryForward.applicationOrder` all along; this loop is the thing that consumes it.
+  // order. A year whose contributions ran over its own general cap did not thereby make an excess
+  // contribution: it spent the oldest unused amount then standing IN ITS OWN WINDOW. Adding up each
+  // year's gross `cap − contributions` keeps offering headroom that has already been consumed, and an
+  // over-stated headroom is exactly what causes the excess contributions determination this figure
+  // exists to avoid. The assumptions layer has carried `carryForward.applicationOrder` all along;
+  // this ledger is the thing that consumes it.
   //
-  // Where an over-cap year needs more than the window still holds, the balance is left alone: it
-  // may have spent an unused amount that has since rolled out of the window, or it may have been a
-  // real excess contribution, and the history cannot tell the two apart. Both readings leave the
-  // remaining window at nil, which is the same answer.
-  const remaining: Cents[] = arising.map((year) => year.unused);
-  for (let index = 0; index < arising.length; index += 1) {
-    let outstanding = arising[index]?.overCap ?? toCents(0);
-    for (let earlier = 0; earlier < index && outstanding > 0; earlier += 1) {
-      const available = remaining[earlier] ?? toCents(0);
+  // ~~Where an over-cap year needs more than the window still holds, the balance is left alone: it
+  // may have spent an unused amount that has since rolled out of the window…~~ **CORRECTED
+  // 2026-09-30 (P3-4b slice 2).** The loop used to search only the years still inside THIS window,
+  // so an over-cap year whose oldest unused amount had since rolled out charged its spend to a
+  // younger year instead — $5,000 low on the walk's own fixture. The ledger now runs over every
+  // supplied year in order, each over-cap year drawing on the five years before IT, exactly as the
+  // walk's own year-end settlement does through `applyConcessional`; what it cannot meet was a real
+  // excess and takes nothing.
+  const remaining = new Map<FinancialYear, Cents>(supplied.map((each) => [each, yearOf(each).unused]));
+  for (const each of supplied) {
+    let outstanding = yearOf(each).overCap;
+    for (const earlier of financialYearsBefore(each, CARRY_FORWARD.lookBackYears.value)) {
+      if (outstanding <= 0) break;
+      const available = remaining.get(earlier);
+      if (available === undefined) continue;
       const taken = (available < outstanding ? available : outstanding) as Cents;
-      remaining[earlier] = subCents(available, taken);
+      remaining.set(earlier, subCents(available, taken));
       outstanding = subCents(outstanding, taken);
     }
   }
+  const arising = lookBack.map(yearOf);
 
   const window = arising.map((year, index): CarryForwardYear =>
     Object.freeze({
@@ -684,7 +719,7 @@ export const carryForwardHeadroom = (input: {
       cap: year.cap,
       used: year.used,
       unused: year.unused,
-      remaining: remaining[index] ?? toCents(0),
+      remaining: remaining.get(year.fy) ?? toCents(0),
       lastYearUsable: year.lastYearUsable,
     }),
   );

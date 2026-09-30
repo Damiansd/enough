@@ -1548,14 +1548,63 @@ called the **Superannuation Guarantee** — count towards the same yearly limit 
 sacrifice on top of a decent salary can be refused outright if the two together are over the year's
 cap, currently $32,500, plus any cap left unused in the five years before — but only if your total
 super was under $500,000 on the 30 June before the year. Being under the cap isn't proof you have
-room to spare: unused cap from earlier years isn't counted for any year before your plan starts —
-only for whole years the forecast walks itself — so it can refuse a catch-up contribution you're
-actually allowed to make; and personal contributions you claim a deduction for aren't held at all. If your combined income and contributions are over $250,000, an extra tax applies — see
+room to spare: unused cap from a year before your plan starts counts only if you type it in (see
+below), so without it *enough* can refuse a catch-up contribution you're actually allowed to make;
+and personal contributions you claim a deduction for aren't held at all. If your combined income and contributions are over $250,000, an extra tax applies — see
 [Chapter 27](#division-293). And more than your pay can never be sacrificed: the excess is simply dropped, so the
 arrangement forecast is never bigger than what you actually earn. Sacrificing never shrinks the
 Superannuation Guarantee itself — it's always worked out on your salary **before** the sacrifice
 comes off it. And it can only land in an account that's still building up, not one already paying
 you a pension.
+
+### Unused cap from earlier years, and the catch-up button {#catch-up-contributions}
+
+**What unused room is.** Each year there's a limit on how much can go into your super before tax —
+your employer's compulsory payments plus any salary sacrifice. If you put in less than the limit,
+the part you didn't use isn't lost straight away: it stays available for the next five years. In a
+later year you can put in more than that year's limit, and the extra uses up your oldest unused
+amount first. After five years an unused amount expires.
+
+**The $500,000 test.** You can only use unused amounts in a year if your total super — every account
+you have — was under $500,000 on the 30 June just before that year. At $500,000 or more, the unused
+amounts are still there and still counting down, but you can't use them that year. The $500,000
+doesn't go up with prices, so more people cross it as balances grow.
+
+**What the big table shows.** The **{{name|Unused super cap}}** column in the year-by-year table
+([Chapter 65](#years-and-months)) shows, for each person, what's left of the year's limit once the
+forecast's own contributions are counted, and when the oldest unused amount expires. "Closed" means
+the $500,000 test shut it that year, or that *enough* doesn't know the 30 June balance (below). These
+figures are in each year's own dollars, even when the table shows today's money, because the limits
+are set in dollars by law.
+
+**Telling *enough* about years before your plan.** *enough* works out unused room itself for every
+whole year it forecasts. For the five years before your plan starts it can't know, so it counts them
+as fully used unless you tell it. In **Household and settings**, each person has
+**{{name|Unused concessional cap from myGov}}** boxes, one for each of those five years. To find the
+figures, sign in to myGov, open the Australian Taxation Office, then go to **Super**, then
+**Information**, then **Carry-forward concessional contributions**. It lists the unused amount for
+each year. Leave a year blank if you don't know it — blank counts as used, which can only make the
+forecast more careful.
+
+If your plan's date isn't 1 July, *enough* also asks for each person's **total super balance on
+30 June** just before the plan's first year. Your plan's balances are from a later date, so they
+can't answer the $500,000 test for that year. myGov shows that 30 June figure on the same page. If
+you leave it blank, *enough* treats the first year's unused room as closed.
+
+**What the catch-up button does.** Where a year has unused room carried forward and open, the
+table offers **{{name|Add a catch-up}}**. Pressing it adds two entries to the scenario you're looking
+at: a salary sacrifice starting 1 July of that year and a stop on the next 1 July. The amount is the
+room left after the forecast's own contributions for that year, rounded down to whole dollars, so
+the year stays inside its limit. It's checked before anything is saved. If that person's pay
+can't carry it, or they already have a salary sacrifice running that year, nothing is saved and
+the message at the top of the page says why.
+
+**What it doesn't do.** It's an offer, not advice, and nothing happens unless you press it. It
+doesn't arrange anything with your employer or fund — you'd need to do that yourself. It isn't a
+personal contribution you claim a deduction for; *enough* doesn't model those. And it isn't always a
+win: if your income plus contributions are over $250,000, using unused room means more of your
+contributions are hit by the extra 15% tax ([Chapter 27](#division-293)). You can switch the two
+entries off like any other ([Chapter 16](#dated-entries)).
 
 ### The Guarantee started counting on 20 September 2026
 

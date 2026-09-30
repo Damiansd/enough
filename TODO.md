@@ -753,7 +753,7 @@ Working task list for `enough`. Maintained throughout the build.
     `superCaps.ts`'s `indexCap` indexes each cap from its own base amount and base quarter and never
     from last year's cap (module header, T13); the concessional cap is indexed live in the walk
     since `922aec5` and held against the whole year since `a7f5347`. P3-4b below stays open.
-  - [ ] **P3-4b** Surface carry-forward as a **five-year rolling headroom figure per Person per
+  - [x] **P3-4b** Surface carry-forward as a **five-year rolling headroom figure per Person per
     year**, oldest consumed first, gated on Total Super Balance < $500,000 at the prior 30 June.
     The rule itself is P3-4 and is not new; what is new is displaying the headroom and offering a
     catch-up `SUPER_CONTRIBUTION` entry against it — offered, never bound (ADR-0004). The $500,000
@@ -778,10 +778,43 @@ Working task list for `enough`. Maintained throughout the build.
       window and so charged its spend to a younger year ($5,000 low on the fixture that found it).
       Register §3.4 "How the walk runs it", O78 narrowed. `test/core-projection-carry-forward.test.mjs`,
       12 mutations killed.
-      - **Open, for a ruling: the first year's Total Super Balance is the plan's stated balance as at
-        `asAtDate`, not 30 June.** The forecast holds no earlier figure. Mostly conservative (balances
-        usually grow over a year) but not always; the alternative is a stated 30 June balance or
-        closing the window in the first year whenever the plan opens after 1 July.
+      - ~~**Open, for a ruling: the first year's Total Super Balance is the plan's stated balance as at
+        `asAtDate`, not 30 June.**~~ **RULED 2026-09-30, built in slice 2** (below).
+    - ✅ **2026-09-30 — slice 2, THE SCREEN, done; P3-4b ticked.**
+      - **First-year $500,000 test (ruling).** A 1 July plan's balance IS the prior 30 June's. Any other
+        date reads new optional `Person.statedTotalSuperBalanceAt30June` (myGov's figure; `parsePlan`
+        takes non-negative whole cents and refuses it on a 1 July plan); absent, the balance is not known
+        (`totalSuperBalance: null`) and the first year's window is CLOSED. No dollar figure moved; the
+        field's own full digests moved for it alone (demo: 10 months, −90 bytes; parcels fixtures −100),
+        stripped digests unchanged, re-pinned with the reason.
+      - **`carryForwardHeadroom` fixed, not just bypassed.** Its over-cap loop searched only the current
+        window; it now runs a ledger over every supplied year, each over-cap year drawing on ITS OWN five
+        years, earliest first (the walk's `applyConcessional` spend is the reference), refuses a gap in the
+        history, counts a year before the earliest supplied as used, and honours an optional
+        `carryForwardClosed`. **It had a pinned wrong answer**: the P3-4 suite's FY2027-28 fixture read
+        $71,500 where the history gives $79,000 (FY2026-27's $7,500 over was charged to FY2024-25 instead
+        of FY2021-22) — corrected in `core-super-carry-forward` and `core-super-concessional` with the
+        working. New tests fail on HEAD's build (walk-vs-function agreement, the $5,000 fixture).
+      - **Year rows** (`financialYearRows` → `YearRow.catchUpRoom`, `renderTable` column "Unused super
+        cap" ⓘ → guide): one line per Person off the last month's `concessionalCapByPerson`, whole dollars
+        down, nominal: `$12,340 unused · oldest expires 2030-31`, `closed · super $500,000 or more`,
+        `closed · 30 June balance not stated`, or nothing.
+      - **"Add a catch-up"** (ADR-0004): offered for a whole July–June year with carried-forward room open
+        and contributions that year; sized to the year-end `remaining` (the cap and carry-forward less the
+        walk's own contributions for the year), rounded down. On click only, `checkedCatchUp` builds the
+        `superContributionEntry` + `superContributionStopEntry` pair (1 July → next 1 July), walks it
+        (`validatedPlan`) and refuses by name (`CatchUpRefusedError`, on the banner) if a sacrifice already
+        runs into the year, the pay cannot carry it, or the year would pass its total cap (one $1 retry for
+        cent rounding); otherwise the page's one `save`.
+      - **Inputs**: per Person, "Unused concessional cap from myGov" boxes for the five years before the
+        first FY (`unusedCapYears`) and "Total super balance on 30 June <year>", shown and written only off
+        1 July. Guide Ch 23 "Unused cap from earlier years, and the catch-up button"
+        `{#catch-up-contributions}` (incl. T55's Div 293 warning); register §3.4 updated.
+      - **Mutations, each killed (diff -a, restored from scratchpad + cmp):** first year reads the asAtDate
+        balance; blank 30 June box read as nil; old window-only loop restored (7 tests); year cell
+        recomputes from the other fields; offer rounded to nearest; offer ignores the year's contributions;
+        `onCatchUp` fired on render; door accepts an out-of-window year; form offers six years; 30 June box
+        written on a 1 July plan.
 - [x] **P3-5** Div 293 and Div 296 — ✅ 2026-09-08, both computed
   - [x] **P3-5a** Div 296 is two proportions of **one** earnings base taxed at 15% and 10%; the 2026-27 TSB test is **closing balance only**; CGT phase-in factors 0.2 / 0.4 / 0.6 / 0.8 (T15, T16)
     — ✅ 2026-09-08. `core/div296.ts`, 28 tests. T15 is answered by shape where shape reaches:

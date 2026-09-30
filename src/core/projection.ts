@@ -845,8 +845,13 @@ const concessionalComponentsOf = (
 const concessionalHeadroomFor = (input: {
   readonly fy: FinancialYear;
   readonly indexNumbers: IndexNumbers;
-  /** The Person's super, every interest, at the close of the prior 30 June (the walk's first year: as stated). */
-  readonly balance: Cents;
+  /**
+   * The Person's super, every interest, at the close of the prior 30 June. `null` where the walk
+   * does not know it — the plan's first year opened after 1 July with no
+   * `Person.statedTotalSuperBalanceAt30June` — and the window is then CLOSED: the $500,000 threshold
+   * itself stands in for the balance, so the test fails and nothing carried forward is usable.
+   */
+  readonly balance: Cents | null;
   readonly unused: ReadonlyMap<FinancialYear, Cents>;
 }): CarryForwardHeadroom | null => {
   let cap;
@@ -859,7 +864,7 @@ const concessionalHeadroomFor = (input: {
   return carryForwardHeadroom({
     fy: input.fy,
     cap,
-    totalSuperBalance: totalSuperBalance(justBeforeFinancialYear(input.fy), input.balance),
+    totalSuperBalance: totalSuperBalance(justBeforeFinancialYear(input.fy), input.balance ?? SUPERANNUATION.carryForward.totalSuperBalanceTest.value),
     priorYears: financialYearsBefore(input.fy, SUPERANNUATION.carryForward.lookBackYears.value).map(
       (year): ConcessionalYearHistory => ({
         fy: year,
@@ -878,6 +883,7 @@ const concessionalHeadroomFor = (input: {
 const concessionalCapFigures = (
   headroom: CarryForwardHeadroom | null,
   components: ConcessionalContributionComponents,
+  balanceKnown: boolean,
 ): ConcessionalCapHeadroom | null => {
   if (headroom === null) return null;
   const assessed = applyConcessional({ fy: headroom.fy, contributions: concessionalContributions(components), headroom });
@@ -887,7 +893,7 @@ const concessionalCapFigures = (
     carriedForwardAvailable: headroom.unusedAvailable,
     usedSoFar: assessed.contributions,
     remaining: assessed.contributions >= headroom.headroom ? toCents(0) : subCents(headroom.headroom, assessed.contributions),
-    totalSuperBalance: headroom.totalSuperBalance,
+    totalSuperBalance: balanceKnown ? headroom.totalSuperBalance : null,
     closedByTotalSuperBalance: !headroom.eligible,
     oldestUnusedUsableUntil: oldest?.lastYearUsable ?? null,
   });
@@ -6782,7 +6788,9 @@ export const project = (
   const unusedConcessionalCap: Map<FinancialYear, Cents>[] = household.persons.map(
     (person) => new Map(Object.entries(person.statedUnusedConcessionalCap ?? {}) as [FinancialYear, Cents][]),
   );
-  let concessionalHeadroom: { readonly fy: FinancialYear; readonly byPerson: readonly (CarryForwardHeadroom | null)[] } | undefined;
+  let concessionalHeadroom:
+    | { readonly fy: FinancialYear; readonly byPerson: readonly (CarryForwardHeadroom | null)[]; readonly balanceKnown: readonly boolean[] }
+    | undefined;
   const concessionalSoFar: ConcessionalContributionComponents[] = [];
   const firstYearIsWhole = settings.asAtDate === startOfFinancialYear(financialYearContaining(settings.asAtDate));
   const months: Month[] = [];
@@ -6823,8 +6831,15 @@ export const project = (
     // back at the end of June's tick, and nothing of July's has happened yet — in particular not the
     // July settlement (LISTO, a franking refund, the earnings tax), which lands further down this
     // tick. So `balances` here is the close of 30 June: s 291-20(3)'s Total Super Balance "just
-    // before the start of the financial year". In the walk's first month it is the balance the plan
-    // states, the only one the forecast holds.
+    // before the start of the financial year".
+    //
+    // **The plan's first year (ruled 2026-09-30).** A plan stated as at 1 July states the 30 June
+    // close itself, so its balance is read as it stands. A plan opened on any other day states a
+    // balance at the WRONG date for this test — a later one, after months of growth and
+    // contributions — so it is never read here: `Person.statedTotalSuperBalanceAt30June` is the
+    // figure myGov shows for that 30 June, and without it the balance is not known and the year's
+    // window is CLOSED. Closing over-refuses a Person under $500,000; the balance as at the plan's
+    // date would sometimes open a window the law keeps shut.
     //
     // The year just ended is settled into the ledger first: what it took from the window above its
     // general cap, earliest year first, and — only if it was walked WHOLE — what it left unused of
@@ -6850,16 +6865,22 @@ export const project = (
           if (whole) ledger.set(ended.fy, assessed.unusedGeneralCapGenerated);
         });
       }
+      const thirtyJune = household.persons.map((person, index): Cents | null =>
+        fy === financialYearContaining(settings.asAtDate) && !firstYearIsWhole
+          ? person.statedTotalSuperBalanceAt30June ?? null
+          : (balances[index]?.superInterestBalances ?? []).reduce<Cents>((total, held) => addCents(total, held), toCents(0)),
+      );
       concessionalHeadroom = {
         fy,
         byPerson: household.persons.map((_person, index) =>
           concessionalHeadroomFor({
             fy,
             indexNumbers: awoteIndexNumbers,
-            balance: (balances[index]?.superInterestBalances ?? []).reduce<Cents>((total, held) => addCents(total, held), toCents(0)),
+            balance: thirtyJune[index] ?? null,
             unused: unusedConcessionalCap[index] ?? new Map(),
           }),
         ),
+        balanceKnown: thirtyJune.map((balance) => balance !== null),
       };
     }
     const carryForwardAvailableFor = (index: number): Cents => concessionalHeadroom?.byPerson[index]?.unusedAvailable ?? toCents(0);
@@ -11971,7 +11992,11 @@ export const project = (
         // The year's accumulators are the ones the cap note just read, so the two cannot disagree.
         concessionalCapByPerson: Object.freeze(
           household.persons.map((_person, personIndex) =>
-            concessionalCapFigures(concessionalHeadroom?.byPerson[personIndex] ?? null, concessionalSoFar[personIndex] as ConcessionalContributionComponents),
+            concessionalCapFigures(
+              concessionalHeadroom?.byPerson[personIndex] ?? null,
+              concessionalSoFar[personIndex] as ConcessionalContributionComponents,
+              concessionalHeadroom?.balanceKnown[personIndex] ?? false,
+            ),
           ),
         ) as Month['concessionalCapByPerson'],
         // **Every interest of every Person, on the SAME closing balances `householdAtClose` was built

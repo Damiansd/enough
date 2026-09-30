@@ -17,6 +17,7 @@ import { toCents } from '../dist/core/money.js';
 import { project } from '../dist/core/projection.js';
 import { PlanFileAmountError, PlanFileHouseholdError, parsePlan } from '../dist/core/parsePlan.js';
 import { DEMO_PLAN } from '../dist/app/demoHousehold.js';
+import { carryForwardHeadroom, concessionalContributionsCap, forecastAwoteIndexNumbers, totalSuperBalance } from '../dist/core/superCaps.js';
 
 const entry = (id, type, date, owner = 'personA', params = {}) => ({ id, date, owner, type, params, enabled: true, createdAt: '2027-01-01' });
 
@@ -30,7 +31,7 @@ const settings = (asAtDate = '2027-07-01') => ({
   cashInterestRate: 0,
 });
 /** Kit is 47. $6,000 a fortnight is $156,000 a year in July 2027's wages. */
-const kit = (balance, stated, perFortnight = toCents(6_000)) => ({
+const kit = (balance, stated, perFortnight = toCents(6_000), thirtyJune = undefined) => ({
   persons: [{
     name: 'Kit',
     dateOfBirth: '1980-03-15',
@@ -39,6 +40,7 @@ const kit = (balance, stated, perFortnight = toCents(6_000)) => ({
     employmentIncomePerFortnight: perFortnight,
     workBonusBalance: toCents(0),
     ...(stated === undefined ? {} : { statedUnusedConcessionalCap: stated }),
+    ...(thirtyJune === undefined ? {} : { statedTotalSuperBalanceAt30June: thirtyJune }),
   }],
   homeStatus: 'occupied',
 });
@@ -191,6 +193,62 @@ test('THE OLDEST UNUSED AMOUNT IS USED FIRST — in the year, and in what the ne
   assert.equal(capNotes(months, '2027-28').length, 0, 'inside the total cap, so no note');
 });
 
+test('THE WALK AND carryForwardHeadroom AGREE — an over-cap year spends from its OWN window, even a year that has since rolled out', () => {
+  // The fixture above: FY2027-28 went over its general cap and spent FY2022-23's $5,000 before any
+  // of FY2026-27's. Handed the same history, `carryForwardHeadroom` has to find the same FY2028-29
+  // window the walk carried. Its old loop could not see FY2022-23 from FY2028-29 and charged the
+  // whole spend to FY2026-27 instead: $5,000 low.
+  const months = project(settings(), kit(toCents(450_000), { '2022-23': toCents(5_000), '2026-27': toCents(20_000) }), sacrificing(toCents(21_500)));
+  const nil = { cap: toCents(0), concessionalContributions: toCents(0) };
+  const headroom = carryForwardHeadroom({
+    fy: '2028-29',
+    cap: concessionalContributionsCap('2028-29', forecastAwoteIndexNumbers('2028-29', 0.035)),
+    totalSuperBalance: totalSuperBalance('2028-06-30', capOf(months, '2028-07').totalSuperBalance),
+    priorYears: [
+      { fy: '2022-23', cap: toCents(5_000), concessionalContributions: toCents(0) },
+      { fy: '2023-24', ...nil },
+      { fy: '2024-25', ...nil },
+      { fy: '2025-26', ...nil },
+      { fy: '2026-27', cap: toCents(20_000), concessionalContributions: toCents(0) },
+      { fy: '2027-28', cap: CAP_2027_28, concessionalContributions: capOf(months, '2028-06').usedSoFar },
+    ],
+  });
+  assert.equal(headroom.unusedAvailable, capOf(months, '2028-07').carriedForwardAvailable);
+  assert.equal(headroom.headroom, capOf(months, '2028-07').generalCap + capOf(months, '2028-07').carriedForwardAvailable);
+});
+
+// --- The plan's first year: which 30 June balance (ruled 2026-09-30) ---------------------------------
+
+test('A PLAN DATED 1 JULY READS ITS OWN BALANCE AS THE 30 JUNE ONE; ANY OTHER DATE NEEDS THE STATED 30 JUNE FIGURE', () => {
+  const STATED_2026_27 = { '2026-27': toCents(10_000) };
+  // 1 July: the plan's balance is the 30 June close, and a stated 30 June figure is not needed.
+  const july = capOf(project(settings(), kit(toCents(400_000), STATED_2026_27), []), '2027-07');
+  assert.equal(july.totalSuperBalance, toCents(400_000));
+  assert.equal(july.carriedForwardAvailable, toCents(10_000));
+
+  // October, nothing stated: the 30 June balance is NOT KNOWN — not nil, not the October balance —
+  // and the first year's window is closed. The unused amount is still there and still expires.
+  const unstated = project(settings('2027-10-01'), kit(toCents(100_000), STATED_2026_27), []);
+  assert.equal(capOf(unstated, '2027-10').totalSuperBalance, null);
+  assert.equal(capOf(unstated, '2027-10').closedByTotalSuperBalance, true);
+  assert.equal(capOf(unstated, '2027-10').carriedForwardAvailable, 0);
+  assert.equal(capOf(unstated, '2027-10').oldestUnusedUsableUntil, '2031-32');
+  // And the next year is the walk's own 30 June again, window open, FY2026-27's $10,000 unspent.
+  assert.equal(capOf(unstated, '2028-07').closedByTotalSuperBalance, false);
+  assert.equal(capOf(unstated, '2028-07').carriedForwardAvailable, toCents(10_000));
+
+  // October, stated under $500,000 while the October balance is over it: the STATED figure decides.
+  const open = capOf(project(settings('2027-10-01'), kit(toCents(520_000), STATED_2026_27, undefined, toCents(480_000)), []), '2027-10');
+  assert.equal(open.totalSuperBalance, toCents(480_000));
+  assert.equal(open.closedByTotalSuperBalance, false);
+  assert.equal(open.carriedForwardAvailable, toCents(10_000));
+  // And the other way: October under, 30 June at $500,000 — closed.
+  const shut = capOf(project(settings('2027-10-01'), kit(toCents(480_000), STATED_2026_27, undefined, toCents(500_000)), []), '2027-10');
+  assert.equal(shut.totalSuperBalance, toCents(500_000));
+  assert.equal(shut.closedByTotalSuperBalance, true);
+  assert.equal(shut.carriedForwardAvailable, 0);
+});
+
 // --- The door ----------------------------------------------------------------------------------------
 
 const planWith = (stated, asAtDate = '2027-07-01') => {
@@ -215,4 +273,19 @@ test('parsePlan reads a stated unused cap and refuses one it cannot mean', () =>
   refusedAt({ '2026-27': -1 }, 'statedUnusedConcessionalCap["2026-27"]');
   assert.throws(() => parsePlan(planWith({ '2026-27': 10.5 })), PlanFileAmountError);
   assert.throws(() => parsePlan(planWith([])), PlanFileHouseholdError);
+});
+
+test('parsePlan reads the stated 30 June balance, and refuses it where the plan’s own balances are the 30 June ones', () => {
+  const at = (asAtDate, value) => {
+    const file = planWith(undefined, asAtDate);
+    delete file.household.persons[0].statedUnusedConcessionalCap;
+    file.household.persons[0].statedTotalSuperBalanceAt30June = value;
+    return file;
+  };
+  assert.equal(parsePlan(at('2026-09-01', toCents(480_000))).household.persons[0].statedTotalSuperBalanceAt30June, toCents(480_000));
+  assert.equal('statedTotalSuperBalanceAt30June' in parsePlan(JSON.parse(JSON.stringify(DEMO_PLAN))).household.persons[0], false, 'absent stays absent');
+  assert.throws(() => parsePlan(at('2026-07-01', toCents(480_000))),
+    (error) => error instanceof PlanFileHouseholdError && error.message.includes('statedTotalSuperBalanceAt30June') && /already are the 30 June ones/.test(error.message));
+  assert.throws(() => parsePlan(at('2026-09-01', -1)), PlanFileHouseholdError);
+  assert.throws(() => parsePlan(at('2026-09-01', 10.5)), PlanFileAmountError);
 });

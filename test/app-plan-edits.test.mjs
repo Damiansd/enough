@@ -1231,7 +1231,8 @@ test('the salary-sacrifice box says how to end it, and the guide names every dir
   assert.match(guide, /switching the original entry off[\s\S]*removes it from every year it ever ran/, 'must distinguish stopping from switching off');
   assert.match(guide, /refused outright if the two together are over the year's\s+cap/, 'must say the over-cap amount is REFUSED, and that the Guarantee counts');
   assert.match(guide, /under the cap isn't proof/, 'must say that passing the cap check is not a finding of compliance');
-  assert.match(guide, /unused cap from\s+earlier years isn't counted/, 'must say WHY being under the cap proves nothing');
+  // P3-4b slice 2: unused cap from before the plan can now be typed in, so the WHY is that it counts only if it is.
+  assert.match(guide, /unused cap from a year before your plan starts counts only if you type it in/, 'must say WHY being under the cap proves nothing');
   assert.match(guide, /personal contributions you claim a deduction for aren't held/, 'must name the second limb the total is missing');
   assert.match(guide, /Chapter 27|#division-293/, 'must send the reader to the extra tax for high incomes');
   assert.match(guide, /never bigger than what you actually earn/, 'must state the DIRECTION of the over-the-pay cap');
@@ -1437,4 +1438,86 @@ test('P9-2c: the HEAS box says it is a LOAN, and the guide carries the rules beh
   assert.match(guide, /150% of the\s+full Age Pension rate/);
   assert.match(guide, /Only from Age Pension age, and only if you own your home/);
   assert.match(guide, /doesn't give you a Pensioner Concession Card/i);
+});
+
+// --- P3-4b slice 2: "Add a catch-up" — offered, never bound (ADR-0004) ------------------------------
+
+import { CatchUpRefusedError, checkedCatchUp, planWithCatchUp, savePlan as saveCatchUp, validatedPlan as walkedPlan } from '../dist/app/planEdits.js';
+import { catchUpOffer } from '../dist/app/financialYearRows.js';
+
+/** Kit, 47, $6,000 a fortnight, $10,000 of FY2026-27 left unused, plan dated 1 July 2027. */
+const kitPlan = ({ perFortnight = 600_000, entries = [] } = {}) => parsePlan({
+  version: 2,
+  settings: { ...JSON.parse(JSON.stringify(DEMO_PLAN.settings)), asAtDate: '2027-07-01', planningHorizonAge: 50, nominalReturn: 0 },
+  household: {
+    persons: [{
+      name: 'Kit',
+      dateOfBirth: '1980-03-15',
+      superInterests: [{ phase: 'accumulation', balance: 10_000_000 }],
+      parcels: [],
+      employmentIncomePerFortnight: perFortnight,
+      workBonusBalance: 0,
+      statedUnusedConcessionalCap: { '2026-27': 1_000_000 },
+    }],
+    homeStatus: 'occupied',
+  },
+  entries,
+  scenarios: [{ id: 'baseline', name: 'Baseline', parentId: null, entryIds: entries.map((entry) => entry.id) }],
+  activeScenarioId: 'baseline',
+});
+const inYear = (months, fy) => months.filter((month) => month.month >= `${fy.slice(0, 4)}-07` && month.month <= `${Number(fy.slice(0, 4)) + 1}-06`);
+
+test('P3-4b — the catch-up is the year’s remaining room less its own contributions, whole dollars down, and the walk keeps it inside the total cap', () => {
+  const plan = kitPlan();
+  const { months } = walkedPlan(plan);
+  const june = inYear(months, '2027-28').at(-1).concessionalCapByPerson[0];
+  assert.equal(june.carriedForwardAvailable, 1_000_000);
+  const offer = catchUpOffer(inYear(months, '2027-28'), 0);
+  // The room at the year's END: the cap and the carry-forward, less the whole year's Guarantee.
+  assert.equal(offer, Math.floor(june.remaining / 100) * 100);
+  assert.ok(offer < june.generalCap + june.carriedForwardAvailable - 1_000_000, 'sized without the year’s own Guarantee');
+
+  const candidate = checkedCatchUp(plan, months, 0, '2027-28', ['catch-up', 'catch-up-stop'], '2027-07-01');
+  const saved = parsePlan(candidate);
+  const [start, stop] = saved.entries.slice(-2);
+  assert.deepEqual([start.id, start.date, start.owner, start.params], ['catch-up', '2027-07-01', 'personA', { kind: 'salarySacrificed', annualAmount: offer, interestIndex: 0 }]);
+  assert.deepEqual([stop.id, stop.date, stop.owner, stop.params], ['catch-up-stop', '2028-07-01', 'personA', { kind: 'stopped' }]);
+  assert.deepEqual(saved.scenarios[0].entryIds, ['catch-up', 'catch-up-stop']);
+  // Through the walk: the year's contributions rose by the offer, stayed inside the total cap, and
+  // no cap note was raised; the next year has no sacrifice.
+  const after = walkedPlan(candidate).months;
+  const afterJune = inYear(after, '2027-28').at(-1).concessionalCapByPerson[0];
+  assert.ok(Math.abs(afterJune.usedSoFar - june.usedSoFar - offer) <= 12);
+  assert.ok(afterJune.usedSoFar <= afterJune.generalCap + afterJune.carriedForwardAvailable);
+  assert.ok(afterJune.remaining < 100, String(afterJune.remaining));
+  assert.equal(after.flatMap((month) => month.notes).filter((note) => note.subject === 'concessional cap exceeded').length, 0);
+  assert.equal(inYear(after, '2028-29').at(-1).concessionalCapByPerson[0].usedSoFar, inYear(months, '2028-29').at(-1).concessionalCapByPerson[0].usedSoFar);
+});
+
+test('P3-4b — a catch-up is refused by name, and nothing is written, where the pay cannot carry it or a sacrifice already runs', async () => {
+  // $1,000 a fortnight cannot carry the $38,000-odd of room a stated $30,000 leaves.
+  const poor = parsePlan({ ...kitPlan({ perFortnight: 100_000 }), household: { ...kitPlan().household, persons: [{ ...kitPlan().household.persons[0], employmentIncomePerFortnight: 100_000, statedUnusedConcessionalCap: { '2026-27': 3_000_000 } }] } });
+  assert.throws(
+    () => checkedCatchUp(poor, walkedPlan(poor).months, 0, '2027-28', ['a', 'b'], '2027-07-01'),
+    (error) => error instanceof CatchUpRefusedError && /Kit's pay in FY2027-28 cannot carry/.test(error.message),
+  );
+  // A sacrifice already standing: a catch-up would replace it and then stop it.
+  const running = kitPlan({ entries: [{ id: 's', date: '2027-07-01', owner: 'personA', type: 'SUPER_CONTRIBUTION', params: { kind: 'salarySacrificed', annualAmount: 100_000, interestIndex: 0 }, enabled: true, createdAt: '2027-07-01' }] });
+  assert.throws(
+    () => checkedCatchUp(running, walkedPlan(running).months, 0, '2027-28', ['a', 'b'], '2027-07-01'),
+    (error) => error instanceof CatchUpRefusedError && /already has a salary sacrifice running in FY2027-28/.test(error.message),
+  );
+  // A year with no carried-forward room offers nothing to add.
+  const plan = kitPlan();
+  assert.throws(() => checkedCatchUp(plan, walkedPlan(plan).months, 0, '2026-27', ['a', 'b'], '2027-07-01'), CatchUpRefusedError);
+  // The refusal reaches no transport: it is thrown before `save` is named.
+  let writes = 0;
+  const transport = { writePlan: async () => { writes += 1; } };
+  const tryIt = async () => saveCatchUp(transport, checkedCatchUp(poor, walkedPlan(poor).months, 0, '2027-28', ['a', 'b'], '2027-07-01'));
+  await assert.rejects(tryIt, CatchUpRefusedError);
+  assert.equal(writes, 0);
+  // Building one writes nothing either — only `save` does, and only when handed the candidate.
+  planWithCatchUp(plan, { person: 0, financialYear: '2027-28', amount: 100_000 }, ['a', 'b'], '2027-07-01');
+  checkedCatchUp(plan, walkedPlan(plan).months, 0, '2027-28', ['a', 'b'], '2027-07-01');
+  assert.equal(writes, 0);
 });

@@ -22,7 +22,7 @@
 // page. No wording that a reader could be misled by is chosen in this file or in either writer.
 import { loadPlanOrNone, PlanWriteFailure } from './loadPlan.js'; // `.js` is correct in a `.ts` file — see tsconfig.json
 import { clearPlanStatus, showEntryRefusal, showPlanFailure } from './planStatus.js';
-import { planWithActiveScenario, savePlan } from './planEdits.js';
+import { checkedCatchUp, planWithActiveScenario, savePlan } from './planEdits.js';
 import { infoButton } from './infoButton.js';
 import { entrySummary, mountEntryEditor } from './entryForm.js';
 import { mountFirstRunPanel } from './firstRunPanel.js';
@@ -66,7 +66,7 @@ import { MONEY_VIEW_BASIS, TODAYS_MONEY_NOTICE, TODAYS_MONEY_SUMMARY, moneyBasis
 import type { MoneyView } from './todaysDollars.js';
 import type { PlanFile } from '../core/parsePlan.js';
 import type { Entry, Month } from '../core/plan.js';
-import type { IsoDate } from '../data/assumptions/types.js';
+import type { FinancialYear, IsoDate } from '../data/assumptions/types.js';
 
 /**
  * The month table names an entry by its words, not its id (2026-09-23). Looked up in the whole
@@ -418,9 +418,29 @@ const boot = async (): Promise<void> => {
           : HOUSEHOLD_ASSETS,
         entryNamer(shown),
       ),
+      catchUp,
     );
     // The chat's chips link to `#month-YYYY-MM` and `#month-YYYY-MM-line-N` (plan_ai.md §6).
     anchorMonthTable(container, months);
+  };
+
+  /**
+   * **P3-4b slice 2 — "Add a catch-up", and the click is the only thing that writes it (ADR-0004).**
+   * `checkedCatchUp` sizes it off the walk on screen and walks the candidate; a refusal goes on the
+   * banner by name and nothing is sent. What passes goes through the page's one `save`, which
+   * parses and walks it again before a byte is written.
+   */
+  const catchUp = (person: number, financialYear: FinancialYear): void => {
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    let candidate: unknown;
+    try {
+      candidate = checkedCatchUp(plan, months, person, financialYear, [crypto.randomUUID(), crypto.randomUUID()], today);
+    } catch (error) {
+      showEntryRefusal(banner, error);
+      return;
+    }
+    void save(candidate);
   };
 
   // The INITIAL mode is read off the markup's own `checked`, for the reason the axis toggle's is.

@@ -312,8 +312,9 @@ test('the banner element is the one that already exists — no second notificati
   // five, since the first run (2026-09-20): the first-run form's own save can be refused by the
   // door or fail to land, and both go to THIS banner rather than to a screen of its own. Raised
   // deliberately each time — the count is here so that a second notification MECHANISM cannot be
-  // added quietly, and every one of the seven is the same mechanism reused.
-  assert.deepEqual([...MAIN.matchAll(/(showPlanFailure|showEntryRefusal|clearPlanStatus)\(banner/g)].length, 7);
+  // added quietly, and every one of the seven is the same mechanism reused. EIGHT since P3-4b slice 2
+  // (2026-09-30): a catch-up the pure layer refuses never reaches `save`, and its refusal goes to THIS banner.
+  assert.deepEqual([...MAIN.matchAll(/(showPlanFailure|showEntryRefusal|clearPlanStatus)\(banner/g)].length, 8);
   // And the two that were added are the first run's, inside the branch that returns before the
   // page is mounted — not a second reporter somewhere in the ordinary path.
   const firstRun = /if \(loaded === null\) \{[\s\S]*?\n  \}/.exec(MAIN)[0];
@@ -329,7 +330,10 @@ test('planEdits.ts reaches for no clock, no randomness and no transport of its o
   for (const forbidden of [/new Date\(/, /Date\.now\(/, /randomUUID/, /Math\.random/, /fetch\(/, /document\./]) {
     assert.doesNotMatch(EDITS, forbidden, `planEdits.ts is no longer pure: ${forbidden}`);
   }
-  assert.deepEqual(imports(EDITS_RAW), ['../core/parsePlan.js', '../core/parsePlan.js', '../core/household.js', '../core/superInsurance.js', '../core/superInsurance.js', '../core/plan.js', '../core/plan.js', '../data/assumptions/tax.js', './demoHousehold.js', './entryLabels.js', './loadPlan.js', './scenarioList.js', './scenarioWalks.js', './scenarioWalks.js']);
+  assert.deepEqual(imports(EDITS_RAW), ['../core/parsePlan.js', '../core/parsePlan.js', '../core/household.js', '../core/superInsurance.js', '../core/superInsurance.js', '../core/plan.js', '../core/plan.js', '../data/assumptions/tax.js', './demoHousehold.js', './entryLabels.js', './loadPlan.js', './scenarioList.js', './scenarioWalks.js', './financialYearRows.js', '../core/financialYear.js', '../data/assumptions/super.js', '../core/money.js', '../data/assumptions/types.js', './scenarioWalks.js']);
+  // P3-4b slice 2 (the catch-up): `./financialYearRows.js` for `catchUpOffer`, pure; `../core/financialYear.js`
+  // for year arithmetic, pure; `../data/assumptions/super.js` for the look-back length, a constant;
+  // `../core/money.js` and `../data/assumptions/types.js` are TYPE-only.
   // `../core/superInsurance.js` (P3-17a slice 1): the cover kinds for the cover-type box — a frozen list and its type, pure.
   // `../data/assumptions/tax.js` (LR-1 slice 4): `CGT_REFORM_START`, one date constant, pure.
   // `./scenarioList.js` is a TYPE-only import (`ScenarioDeletion`) and brings no impurity with it.
