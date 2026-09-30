@@ -2,8 +2,8 @@
 
 State lives in `plan.json`, a single versioned JSON document written through to disk on every
 change by the local server. Transaction history lives in `ledger.json`, a separate file. There is
-no database, and no browser storage holds plan data. SQLite is deferred behind a written trigger
-that is expected never to fire.
+no database, and no browser storage holds plan data. SQLite is ruled out permanently (user ruling,
+2026-09-30); the written trigger below is withdrawn.
 
 ## Why
 
@@ -63,7 +63,10 @@ how many years of transactions accumulate behind it.
   layer, behind the boundary that `core/` and `data/` may not import.
 - **A full write rewrites the whole file.** At kilobytes this is irrelevant. It stops being
   irrelevant somewhere, and that somewhere is the trigger below.
-- **SQLite is deferred to Phase 11, with a trigger.** It is reconsidered if the ledger exceeds
+- **Amended 2026-09-30: SQLite is ruled out permanently by the user**, for the ledger as well as the
+  plan, whatever its size or write time. The trigger that follows is withdrawn and kept only as the
+  record of what was decided before; it is not to be re-offered.
+- ~~**SQLite is deferred to Phase 11, with a trigger.**~~ *(withdrawn)* It was to be reconsidered if the ledger exceeds
   **250,000 transactions**, or if a full ledger write is **measured** above **250ms**. Measured,
   not felt. Neither is plausible for one household's spending history — a decade of transactions
   is tens of thousands of rows — so the honest expectation is that this never fires. It is
