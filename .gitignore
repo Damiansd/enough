@@ -2,6 +2,10 @@
 # The plan file is the source of truth and lives outside this repo.
 plan.json
 *.plan.json
+# Backups and copies (e.g. plan.json.backup-YYYY-MM-DD) and a stray copy of the data folder.
+plan.json.*
+*.plan.json.*
+.enough/
 plans/
 exports/
 *.private.json
@@ -10,6 +14,7 @@ exports/
 # The ledger is a separate file from the plan and never enters the repo.
 ledger.json
 *.ledger.json
+ledger.json.*
 imports/
 *.csv
 *.ofx
