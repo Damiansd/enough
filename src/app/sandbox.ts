@@ -329,12 +329,18 @@ export interface FigureRow {
 const atText = (at: AgeAtMonth): string =>
   `${monthName(at.month)} ${at.month.slice(0, 4)} (${at.ages.map((age) => `${age.name} ${age.age}`).join(', ')})`;
 
-const monthsText = (months: number): string => {
+const plural = (count: number, unit: string): string => `${count} ${unit}${count === 1 ? '' : 's'}`;
+
+/**
+ * A gap between two dated figures in plain words: "2 years 3 months later", "5 months earlier". Later is
+ * the sandbox's date minus the selected one, whatever the row: the reader judges good or bad.
+ */
+export const monthsText = (months: number): string => {
   if (months === 0) return 'same';
   const size = Math.abs(months);
   const years = Math.floor(size / 12);
-  const parts = [...(years === 0 ? [] : [`${years}y`]), ...(size % 12 === 0 ? [] : [`${size % 12}m`])];
-  return `${months > 0 ? '+' : '−'}${parts.join(' ')}`;
+  const parts = [...(years === 0 ? [] : [plural(years, 'year')]), ...(size % 12 === 0 ? [] : [plural(size % 12, 'month')])];
+  return `${parts.join(' ')} ${months > 0 ? 'later' : 'earlier'}`;
 };
 
 /** One dated figure read off a walk: shown text, and the month it falls in (for the difference). */
@@ -343,22 +349,36 @@ interface Dated {
   readonly month: string | undefined;
 }
 
-const difference = (selected: Dated, sandbox: Dated): string => {
+/** What to say when only ONE side has a date: it now happens (sandbox dated) or no longer does. */
+interface OneSided {
+  readonly nowDated: string;
+  readonly noLongerDated: string;
+}
+
+const CANT = 'Can’t be worked out';
+
+const difference = (selected: Dated, sandbox: Dated, words: OneSided): string => {
   if (selected.month !== undefined && sandbox.month !== undefined) {
     return monthsText(monthIndex(sandbox.month) - monthIndex(selected.month));
   }
-  return selected.text === sandbox.text ? 'same' : 'changed';
+  if (selected.text === sandbox.text) return 'same';
+  // A side that cannot be read gives nothing to compare, and a guess would be a figure we don't have.
+  if (selected.text === CANT || sandbox.text === CANT) return '';
+  if (sandbox.month !== undefined) return words.nowDated;
+  if (selected.month !== undefined) return words.noLongerDated;
+  return '';
 };
 
 type Reader = (months: readonly Month[]) => Dated;
+type RowSpec = readonly [label: string, read: Reader, words: OneSided];
 
-const readers = (household: Household, series: PlanFile['settings']['economicSeries']['agePension']): readonly [string, Reader][] => [
+const readers = (household: Household, series: PlanFile['settings']['economicSeries']['agePension']): readonly RowSpec[] => [
   ['Money lasts until', (months) => {
     const answer = shortfallAge(months, household);
     return answer.firstShortfall === undefined
       ? { text: 'The whole way', month: undefined }
       : { text: atText(answer.firstShortfall), month: answer.firstShortfall.month };
-  }],
+  }, { nowDated: 'now runs out', noLongerDated: 'now lasts the whole way' }],
   ['Living on the Age Pension alone from', (months) => {
     try {
       const answer = pensionOnlyAge(months, household, series);
@@ -366,15 +386,15 @@ const readers = (household: Household, series: PlanFile['settings']['economicSer
         ? { text: 'Never', month: undefined }
         : { text: atText(answer.firstPensionOnly), month: answer.firstPensionOnly.month };
     } catch {
-      return { text: 'Can’t be worked out', month: undefined };
+      return { text: CANT, month: undefined };
     }
-  }],
+  }, { nowDated: 'now happens', noLongerDated: 'no longer happens' }],
   ['Mortgage paid off', (months) => {
     const answer = mortgagePayoff(months, household);
     if (answer.outcome === 'noLoan') return { text: 'No home loan', month: undefined };
     if (answer.clearForGood === undefined) return { text: `Still owing ${formatDollars(answer.owedAtHorizon ?? 0)}`, month: undefined };
     return { text: atText(answer.clearForGood), month: answer.clearForGood.month };
-  }],
+  }, { nowDated: 'now paid off', noLongerDated: 'no longer paid off' }],
 ];
 
 /**
@@ -387,14 +407,14 @@ export const sandboxFigures = (
   selected: readonly Month[],
   sandbox: readonly Month[] | undefined,
 ): readonly FigureRow[] =>
-  readers(household, series).map(([label, read]) => {
+  readers(household, series).map(([label, read, words]) => {
     const left = read(selected);
     const right = sandbox === undefined ? undefined : read(sandbox);
     return Object.freeze({
       label,
       selected: left.text,
       sandbox: right?.text ?? '',
-      difference: right === undefined ? '' : difference(left, right),
+      difference: right === undefined ? '' : difference(left, right, words),
     });
   });
 

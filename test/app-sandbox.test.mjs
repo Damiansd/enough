@@ -27,6 +27,7 @@ import {
   shiftedDate,
   spendLabel,
   sustainableRow,
+  monthsText,
 } from '../dist/app/sandbox.js';
 
 const LATER_SPEND = {
@@ -235,7 +236,11 @@ test('the figures show the difference, and a refused sandbox leaves its column b
   const parent = project(PLAN.settings, PLAN.household, scenarioEntries(PLAN, scenarioById(PLAN, 'baseline')));
   const smaller = sandboxWalk(sandboxCandidate(PLAN, 'baseline', at({ refinanceBalance: toCents(200_000) }), IDS));
   const [, , mortgage] = sandboxFigures(PLAN.household, undefined, parent, smaller.months);
-  assert.match(mortgage.difference, /^−/);
+  assert.match(mortgage.difference, /^(\d+ years?)?( ?\d+ months?)? earlier$/);
+  // The one-sided case names what happened, never a bare "changed" (user ruling 2026-09-30: state the gap).
+  const early = sandboxWalk(sandboxCandidate(PLAN, 'baseline', at({ spendFactor: 1.5 }), IDS));
+  const [lasts] = sandboxFigures(PLAN.household, undefined, parent, early.months);
+  assert.equal(lasts.difference, 'now runs out');
   const blank = sandboxFigures(PLAN.household, undefined, parent, undefined);
   for (const row of blank) {
     assert.equal(row.sandbox, '');
@@ -261,4 +266,12 @@ test('a parent edit that removes a slider\'s target drops that slider\'s change 
   assert.deepEqual(kept.positions.retireMonths, { personA: 4 });
   assert.equal(kept.notices.length, 1);
   assert.match(kept.notices[0], /refinance/);
+});
+
+test('a gap between two dates reads in plain words, later or earlier', () => {
+  assert.equal(monthsText(0), 'same');
+  assert.equal(monthsText(27), '2 years 3 months later');
+  assert.equal(monthsText(-12), '1 year earlier');
+  assert.equal(monthsText(-1), '1 month earlier');
+  assert.equal(monthsText(5), '5 months later');
 });
