@@ -4426,7 +4426,7 @@ Jump to a topic:
 > Open Claude Code in the *enough* folder and paste this in:
 
 ```
-Please do a legislation refresh for enough. Research the latest Australian legislation and government figures behind every source in Chapter 85 of userguide.md, and look for any new rules that affect retirement forecasting. Update the logic and figures in enough to match, and run the full test suite. Then update all documentation, including the user guide: set each source's Checked date, fix or replace any link that no longer opens, and set the "Last Claude legislation refresh" date to today. Tell me what changed, and ask me before changing anything you're unsure about.
+Please do a legislation refresh for enough. Research the latest Australian legislation and government figures behind every source in Chapter 85 of userguide.md, and look for any new rules that affect retirement forecasting. Update the logic and figures in enough to match, and run the full test suite. Then update all documentation, including the user guide: set each source's Checked date, fix or replace any link that no longer opens, and set the "Last Claude legislation refresh" date to today. Also refresh the ASFA Retirement Standard figures that Chapter 20 quotes, and the note in docs/research, from https://www.superannuation.asn.au/consumers/retirement-standard/ (ASFA updates them every three months). That site blocks plain downloads, so open it in headless Chrome, not an archived copy, which can be a quarter out of date. Tell me what changed, and ask me before changing anything you're unsure about.
 ```
 
 **Last Claude legislation refresh:** 29 Sep 2026
