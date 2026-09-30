@@ -9391,7 +9391,7 @@ scratchpad of session 2026-09-25).
   already-taxed share reduces the tax; the canary was `test/app-settings-panel.test.mjs`'s "P3-22h — the
   two boxes are asked for in PLAIN WORDS", now inverted to forbid the interim copy
 
-## Phase 17 — The user guide inside the app (approach approved 2026-09-28, not built)
+## Phase 17 — The user guide inside the app (approach approved 2026-09-28, SHIPPED 2026-09-28)
 
 *Six rulings from a design interview on 2026-09-28. The guide is **reference**: something you go and read,
 not help that sits beside the numbers. It opens in its own tab, and each ⓘ box is a way in.*
@@ -9625,7 +9625,7 @@ guide Chapter 85.
   checks (403).** They were checked through Internet Archive copies up to 15 months old; the user
   should open one or two in a browser to confirm they still load.
 
-## Phase 18 — Try changes: a slider sandbox over the chart (designed 2026-09-30, not built)
+## Phase 18 — Try changes: a slider sandbox over the chart (designed 2026-09-30, SHIPPED @22c2551)
 
 *Rulings from a design interview on 2026-09-30. The idea: play with a few big choices against the
 chart, then keep the version you like. **A sandbox is an unsaved child Scenario.** It needs no new
