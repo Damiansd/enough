@@ -167,7 +167,7 @@ Never averaged across an account: the 12-month discount and parcel selection bot
 parcel is sold, and an average expresses neither.
 _Avoid_: purchase price, book value, average cost
 
-**Glide Path**:
+**Glide Path** *(ruled out 2026-09-30 — not built, not to be offered; use a `RETURN_CHANGE` entry)*:
 The return assumption expressed as age bands — High Growth, Balanced, Conservative — per Person
 and per account. A Dated Parameter, so the bands resolve into synthetic `RETURN_CHANGE` entries
 before projection. **Deterministic**: it is not a distribution and not a Monte Carlo concession.

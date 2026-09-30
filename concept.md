@@ -775,6 +775,8 @@ makes an intention checkable, which is the same reason spending presets generate
 
 ### 5.13 Investment return phasing — the glide path
 
+**RULED OUT by the user, 2026-09-30: there is no Glide Path.** Age bands of returns, set once and resolved automatically, will not be built and are not to be re-offered. A change of assumed return is stated as an ordinary `RETURN_CHANGE` entry ("Change the investment return"), one rate from one date, like any other entry. The rest of this section is kept as the record of the idea.
+
 Added 2026-09-04. Returns are a **Setting**, and a single number held for forty years is a poor
 one for a Household that intends to de-risk as it approaches and enters retirement.
 
