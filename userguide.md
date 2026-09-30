@@ -1362,16 +1362,16 @@ works out what two kinds of retired life cost, and updates the figures every thr
 - **Comfortable** — good health insurance, a decent car, eating out, and a trip overseas now and
   then.
 
-For March 2026, for people aged 65 to 84 who own their home outright, ASFA's figures were:
+For the three months to June 2026, for people aged 65 to 84 who own their home outright, ASFA's figures were:
 
 | | Modest | Comfortable |
 |---|---|---|
-| One person | $36,434 a year | $55,923 a year |
-| A couple | $52,473 a year | $78,566 a year |
+| One person | $36,548 a year | $56,166 a year |
+| A couple | $52,690 a year | $78,998 a year |
 
-People aged 85 and over spend a little less: ASFA's comfortable figure for them is $53,656 for one
-person and $73,970 for a couple. Its modest figures for people who rent are higher: $51,164 for one
-person and $69,002 for a couple.
+People aged 85 and over spend a little less: ASFA's comfortable figure for them is $53,964 for one
+person and $74,484 for a couple. Its modest figures for people who rent are higher: $51,418 for one
+person and $69,376 for a couple.
 
 These figures fit the box well. They're in today's money, and they assume there's no home loan
 left, so they already leave out the repayment. They're only a yardstick, though. Your own spending

@@ -1,14 +1,26 @@
 # ASFA Retirement Standard: research notes
 
-Accessed: 2026-09-30 (all pages fetched via web.archive.org because superannuation.asn.au returns HTTP 403 to curl; snapshot dates given per source).
+Accessed: 2026-09-30. June 2026 figures come from the live site via headless Chrome. The March 2026 and earlier figures come from web.archive.org snapshots, dated per source.
 
 Note on the name: the user wrote "AFSA". AFSA is the Australian Financial Security Authority (the bankruptcy regulator) and does not publish retirement spending levels. The publisher is ASFA (Association of Superannuation Funds of Australia).
 
 ## Headline: latest published figures
 
-Latest quarter I could find on a primary ASFA page: **March quarter 2026** (budgets tables PDF; ASFA consumer page archived 2026-09-08 shows "March quarter 2026"). The March 2026 budgets were published around June 2026 (PDF upload path `/2026/06/`; exact release date not stated on the page). I found no June quarter 2026 figures; they may exist on the live site (not reachable) so treat "latest" as "latest I could verify".
+**Latest: June quarter 2026**, read from the LIVE site on 2026-09-30. The first draft of this note said March 2026 was the latest, because the archive route only reached a 2026-09-08 snapshot. That was wrong: the live page already showed June 2026, and the user's screenshot confirms it. superannuation.asn.au sits behind a Cloudflare challenge that blocks curl (403), the r.jina.ai reader and direct PDF downloads. **Headless Chrome gets through**: run `--dump-dom` on the page, and for the PDF, `fetch()` it from within the loaded page over the DevTools protocol. A copy of the PDF is saved alongside this note.
 
-### Annual spending, homeowners, March quarter 2026
+### Annual spending, homeowners, June quarter 2026
+
+| Household | Lifestyle | Ages 65-84 | Ages 85+ |
+|---|---|---|---|
+| Single | Comfortable | $56,166 | $53,964 |
+| Single | Modest | $36,548 | $34,619 |
+| Couple | Comfortable | $78,998 | $74,484 |
+| Couple | Modest | $52,690 | $49,611 |
+
+Other June 2026 (65-84) figures: modest renters single $51,418, couple $69,376. Full Age Pension incl. supplements: single $31,223, couple $47,070. The lump sums are unchanged (see below).
+Sources: live consumer page `https://www.superannuation.asn.au/consumers/retirement-standard/` (65-84 table, heading "June quarter 2026"); tables PDF `https://www.superannuation.asn.au/wp-content/uploads/2026/09/June2026-RS-Tables_V3.pdf` (uploaded Sept 2026; "Total annual expenditure" rows for 65-84, renters and 85+).
+
+### Previous quarter: annual spending, homeowners, March quarter 2026
 
 | Household | Lifestyle | Ages 65-84 | Ages 85+ |
 |---|---|---|---|
