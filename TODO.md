@@ -9648,6 +9648,7 @@ guide Chapter 85.
   no switched refusal x3, every kept account converting, old note text, TTR left out of the cap,
   "released in part" on a TTR). Guide Chapters 18 and 25, register (conditionOfRelease section,
   RF-2 paragraph).
+- [x] **RF-2b A TTR started before the first Retire, on a "keep in accumulation" account, runs as a TTR to 65 (RULED 2026-09-30: leave it).** The user ruled the tick means "don't switch this account at retirement", TTR or not; it understates (15% earnings tax, 10% draw cap from the Retire to 65). A TTR started after a return still converts at the next stop (RF-2). Guide ch 25 already says so.
 - [ ] **RF-3 A TTR needs a second accumulation account split by hand.** The walk cannot open or
   split an account mid-walk; guide Chapter 25 tells the user. Revisit if the walk ever can.
 - [ ] **RF-4 Life stages "Retires ·" label reads a pre-plan stop's plan-start month** (existing
