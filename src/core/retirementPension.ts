@@ -50,10 +50,12 @@ export type RetirementSwitch =
  * `WORK_PATTERN_CHANGE` with days dated strictly after the day a Person stopped work is a return to
  * work: the salary starts again. One on the stop day itself, or with zero days, is not.
  *
- * In law the return undoes nothing already released: reg 6.12(1) makes the benefits preserved "at
- * that time" unrestricted, and reg 6.18(2)(a) ties cashing to what had accrued when the condition
- * was met. New contributions are preserved until the next cessation at 60 or over (reg 6.01(7)(b)(i),
- * item 101) or age 65 (item 106). An account-based pension keeps paying (ITAA 1997 s 307-80(1)).
+ * In law the return undoes nothing already released, but only as a fixed dollar figure: reg 6.12(1)
+ * makes the benefits preserved "at that time" unrestricted, and reg 6.18(2)(a) ties cashing to what
+ * had accrued when the condition was met. New contributions, and all earnings after the stop, are
+ * preserved until the next cessation at 60 or over (reg 6.01(7)(b)(i), item 101) or age 65 (item
+ * 106); `project()` tracks the released amount per account (RF-1). An account-based pension keeps
+ * paying (ITAA 1997 s 307-80(1)).
  */
 export const returnsToWork = (entry: Entry, stoppedOn: IsoDate): boolean =>
   entry.type === 'WORK_PATTERN_CHANGE' && entry.params.daysPerWeek > 0 && entry.date > stoppedOn;

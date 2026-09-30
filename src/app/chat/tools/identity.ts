@@ -79,6 +79,7 @@ import {
   accountBasedPensionNotSweptClaimNote,
   cessationBeforePreservationAgeClaimNote,
   releasedClaimNote,
+  releasedInPartClaimNote,
   releasedEmptyClaimNote,
   superWithdrawalTaxNote,
   ttrNotSweptClaimNote,
@@ -189,6 +190,7 @@ const NAMED_CLAIM_NOTES: readonly NoteText[] = [
   accountBasedPensionNotSweptClaimNote,
   releasedEmptyClaimNote,
   releasedClaimNote,
+  releasedInPartClaimNote,
 ];
 
 /**

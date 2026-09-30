@@ -2429,12 +2429,24 @@ Finding 2 of its row above.
 cessation, the reversed cessation still satisfies the ground: SISR reg 6.12(1) makes the benefits
 preserved *"at that time"* unrestricted non-preserved, and reg 6.18(2)(a) ties cashing to what had
 accrued when the condition was satisfied. New contributions after the return are preserved until the
-next cessation at 60 or older (item 101) or 65 (item 106). The walk tracks release per Person, not
-per dollar, so `gainfulEmploymentAsAt` states a returner `{ ceased: false }` until the next stop, and
-the `PreservedBenefitError` / limb 5 / `accessibleWealth` gates lock every accumulation account of
-theirs: **under-permissive, bounded by those balances on the return day**, and said in the month's
-`back at work` note. An account-based pension is not gated and keeps paying. A stop after the return
-is its own cessation (`workSpells`), which the fund-earnings-tax interest also reads.
+next cessation at 60 or older (item 101) or 65 (item 106). An account-based pension is not gated and
+keeps paying. A stop after the return is its own cessation (`workSpells`), which the fund-earnings-tax
+interest also reads.
+
+**RF-1 (built 2026-09-30): the released amount is a FIXED dollar figure, per Person per account.** SISR
+6.03 and 6.10(1) make the amount unrestricted at the stop a dollar amount, and 6.18(2) preserves
+everything that accrues after it, earnings on the released money included. So `project()` keeps, for a
+stop that met a condition of release (the `back at work` note's `freed` test), each non-pension account's
+balance at the START of the stop month (before that month's growth and Guarantee), takes off every draw
+until the return, and cuts it to the balance on the return. While back at work it is cut to the balance
+after every debit (fees, insurance, fund tax, Div 293, losses) and reduced by every draw; it never grows.
+It is cleared at the next stop (which captures its own), at death and at the automatic release (65).
+`gainfulEmploymentAsAt` still says `{ ceased: false }`; the entry path and limb 5 give the gate the
+freeing stop's cessation and `min(released, balance)`, and write back the real balance less what was
+paid, and `accessibleWealth` adds the same `min(released, balance)`. A lump sum above it is capped to it,
+on the cap-at-balance precedent. **Residual, the safe direction:** a stop before the plan starts, or a
+return before it, releases nothing here (all of it locked while back at work), and growth between the
+stop and the return is read as preserved on the strict reading.
 
 **Everything reachable through this module now has a row, and the list of what does not is worth
 keeping.** `ttrPaymentRange` calls `conditionOfRelease` and then `minimumDrawdown`, and both can

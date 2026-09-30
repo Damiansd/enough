@@ -1236,12 +1236,16 @@ What happens to super:
 
 - **Super you had when you retired stays yours to use** if you retired at 60 or older. Going back
   to work doesn't lock it up again.
+- **That amount is fixed in dollars.** It is what each account held when you stopped, less anything
+  you took out before going back. It doesn't grow: the earnings on it after you stopped are locked,
+  like new money. Take some out and there is that much less left to take. If an account falls below
+  it, through fees or a bad year, what you can take falls with it and doesn't come back.
 - **An account-based pension keeps paying.** Work doesn't stop it.
 - **New money is locked.** Your employer's super goes into an account still building up. It stays
-  locked until you stop work again at 60 or older, or turn 65.
-- **The forecast locks a little more than the law does.** It can't tell old money from new inside one
-  account, so it treats every account of yours that is still building up as locked until then. It may
-  show you less money you can reach than you really have. The month you go back says so.
+  locked, with all the earnings, until you stop work again at 60 or older, or turn 65. Then all of
+  it is yours to use.
+- **Asking for more than is free gets you what is free.** A lump sum bigger than that fixed amount
+  pays the fixed amount and no more; the rest stays in the account.
 - **A pension account can't take new money.** If every account of yours became a pension when you
   retired, your employer's super has nowhere to go, and the forecast stops with a message saying so.
   A real fund would open a new account for you; *enough* can't open one part-way through the plan.

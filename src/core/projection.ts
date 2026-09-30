@@ -221,7 +221,7 @@ import type { CoverKept } from './superInsurance.js';
 import { ageAt, assertIsoDate, financialAssets, homeTreatment, isCouple, mortgageMonth, mortgagePayoffMonth, offsetInterestByOwner, splitAssets } from './household.js';
 import { CessationBeforePreservationAgeError, benefitAccess, conditionOfRelease } from './conditionOfRelease.js';
 import type { GainfulEmployment } from './conditionOfRelease.js';
-import { TTR_PAYMENT_TAX_NOTE, releasedSuperannuationOffer, requireTtrPaymentAge, superLumpSumWithdrawal } from './superLumpSum.js';
+import { TTR_PAYMENT_TAX_NOTE, releasedInPartClaimNote, releasedSuperannuationOffer, requireTtrPaymentAge, superLumpSumWithdrawal, underTaxFreeAgeClaimNote } from './superLumpSum.js';
 import { ttrAnnualCeiling } from './ttrPaymentRange.js';
 import { accumulationInterest, fundEarningsTax, phaseHeldForTheWholeYear, phaseHeldFrom, retirementPhaseInterest } from './superPhase.js';
 import type { EarningsPhase, PhaseYearFraction, SuperInterest as FundEarningsSuperInterest } from './superPhase.js';
@@ -3414,12 +3414,18 @@ export const accessibleWealth = (
    * answer differently about the same Person on the same day.
    */
   gainfulEmploymentFor: (personIndex: number) => GainfulEmployment,
+  /**
+   * **RF-1: a Person back at work after a stop that freed their super reaches a fixed part of each
+   * account, not none of it.** `project()` passes the same released amount the entry path and limb 5
+   * are capped to; `undefined` where nothing is released that way.
+   */
+  releasedWhileBackAtWorkFor: (personIndex: number, slot: number) => Cents | undefined,
 ): Cents =>
   // **The Household figure is the per-Person figures plus the shared Offset, and it is nothing else
   // (P7-6).** The rule — which super a Condition of Release has reached — is written once, below.
   // The Offset is added HERE and only here, because it is a Household account under P4-3b and no
   // Person owns a share of it.
-  accessibleWealthByPerson(household, date, gainfulEmploymentFor).reduce<Cents>(
+  accessibleWealthByPerson(household, date, gainfulEmploymentFor, releasedWhileBackAtWorkFor).reduce<Cents>(
     (sum, own) => addCents(sum, own),
     household.openingOffsetBalance ?? toCents(0),
   );
@@ -3443,6 +3449,7 @@ export const accessibleWealthByPerson = (
   household: Household,
   date: IsoDate,
   gainfulEmploymentFor: (personIndex: number) => GainfulEmployment,
+  releasedWhileBackAtWorkFor: (personIndex: number, slot: number) => Cents | undefined,
 ): readonly Cents[] => {
   assertIsoDate(date);
   return household.persons.map((person, personIndex) => {
@@ -3466,11 +3473,14 @@ export const accessibleWealthByPerson = (
       if (!(refusal instanceof CessationBeforePreservationAgeError)) throw refusal;
       released = false;
     }
-    for (const interest of person.superInterests) {
+    person.superInterests.forEach((interest, slot) => {
       if (interest.phase === 'accountBasedPension' || released) {
         total = addCents(total, interest.balance);
+        return;
       }
-    }
+      const inPart = releasedWhileBackAtWorkFor(personIndex, slot);
+      if (inPart !== undefined) total = addCents(total, Math.min(inPart, interest.balance) as Cents);
+    });
     return total;
   });
 };
@@ -4509,7 +4519,7 @@ export const PENSION_AT_RETIREMENT_NOTE_TEXT = Object.freeze({
   'back at work': (name: string, freed: boolean, returnDay: Fact, stopDay: Fact): string =>
     `${name} goes back to work on ${returnDay}, after stopping on ${stopDay}, so the salary starts again and any pension keeps paying. ` +
     (freed
-      ? `The super ${name} had by then stays free to use in law, but new contributions are locked until ${name} stops work again at 60 or older, or turns 65. The forecast locks all of ${name}'s super that isn't a pension until then, so it can show less you can reach than you really have.`
+      ? `The super ${name} had when stopping stays free to take out, less anything taken out since, and that amount is fixed: it does not grow. Only the money paid in since, and the earnings, are locked until ${name} stops work again at 60 or older, or turns 65.`
       : `${name} stopped before 60, which freed no super, so it stays locked until ${name} stops work again at 60 or older, or turns 65.`),
   'stopped again': (name: string, stopDay: Fact): string =>
     `${name} stops work again on ${stopDay}. At 60 or older this frees the super paid in since going back to work. The forecast doesn't turn any super into a pension at this stop: each super account stays as it is.`,
@@ -6611,6 +6621,17 @@ export const project = (
   // one's place at the END. The month's own entries come first in the array and this run is appended
   // to them, so the widening cannot reorder or drop anything a consumer already read.
   const governing = new Map<string, string>();
+  // **RF-1: the super a stop freed, per Person and account, as a fixed dollar figure** (SISR 6.03,
+  // 6.10(1), 6.18(2)). Set at a stop that met a condition of release to each account's balance at
+  // the start of that month, then reduced by every draw until the return and cut to the balance on
+  // it. It never grows: earnings on it after the stop are preserved. While back at work it is all
+  // that can be taken out of that account, and it is cut to the balance after every debit.
+  // `undefined` is nothing freed (today's reading: all of it locked). `releasedBy` is the stop that freed it.
+  // A stop is read from the month after it, so what it captures waits in `atStop` for a month: in
+  // the month of a stop after a return the Person is still back at work on the 1st.
+  const releasedSuper: (Cents | undefined)[][] = household.persons.map((person) => person.superInterests.map(() => undefined));
+  const releasedBy: (IsoDate | undefined)[] = household.persons.map(() => undefined);
+  const atStop: ({ readonly by: IsoDate | undefined; readonly released: (Cents | undefined)[] } | undefined)[] = household.persons.map(() => undefined);
   const months: Month[] = [];
   for (let month = first; month <= last; month = nextMonth(month)) {
     const date = firstDayOf(month);
@@ -7097,6 +7118,57 @@ export const project = (
         }));
       });
     });
+    // RF-1: taken here, at the start of the month, before any flow of the month moves a balance.
+    household.persons.forEach((person, personIndex) => {
+      const row = releasedSuper[personIndex] as (Cents | undefined)[];
+      const held = balances[personIndex];
+      if (held === undefined) return;
+      const captured = atStop[personIndex];
+      if (captured !== undefined) {
+        releasedBy[personIndex] = captured.by;
+        captured.released.forEach((released, slot) => { row[slot] = released; });
+        atStop[personIndex] = undefined;
+      }
+      if (conditionOfRelease({ dateOfBirth: person.dateOfBirth, on: date, gainfulEmployment: { ceased: false } }).met) {
+        releasedBy[personIndex] = undefined;
+        row.fill(undefined);
+        return;
+      }
+      const spell = spellIn(personIndex, month);
+      if (spell === undefined || monthOf(spell.change.date) !== month) return;
+      if (spell.change.kind === 'stopped') {
+        const stopDay = spell.change.date;
+        const freed = conditionOfRelease({ dateOfBirth: person.dateOfBirth, on: stopDay, gainfulEmployment: { ceased: true, ceasedOn: stopDay } }).met;
+        atStop[personIndex] = { by: freed ? stopDay : undefined, released: held.superInterestBalances.map((balance) => (freed ? balance : undefined)) };
+      } else {
+        row.forEach((released, slot) => { if (released !== undefined) row[slot] = Math.min(released, held.superInterestBalances[slot] ?? 0) as Cents; });
+      }
+    });
+    /** Back at work on the 1st: after a return, including the month of a next stop dated after the 1st. */
+    const backAtWork = (personIndex: number): boolean => {
+      const spell = spellIn(personIndex, month);
+      return spell?.change.kind === 'returned' || (spell !== undefined && spell.at > 0 && monthOf(spell.change.date) === month && spell.change.date > date);
+    };
+    /** While back at work, the stop that freed this account's released amount and that amount; otherwise `undefined`. */
+    const releasedWhileBackAtWork = (personIndex: number, slot: number): { readonly gainfulEmployment: GainfulEmployment; readonly released: Cents } | undefined => {
+      const released = releasedSuper[personIndex]?.[slot];
+      const ceasedOn = releasedBy[personIndex];
+      if (!backAtWork(personIndex) || released === undefined || ceasedOn === undefined || isAccountBasedPension(effectivePhaseFor(personIndex, slot, date))) return undefined;
+      return { gainfulEmployment: { ceased: true, ceasedOn }, released };
+    };
+    /** A draw out of an account comes out of its released amount first. */
+    const drawReleased = (personIndex: number, slot: number, paid: Cents): void => {
+      for (const row of [releasedSuper[personIndex], atStop[personIndex]?.released]) {
+        const released = row?.[slot];
+        if (row !== undefined && released !== undefined) row[slot] = Math.max(0, released - paid) as Cents;
+      }
+    };
+    /** After a debit while back at work, the released amount is never more than the balance. */
+    const clampReleased = (personIndex: number, slot: number, to: number = balances[personIndex]?.superInterestBalances[slot] ?? 0): void => {
+      const row = releasedSuper[personIndex];
+      const released = row?.[slot];
+      if (backAtWork(personIndex) && row !== undefined && released !== undefined) row[slot] = Math.max(0, Math.min(released, to)) as Cents;
+    };
     conversionDay.forEach((row, personIndex) => row.forEach((day, slot) => {
       const credited = creditedAtConversion[personIndex];
       if (day === undefined || monthOf(day) !== month || credited === undefined || credited[slot] !== undefined) return;
@@ -7154,6 +7226,9 @@ export const project = (
       }
       deathBenefit = held.superInterestBalances.reduce<Cents>((total, balance) => addCents(total, balance), toCents(0));
       held.superInterestBalances.fill(toCents(0));
+      releasedSuper[death.index]?.fill(undefined);
+      releasedBy[death.index] = undefined;
+      atStop[death.index] = undefined;
       // **LR-1: from 1 July 2027 nothing is pre-CGT any more** (s 112-175(2) deems every such asset
       // reacquired on that day), so the re-acquisition at death is limited to earlier deaths, and a
       // later one passes the parcel on unchanged (s 128-15(4)). **Ruling R1 (user, 2026-09-29,
@@ -8954,6 +9029,7 @@ export const project = (
               // balance (`SUPER_LUMP_SUM_LINE`'s own precedent).
               if (held !== undefined) {
                 held.superInterestBalances[slot] = subCents(held.superInterestBalances[slot] ?? toCents(0), outcome.tax) as Cents;
+                clampReleased(personIndex, slot);
               }
               lines.push(
                 Object.freeze({
@@ -8995,6 +9071,7 @@ export const project = (
             if (outcome.taxPayableAfterOffset > 0) {
               if (held !== undefined) {
                 held.superInterestBalances[slot] = subCents(held.superInterestBalances[slot] ?? toCents(0), outcome.taxPayableAfterOffset);
+                clampReleased(personIndex, slot);
               }
               lines.push(
                 Object.freeze({
@@ -9445,6 +9522,8 @@ export const project = (
         requireTtrPaymentAge({ personName: person.name, dateOfBirth: person.dateOfBirth, on: commencementDay > date ? commencementDay : date });
         held.remaining = subCents(held.remaining, paid);
         holding.superInterestBalances[slot] = subCents(balance, paid);
+        drawReleased(personIndex, slot, paid);
+        clampReleased(personIndex, slot);
         lines.push(
           Object.freeze({
             direction: 'inflow',
@@ -9517,11 +9596,12 @@ export const project = (
     // release arrives the FOLLOWING month, never a month early.
     //
     // **Back at work after retiring (retire flow S3): not ceased, from the month of the return until
-    // the next stop.** In law only the money accrued by the first stop stays released (reg 6.12(1),
-    // 6.18(2)(a)); the walk tracks release per Person, not per dollar, so every accumulation account of
-    // theirs is locked until they stop again at 60 or over or turn 65. That understates what they can
-    // reach by at most those accounts' balance on the return day; the `back at work` note says so. An
-    // account-based pension is not gated here at all. A stop after a return is its own cessation.
+    // the next stop.** In law only what was unrestricted at the stop stays cashable, as a fixed
+    // dollar figure (SISR 6.03, 6.10(1), 6.18(2)); money paid in since, and all earnings after the
+    // stop, are preserved until they stop again at 60 or over or turn 65. So this says not ceased,
+    // and the three readers (the entry path, limb 5, `accessibleWealth`) each ask
+    // `releasedWhileBackAtWork` for that account's released amount (RF-1) and reach that much and no
+    // more. An account-based pension is not gated here at all. A stop after a return is its own cessation.
     const gainfulEmploymentAsAt = (personIndex: number): GainfulEmployment => {
       const spell = spellIn(personIndex, month);
       if (spell?.change.kind === 'returned') return { ceased: false };
@@ -9552,6 +9632,10 @@ export const project = (
             'the interest is stated positionally and this position is not one of them. Which interest the money comes out of is refused rather than guessed — the phase of the target decides whether this build can honour the withdrawal at all',
         );
       }
+      // RF-1: back at work, the gate sees only the released amount, so a larger request is capped
+      // to it exactly as one larger than the balance is capped to the balance.
+      const partly = releasedWhileBackAtWork(personIndex, slot);
+      const heldInSlot = held.superInterestBalances[slot] as Cents;
       const withdrawal = superLumpSumWithdrawal({
         personName: person.name,
         dateOfBirth: person.dateOfBirth,
@@ -9562,16 +9646,19 @@ export const project = (
         // `accessibleWealth` makes. A cessation before Preservation Age in the 60–64 window raises
         // `CessationBeforePreservationAgeError` out of `conditionOfRelease` — the register's
         // refusal, reached only by a Household that stated a withdrawal.
-        gainfulEmployment: gainfulEmploymentAsAt(personIndex),
+        gainfulEmployment: partly?.gainfulEmployment ?? gainfulEmploymentAsAt(personIndex),
         slot,
         phase: effectivePhaseFor(personIndex, slot, date),
-        balance: held.superInterestBalances[slot] as Cents,
+        balance: partly === undefined ? heldInSlot : Math.min(partly.released, heldInSlot) as Cents,
         requested: entry.params.amount,
       });
       // **THE LINE AND THE WRITE-BACK, off the one `SuperWithdrawal`** — limb 2's discipline, and
       // through limb 2's own seam. `splitAssets`, `accessibleWealth` and next month's growth all
-      // read this array, so there is no second copy of the balance to keep in step.
-      held.superInterestBalances[slot] = withdrawal.remaining;
+      // read this array, so there is no second copy of the balance to keep in step. The real balance
+      // less what was paid, never the capped figure the gate saw.
+      held.superInterestBalances[slot] = subCents(heldInSlot, withdrawal.paid);
+      drawReleased(personIndex, slot, withdrawal.paid);
+      clampReleased(personIndex, slot);
       withdrawnFromSuper = addCents(withdrawnFromSuper, withdrawal.paid);
       if (withdrawal.paid > 0) {
         lines.push(
@@ -9863,16 +9950,19 @@ export const project = (
     household.persons.forEach((person, personIndex) => {
       if (personIndex === deceasedNow) return; // P12-1: their accounts were paid out at the death.
       person.superInterests.forEach((_interest, slot) => {
+        const partly = releasedWhileBackAtWork(personIndex, slot);
+        const heldInSlot = balances[personIndex]?.superInterestBalances[slot] as Cents;
         const offer = releasedSuperannuationOffer({
           personName: person.name,
           dateOfBirth: person.dateOfBirth,
           on: date,
-          gainfulEmployment: gainfulEmploymentAsAt(personIndex),
+          gainfulEmployment: partly?.gainfulEmployment ?? gainfulEmploymentAsAt(personIndex),
           slot,
           phase: effectivePhaseFor(personIndex, slot, date),
-          balance: balances[personIndex]?.superInterestBalances[slot] as Cents,
+          balance: partly === undefined ? heldInSlot : Math.min(partly.released, heldInSlot) as Cents,
         });
-        releasedSuperClaims.push({ personIndex, slot, available: offer.available, note: offer.note });
+        const note = partly === undefined || offer.note === underTaxFreeAgeClaimNote(person.name) ? offer.note : releasedInPartClaimNote(person.name, slot);
+        releasedSuperClaims.push({ personIndex, slot, available: offer.available, note });
       });
     });
 
@@ -10250,17 +10340,21 @@ export const project = (
       toWithdraw -= share;
       const person = household.persons[claim.personIndex] as Person;
       const held = balances[claim.personIndex] as { superInterestBalances: Cents[] };
+      const partly = releasedWhileBackAtWork(claim.personIndex, claim.slot);
+      const heldInSlot = held.superInterestBalances[claim.slot] as Cents;
       const withdrawal = superLumpSumWithdrawal({
         personName: person.name,
         dateOfBirth: person.dateOfBirth,
         on: date,
-        gainfulEmployment: gainfulEmploymentAsAt(claim.personIndex),
+        gainfulEmployment: partly?.gainfulEmployment ?? gainfulEmploymentAsAt(claim.personIndex),
         slot: claim.slot,
         phase: effectivePhaseFor(claim.personIndex, claim.slot, date),
-        balance: held.superInterestBalances[claim.slot] as Cents,
+        balance: partly === undefined ? heldInSlot : Math.min(partly.released, heldInSlot) as Cents,
         requested: share,
       });
-      held.superInterestBalances[claim.slot] = withdrawal.remaining;
+      held.superInterestBalances[claim.slot] = subCents(heldInSlot, withdrawal.paid);
+      drawReleased(claim.personIndex, claim.slot, withdrawal.paid);
+      clampReleased(claim.personIndex, claim.slot);
       lines.push(
         Object.freeze({
           direction: 'inflow',
@@ -11493,9 +11587,10 @@ export const project = (
       (personIndex, slot) => effectivePhaseFor(personIndex, slot, date),
       (personIndex, slot) => switchedOn(personIndex, slot, date),
     );
+    const releasedAtClose = (personIndex: number, slot: number): Cents | undefined => releasedWhileBackAtWork(personIndex, slot)?.released;
     // The reachable figure per Person, on the CLOSING Household — the same argument, on the same
     // day, that `accessibleAssets` below is computed with.
-    const accessibleAtClose = accessibleWealthByPerson(householdAtClose, date, gainfulEmploymentAsAt);
+    const accessibleAtClose = accessibleWealthByPerson(householdAtClose, date, gainfulEmploymentAsAt, releasedAtClose);
 
     months.push(
       Object.freeze({
@@ -11532,7 +11627,7 @@ export const project = (
         // **P4-11: the THIRD reader of the one cessation expression** (2026-09-19). Handed the
         // same `gainfulEmploymentAsAt` the entry path and limb 5 read, so this figure cannot
         // report money unreachable while the Waterfall above it spends that very balance.
-        accessibleAssets: accessibleWealth(householdAtClose, date, gainfulEmploymentAsAt),
+        accessibleAssets: accessibleWealth(householdAtClose, date, gainfulEmploymentAsAt, releasedAtClose),
         // **P7-6 — the three figures above, per Person, in `household.persons` order.** The
         // protected and assessable halves come from the very `AssetSplit` the two scalars above are
         // read off, so a member cannot disagree with the total it is part of; the reachable half is
@@ -11654,7 +11749,10 @@ export const project = (
     balances.forEach((held, personIndex) => {
       held.parcels = grownParcels[personIndex] as readonly Parcel[];
       for (let slot = 0; slot < held.superInterestBalances.length; slot += 1) {
+        // RF-1: the fees and insurance come out before the growth, and a loss is a debit too.
+        clampReleased(personIndex, slot, (held.superInterestBalances[slot] ?? 0) - (drawnPerInterest[personIndex]?.[slot] ?? 0) - (feesSuper[personIndex]?.[slot]?.administration ?? 0) - (feesSuper[personIndex]?.[slot]?.investment ?? 0) - (insuranceSuper[personIndex]?.[slot] ?? 0));
         held.superInterestBalances[slot] = grownSuper[personIndex]?.[slot] as Cents;
+        clampReleased(personIndex, slot);
       }
     });
     // **AND THE MONTH'S SALARY SACRIFICE ARRIVES AFTER THAT GROWTH (P6-8 brief 2, chunk 4)** — the
@@ -11695,6 +11793,7 @@ export const project = (
       const balance = held?.superInterestBalances[slot] ?? toCents(0);
       refuseReleaseAboveBalance({ person, slot, fy: releasedFy, balance, amount });
       (held as NonNullable<typeof held>).superInterestBalances[slot] = subCents(balance, amount);
+      clampReleased(personIndex, slot);
     });
     // **AND THE PARCELS BOUGHT THIS MONTH ARRIVE AFTER THAT GROWTH.** A parcel bought in month n earns
     // its first return in month n + 1 — the same convention as every other balance here (a month is

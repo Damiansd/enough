@@ -22,6 +22,7 @@ import {
   cessationBeforePreservationAgeClaimNote,
   releasedClaimNote,
   releasedEmptyClaimNote,
+  releasedInPartClaimNote,
   superWithdrawalTaxNote,
   ttrNotSweptClaimNote,
   underTaxFreeAgeClaimNote,
@@ -223,6 +224,7 @@ const CLAIM_SENTENCES = [
   (name) => accountBasedPensionNotSweptClaimNote(name, 0),
   (name) => releasedEmptyClaimNote(name, 0),
   (name) => releasedClaimNote(name, 0, 67),
+  (name) => releasedInPartClaimNote(name, 1),
 ];
 
 test('every note sentence that names a Person is rewritten by its own helper, and `person` becomes the label', () => {

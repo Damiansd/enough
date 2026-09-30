@@ -9600,11 +9600,25 @@ guide Chapter 85.
   balances (asAtDate). Principles offered: unconfirmed is a status, not a behaviour — the forecast
   keeps its assumption and the item says what it assumed; every item has one closing action,
   including "not doing this", which feeds the plan; the list never blocks the forecast.
-- [ ] **RF-1 Return to work locks too much (open, from retire flow S3).** While a Person is back at
-  work, EVERY accumulation account of theirs is locked (limb 5, lump sums, `accessibleWealth`). The
-  law locks only NEW money (reg 6.12(1)/6.18(2)(a) keep pre-stop money released), so reachable
-  wealth is under-stated by up to those balances on the return day; a `back at work` note says so.
-  Fixing it means tracking released vs preserved money per account.
+- [x] **RF-1 Return to work locks too much (DONE 2026-09-30, from retire flow S3).** Finding:
+  `gainfulEmploymentAsAt` said `{ ceased: false }` for a returner, so EVERY accumulation account was
+  locked (limb 5, lump sums, `accessibleWealth`). In law (SISR 6.03, 6.10(1), 6.18(2)) only the
+  amount unrestricted at the stop stays cashable, as a FIXED dollar figure; money paid in since and
+  all post-stop earnings are preserved. Built per the rulings: per Person per non-pension account,
+  the balance at the start of the month of a stop that freed it (the note's `freed` test), less every
+  draw to the return, cut to the balance on the return; while back at work cut to the balance after
+  every debit and reduced by every draw (entry path and limb 5), never grown; cleared at the next
+  stop (which captures its own, used from the month after it), death and 65. A lump sum above it is
+  capped to it, the real balance less what was paid written back. `accessibleWealth` adds
+  `min(released, balance)`. A stop or return before the plan releases nothing (unchanged). Limb 5
+  says so in a new `releasedInPartClaimNote` (registered in `chat/tools/identity.ts`). Evidence:
+  `test/core-projection-return-to-work.test.mjs` flips the two "all locked" tests to exact figures at
+  6% ($102,956.27 released vs $105,999.94 held on the return; $89,213.18 after a loss at -10%) and
+  adds tests that each go red under a mutation: capture at close (M1), released grows (M2), limb 5
+  not decremented (M3), capped write-back (M4), no clamp after fees/loss (M5), `accessibleWealth`
+  uncapped (M6), set on a stop before 60 (M7), not re-set at the next stop (M8), growth to the
+  return released (M9). Words: the `back at work` note, the guide's back-to-work chapter, the
+  register (conditionOfRelease section, RF-1 paragraph).
 - [ ] **RF-2 `TTR_START` after a return to work refuses by name (open).** Lawful (Sch 1 item 110);
   unbuilt because which later stop converts it is not decided.
 - [ ] **RF-3 A TTR needs a second accumulation account split by hand.** The walk cannot open or

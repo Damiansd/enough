@@ -2393,7 +2393,7 @@ export interface PensionAtRetirementNote {
   readonly retireDay: IsoDate;
   /** `back at work` and `stopped again` are retire flow S3's (2026-09-29): a return to work after a `RETIRE`, and a stop after that. */
   readonly outcome: 'switched' | 'under 60' | 'over the cap' | 'prior pension' | 'retired before the plan' | 'back at work' | 'stopped again';
-  /** The accounts the outcome is about, by position in `superInterests`; for `back at work`, the accumulation accounts it locks. */
+  /** The accounts the outcome is about, by position in `superInterests`; for `back at work`, the accumulation accounts whose money paid in since, and earnings, it locks. */
   readonly interestIndexes: readonly number[];
   /** What happened, in plain words. */
   readonly note: string;

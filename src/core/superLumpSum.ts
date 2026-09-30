@@ -141,7 +141,7 @@ export class TtrPaymentBelowTaxFreeAgeError extends RangeError {
 // --- The sentences that name a Person ------------------------------------------------------------
 //
 // Each is the ONE way its sentence is written, used here and by the chat connector's translation to
-// Person A / Person B (`app/chat/tools/identity.ts`), which matches them WHOLE. The six claim notes
+// Person A / Person B (`app/chat/tools/identity.ts`), which matches them WHOLE. The seven claim notes
 // are what limb 5's note is joined from (`releasedSuperannuationLimb`).
 
 export const underTaxFreeAgeClaimNote = (name: string): string =>
@@ -156,6 +156,9 @@ export const releasedEmptyClaimNote = (name: string, slot: string | number): str
   `${name}'s superannuation interest ${slot} is released and EMPTY: the gate is open and there is nothing behind it`;
 export const releasedClaimNote = (name: string, slot: string | number, age: string | number): string =>
   `${name}'s superannuation interest ${slot} is released — a Condition of Release is met and they are ${age} — so its WHOLE balance is offered, LAST, after the Offset Account. Tax on what is drawn is nil and assumes a TAXED SOURCE; the month's super withdrawal note carries that assumption in full`;
+
+export const releasedInPartClaimNote = (name: string, slot: string | number): string =>
+  `${name}'s superannuation interest ${slot} is released only in part, because ${name} is back at work: what it held when ${name} stopped work, less what has been taken out since, is offered, LAST, after the Offset Account, and the money paid in since and all earnings are locked. Tax on what is drawn is nil and assumes a TAXED SOURCE; the month's super withdrawal note carries that assumption in full`;
 
 /** A withdrawal's `taxNote`: the `SuperWithdrawalNote`'s sentence. */
 export const superWithdrawalTaxNote = (name: string, age: string | number, accountBasedPension: boolean): string =>
