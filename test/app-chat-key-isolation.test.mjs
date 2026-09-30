@@ -62,7 +62,7 @@ const sha256 = (value) =>
 // RE-PINNED 2026-09-29 (LR-1 slice 3, Div 119's minimum tax): the demo walk's lines moved from
 // 2033-03 — see `app-chat-identity.test.mjs`'s copy of the re-pin for the mechanism and the figures.
 // RE-PINNED 2026-09-29 (LR-1 slice 4): no figure moved. Dana's 11 `Income tax on capital gain` lines (2033-03 to 2035-05) each gained one `determination` entry, `CGT_MINIMUM_TAX_DETERMINATION`; a whole-walk diff finds those 11 and nothing else.
-const DEMO_DIGEST = 'a895e6545773fc348c834ab324eeb80882f678276716dca7b57cbaad43e7df28';
+const DEMO_DIGEST = '806fab4f7571820896d81b56900400b22494a361327855fb0c3b271e2e0ecc81';
 
 /** A load, a question, an edit and a save, a second question and a second save: the chat on throughout. */
 const session = async () => {
@@ -228,7 +228,7 @@ RICH.activeScenarioId = 'base';
 // 81000 cents for FY2027-28, and her only account is a pension by July 2028 (her RETIRE), so one
 // `low income super tax offset not paid` note is inserted in 2028-07; a whole-walk diff finds that note
 // (and the later notes of that month shifted one place) and nothing else.
-const RICH_DIGEST = 'baa963b43878284e63b78f3318904bc400ddfd8241a90d26f0a1acc416b6edf0';
+const RICH_DIGEST = 'b91c6e5cadb86c4c8914c9f38191ddfc233c3781af9156bec2b85d88479bbead';
 
 /** The plan loaded as the page loads it, with the chat as `settings` says, a conversation made and never asked, then walked. */
 const forecastWith = async (stored, settings) => {

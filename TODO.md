@@ -8719,10 +8719,26 @@ moved 16 → 17. Test files run green: `app-entry-form`, `app-plan-edits`, `app-
     separation starts part way through is assessed is not (O16), so the walk gives no year the
     separated amounts. Couple $1,602 each against $2,040 separated: tax is OVERSTATED, the cautious
     direction, asserted over a grid. A mid-year separation is not refused. Listed in
-    `whatCanYouModel`'s hand-kept limits
+    `whatCanYouModel`'s hand-kept limits. **Superseded 2026-09-30 by P12-4e**
   - [x] **P12-4d Byte-identity — 2026-09-24.** With no `ILLNESS_SEPARATION`, or one switched off,
     the demo walk's digest is unchanged (`72bfb895…`), and so is the connector fixture's
     (`a250af6a…`); switched on, the demo walk moves, so the equality is not vacuous
+  - [x] **P12-4e SAPTO for an illness-separated couple — 2026-09-30 (register §8 O90, closed).**
+    Reg s 9(2)(a) item 3 ($2,040 each) applies to a member of an illness separated couple, and the
+    ATO applies it where they lived apart "at any time during the year", taking the greatest amount
+    where more than one item applied. So a separation in any month of a financial year gives the
+    separated amount for the WHOLE year, with no apportionment (O16 closed for this case). They are
+    still spouses: the eligibility test reads half their combined Rebate Income and the reg s 12
+    transfer applies. The monthly accrual uses the separated amount from the separation's own month;
+    `taxYearToDate.illnessSeparated` records any month of the year, and the July true-up (and the
+    franking assessment inside it) reads that, never the live level, because July's own entries are
+    already applied when it runs. The Medicare levy needs nothing: it already reads SAPTO received.
+    Walk tests in `test/core-illness-separation.test.mjs`: a January separation settles FY2027-28 at
+    $5,261.01 for Alex against $6,485.01 as a couple; a 1 July separation leaves the year before a
+    couple's; ATO Example 9's household on FY2027-28 rates ($1,440.07 transferred, threshold
+    $41,105, SAPTO $2,619); unequal incomes pass on half combined; a franked payout year. The
+    rules-in-force panel shows the $2,040 beside the single and couple amounts. The
+    `whatCanYouModel` limit is removed. No existing fixture or golden figure moved
 
 ---
 

@@ -5758,8 +5758,8 @@ export const project = (
   // **P12-4 — the couple live apart because of illness or care, from the entry's own month.** A
   // `level` like `spending` above, and a plain `let` for its reason: the entry loop sets it and the
   // means test reads it. `undefined` is a couple living together; nothing sets it back, because no
-  // entry ends a separation. It reaches the Age Pension alone — the tax assessment keeps
-  // `relationship` as a couple (see `assessHousehold`).
+  // entry ends a separation. It reaches the Age Pension from its own month, and SAPTO (O90) for the
+  // whole financial year it falls in: `taxYearToDate.illnessSeparated` carries it to the true-up.
   let illnessSeparatedBy: string | undefined = undefined;
   // **P14-13, slice 3a — per-Person aged care state, positional with `household.persons` exactly
   // as `retiredOn`/`workPattern` are.** `careOn[i]` is the `ENTER_CARE` entry's own `date` once one
@@ -6490,6 +6490,10 @@ export const project = (
     // convention): a disposal passes the year's minimum tax capital gain so far, the true-up the
     // year's final one.
     minimumTax: readonly MinimumTaxFacts[] = [],
+    // **O90 — whether the couple was illness-separated, the live level by default** (the monthly
+    // accrual). The July true-up passes the COMPLETED year's own flag: it runs after that July's
+    // entries are applied, so the live level would belong to the new year.
+    illnessSeparated: boolean = illnessSeparatedBy !== undefined,
   ) => {
     const [personA, personB] = household.persons.map((person, index) =>
       asSaptoPerson(
@@ -6519,14 +6523,12 @@ export const project = (
     }
     return householdIncomeTax({
       fy: assessmentFy,
-      // ⚠️ **A NAMED LIMIT, NOT AN OVERSIGHT (P12-4, register §8 O90).** `ILLNESS_SEPARATION` is
-      // walked from 2026-09-24 and moves the Age Pension alone: an illness-separated couple is still
-      // assessed here as a `couple`, SAPTO included, and the third `Relationship` stays unreachable
-      // from `project()`. The separated base amount is sourced; what is not is how a year the
-      // separation starts part way through is assessed (O16), so no year is given it. The couple
-      // amount is the smaller ($1,602 each against $2,040), so this OVERSTATES tax — the cautious
-      // direction, pinned on the tax each Person pays by `test/core-illness-separation.test.mjs`.
-      relationship,
+      // **O90 — an illness-separated couple takes SAPTO's third amount ($2,040 each) for the WHOLE
+      // year the separation falls in.** Reg s 9(2)(a) item 3 applies to a Person who was a member of
+      // an illness separated couple "at any time during the year", and s 9(2)(b) takes the greatest
+      // amount where more than one item applied — so no year is split. They are still spouses, so
+      // the gate reads half their combined Rebate Income and the s 12 transfer still applies.
+      relationship: illnessSeparated && relationship === 'couple' ? 'illnessSeparated' : relationship,
       persons: personB === undefined ? [personA] : [personA, personB],
     });
   };
@@ -6630,6 +6632,8 @@ export const project = (
         readonly qualified: boolean[];
         /** LR-1 slice 3 — s 119-15(1): paid the Age Pension in ANY month of the year. See `receivesAgePensionThisMonth`. */
         readonly receivedAgePension: boolean[];
+        /** O90 — illness-separated in ANY month of the year, so SAPTO's item 3 for all of it (reg s 9(2)). */
+        illnessSeparated: boolean;
         readonly distributed: Cents[];
         /**
          * **P3-42 step 2 — each `SuperInterest`'s income share for the year, per Person AND per
@@ -8887,7 +8891,7 @@ export const project = (
             frankingCredit[personIndex] = distribution.frankingCredit;
             const outcome = frankingForIndividual({
               fy: completed.fy,
-              relationship,
+              relationship: completed.illnessSeparated && relationship === 'couple' ? 'illnessSeparated' : relationship,
               persons: frankingPersonB === undefined ? [frankingPersonA] : [frankingPersonA, frankingPersonB],
               recipient: personIndex as 0 | 1,
               distribution,
@@ -8914,6 +8918,7 @@ export const project = (
             capitalGain,
             receivedExemptPayment: completed.receivedAgePension[index] === true,
           })),
+          completed.illnessSeparated,
         );
         assessed.persons.forEach((result, index) => {
           // Positive: the year was OVER-accrued and the excess comes back. Negative: it was
@@ -9285,6 +9290,7 @@ export const project = (
         minimumTaxCapitalGain: household.persons.map(() => toCents(0)),
         qualified: household.persons.map(() => false),
         receivedAgePension: household.persons.map(() => false),
+        illnessSeparated: false,
         distributed: household.persons.map(() => toCents(0)),
         superYield: household.persons.map((person) => person.superInterests.map(() => toCents(0))),
         spouseContributionsMade: household.persons.map(() => toCents(0)),
@@ -9293,6 +9299,7 @@ export const project = (
       };
     }
     taxYearToDate.months += 1;
+    taxYearToDate.illnessSeparated = taxYearToDate.illnessSeparated || illnessSeparatedBy !== undefined;
     household.persons.forEach((_person, index) => {
       const year = taxYearToDate as NonNullable<typeof taxYearToDate>;
       // **The ASSESSABLE salary, not the gross (P6-8 brief 2, chunk 1)** — and the distinction is

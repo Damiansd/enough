@@ -650,10 +650,11 @@ export type MortgagePayoffParams = NoParams;
  * (P12-4). `NoParams`: the date is the whole of the fact. It is a `level` in `ENTRY_KIND` and holds
  * for the rest of the walk; no entry ends one, so a couple who move back together cannot say so.
  *
- * **What it changes: the Age Pension, and nothing else.** From the entry's own month each Person is
+ * **What it changes: the Age Pension and SAPTO.** From the entry's own month each Person is
  * paid the SINGLE maximum rate, against the couple's combined means and the COUPLE free areas and
- * deeming threshold (`agePension.ts`'s third path). Income tax keeps treating the pair as a couple,
- * SAPTO included — see the named limit at `projection.ts`'s tax call. `owner` is ignored, on
+ * deeming threshold (`agePension.ts`'s third path). Income tax keeps treating the pair as spouses,
+ * but SAPTO takes the illness-separated amount for the whole financial year the entry falls in
+ * (O90) — see `assessHousehold` in `projection.ts`. `owner` is ignored, on
  * `SPEND_CHANGE`'s ruling: a separation is a fact about the couple. A Household of one Person is
  * refused at the door (`parsePlan`), because there is nobody to be separated from.
  */

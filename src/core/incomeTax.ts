@@ -320,8 +320,9 @@ const SAPTO_TAPER: number = SAPTO.taperRate.value;
 /**
  * Reg s 9(2)(a) items. Reg s 9(3): a *permanently* separated Person is not a spouse and takes the
  * `single` amount; an *illness* separation keeps them spouses on a higher amount. Reg s 9(2)(b)'s
- * multiple-item rule (take the greatest where more than one item applied during the year) is not
- * modelled — the projection holds one relationship for a whole year.
+ * multiple-item rule (take the greatest where more than one item applied during the year) is met by
+ * the caller: the projection holds one relationship for a whole year, and a year with an illness
+ * separation in any month of it is `illnessSeparated` (O90) — item 3's amount is the greatest.
  */
 export type Relationship = 'single' | 'couple' | 'illnessSeparated';
 
@@ -603,9 +604,10 @@ export const seniorsAndPensionersOffset = (input: {
         : []),
       ['tax.sapto.rebateMaximumAmount', SAPTO.rebateMaximumAmount],
       ['tax.sapto.rebateReductionThreshold', SAPTO.rebateReductionThreshold],
-      [`tax.sapto.baseRebateAmount.${relationship}`, SAPTO.baseRebateAmount[
-        relationship === 'single' ? 'single' : relationship === 'couple' ? 'coupleEach' : 'illnessSeparatedEach'
-      ]],
+      // The key names the record actually read, so a caveat or an explanation can find it.
+      ...((item: 'single' | 'coupleEach' | 'illnessSeparatedEach') => [[`tax.sapto.baseRebateAmount.${item}`, SAPTO.baseRebateAmount[item]]] as const)(
+        relationship === 'single' ? 'single' : relationship === 'couple' ? 'coupleEach' : 'illnessSeparatedEach',
+      ),
     ]),
   });
 };

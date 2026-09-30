@@ -940,7 +940,7 @@ const describeParams = (entry: Entry): string => {
       return ' — whole loan paid off';
     // No figure is stated, so the row says what changes — and what does not (P12-4).
     case 'ILLNESS_SEPARATION':
-      return ' — from this month each of you is paid the single Age Pension rate, still means-tested together as a couple; income tax still treats you as a couple';
+      return ' — from this month each of you is paid the single Age Pension rate, still means-tested together as a couple; for income tax still a couple, but on the larger seniors offset for a couple living apart, for the whole financial year';
     // No figure is stated, so the row says what changes — and what does not (P12-1).
     case 'DEATH':
       return ' — from this month the other person carries on alone: means-tested as a single person, with all of this person\'s super paid to them tax-free and their investments passed to them; spending does not change unless you change it';

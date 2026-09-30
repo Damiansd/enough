@@ -99,8 +99,8 @@ test('the limits kept by hand: each one named, with its reason and where it is r
     'Partial commutations',
     'The kind of super fund',
     'Work Bonus indexation',
-    // P12-4, 2026-09-24: the separation reaches the Age Pension and not tax (register §8 O90).
-    'Tax for a couple living apart because of illness',
+    // 'Tax for a couple living apart because of illness' (P12-4) went on 2026-09-30: O90 gives the
+    // separated seniors and pensioners tax offset for the whole year, so it is no longer a limit.
     // P12-1, 2026-09-24: the year of a death is taxed as a couple (O91), and NDEP is a bound (§4.11).
     'Tax in the year one of a couple dies',
     // LR-1 slice 4, 2026-09-29: the death ruling R1 is a reading of unsettled law, and indexing is a forecast.
@@ -112,9 +112,8 @@ test('the limits kept by hand: each one named, with its reason and where it is r
   const byName = new Map(limits.map((each) => [each.limit, each]));
   assert.match(byName.get('Carry-forward of unused concessional cap').reason, /no history of past contributions/);
   assert.match(byName.get('Moving out of the home, and moving into aged care').reason, /Phase 14/);
+  assert.ok(!limits.some(({ limit, recorded }) => /illness/i.test(limit) || /O90/.test(recorded)), 'O90 is built, not a limit');
   // The direction is the point of the limit: a gap that overstates tax is the cautious one.
-  assert.match(byName.get('Tax for a couple living apart because of illness').reason, /tax is overstated, not understated/);
-  assert.match(byName.get('Tax for a couple living apart because of illness').recorded, /O90/);
   assert.match(byName.get('Tax in the year one of a couple dies').reason, /overstated for that one year, never understated/);
   assert.match(byName.get('Tax in the year one of a couple dies').recorded, /O91/);
   assert.match(byName.get('The bereavement payment').reason, /understated .* never overstated/);

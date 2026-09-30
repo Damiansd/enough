@@ -1252,7 +1252,8 @@ test('A PLAN STATED AS AT 1 JULY IS UNCHANGED BY P10-5, TO THE BYTE — the comm
   // of those 18 lines now says the minimum tax is in it (`CGT_MINIMUM_TAX_DETERMINATION`, one more
   // `determination` entry): 18 × 377 bytes = 6,786, exactly the stripped walk's growth.
   assert.notEqual(createHash('sha256').update(withoutNotes).digest('hex'), 'd5fcc8a4ea46efb02e903ff3abb2944d2324b7f2dd4df9c97e01467534422290'); // pre-slice 4
-  assert.equal(createHash('sha256').update(withoutNotes).digest('hex'), '7e96df4a0cbee2681c8f330fc027606583f8f521fbc8237190911a8c4e1a8610');
+  // RE-PINNED 2026-09-30 (O90): only the SAPTO caveat's record key changed, `.couple` -> `.coupleEach` (see the length below).
+  assert.equal(createHash('sha256').update(withoutNotes).digest('hex'), 'd88812d15b8fb926397898ecd85a08dd55019f9aadbce493445756c6cac640b0');
   assert.equal(18 * 377, 6_786);
   assert.equal(29_249 + 1_236 + 1_500 + 227 - 227 + 162 - 382 - 163 - 2 + 3, 31_603);
   assert.equal(31_603 + 22_322 + 124, 54_049);
@@ -1274,7 +1275,10 @@ test('A PLAN STATED AS AT 1 JULY IS UNCHANGED BY P10-5, TO THE BYTE — the comm
   // May 2031's 14/31, of the salary raised 58 months at 3.5% from 1 July 2026: raised first, then pro-rated.
   assert.equal(months.find((m) => m.month === '2031-05').lines.find((l) => l.description === 'Salary, Dana').amount, Math.round(Math.round(Math.round(8_060_000 * 1.035 ** (58 / 12)) * 14 / 31) / 12));
   // LR-1 slice 4: plus the 18 minimum-tax determinations, 6,786 bytes (asserted above).
-  assert.equal(withoutNotes.length, 1_669_071 - 49_115 - 1 + 54_049 + 6_786);
+  // O90 (2026-09-30): no figure moved. A SAPTO caveat now names the record actually read,
+  // `baseRebateAmount.coupleEach` rather than the non-existent `.couple`: 134 caveats x 4 bytes = 536.
+  assert.equal(withoutNotes.split('baseRebateAmount.coupleEach is stamped').length - 1, 134);
+  assert.equal(withoutNotes.length, 1_669_071 - 49_115 - 1 + 54_049 + 6_786 + 134 * 4);
   assert.equal(1_669_071, 1_669_071, 'the pre-wage-growth stripped length, kept beside the new one');
   assert.equal(1_625_677 - 50_010 + 87_793, 1_663_460, "the pre-retirement-month-pay stripped length, kept beside the new one");
   // Not one stand-in was taken, and the assertion is made over the whole walk rather than month one.

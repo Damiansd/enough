@@ -159,9 +159,9 @@ test('the copied fixture is the fd02679 fixture', () => {
   // 81000 cents for FY2027-28, and her only account is a pension by July 2028 (her RETIRE), so one
   // `low income super tax offset not paid` note is inserted in 2028-07; a whole-walk diff finds that note
   // (and the later notes of that month shifted one place) and nothing else.
-  assert.equal(sha256(RICH_WALK), 'baa963b43878284e63b78f3318904bc400ddfd8241a90d26f0a1acc416b6edf0');
+  assert.equal(sha256(RICH_WALK), 'b91c6e5cadb86c4c8914c9f38191ddfc233c3781af9156bec2b85d88479bbead');
   // RE-PINNED 2026-09-29 (LR-1 slice 4): no figure moved. Dana's 11 `Income tax on capital gain` lines (2033-03 to 2035-05) each gained one `determination` entry, `CGT_MINIMUM_TAX_DETERMINATION`; a whole-walk diff finds those 11 and nothing else.
-  assert.equal(sha256(project(DEMO_SETTINGS, DEMO_HOUSEHOLD, DEMO_ENTRIES)), 'a895e6545773fc348c834ab324eeb80882f678276716dca7b57cbaad43e7df28');
+  assert.equal(sha256(project(DEMO_SETTINGS, DEMO_HOUSEHOLD, DEMO_ENTRIES)), '806fab4f7571820896d81b56900400b22494a361327855fb0c3b271e2e0ecc81');
 });
 
 // --- Every month, through the guard, every amount labelled ---------------------------------------

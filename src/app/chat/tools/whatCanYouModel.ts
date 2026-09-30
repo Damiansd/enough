@@ -132,12 +132,6 @@ export const NOT_MODELLED: readonly Limit[] = Object.freeze([
     recorded: 'register §8 O75',
   },
   {
-    limit: 'Tax for a couple living apart because of illness',
-    reason:
-      'A couple living apart because of illness or care is paid the single Age Pension rate each, but is still taxed as a couple, including the seniors and pensioners tax offset. How a year the separation starts part way through is assessed is not settled, so no year is given the separated amounts. Taxing them as a couple never lowers the tax either of them pays, so tax is overstated, not understated.',
-    recorded: 'register §8 O90; TODO.md P12-4',
-  },
-  {
     limit: 'Tax in the year one of a couple dies',
     reason:
       'In the financial year of a death the survivor is still taxed as one of a couple, including the seniors and pensioners tax offset; from the next 1 July they are taxed as a single person. The tax office can give a widowed survivor the single offset for that year instead, so the tax may be overstated for that one year, never understated. The Medicare levy for that year is a couple’s, as the tax office treats it.',

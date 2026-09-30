@@ -92,6 +92,7 @@ const EXPECTED = {
   'tax-lito': () => leaf('tax.lito.maximumOffset'),
   'tax-sapto-single': () => leaf('tax.sapto.baseRebateAmount.single'),
   'tax-sapto-couple': () => leaf('tax.sapto.baseRebateAmount.coupleEach'),
+  'tax-sapto-illness': () => leaf('tax.sapto.baseRebateAmount.illnessSeparatedEach'),
   'tax-work-expenses': () => leaf('tax.s25130.maximumDeduction'),
   'tax-wato': (d) => (d >= '2027-07-01' ? leaf('tax.wato.maximumOffset') : undefined),
   'tax-cgt-minimum': (d) => (d >= '2027-07-01' ? leaf('tax.cgt.minimumTaxRate') : undefined),

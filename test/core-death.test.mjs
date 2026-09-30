@@ -423,7 +423,7 @@ test('without a DEATH the demo walk is byte-identical — and with one switched 
   // and lower assets raise the Age Pension in 417 months from 2033-09. The limb-3 probe moved again,
   // DOWN in 55 months from 2031-06, once her salary stops.
   // RE-PINNED 2026-09-29 (LR-1 slice 4): no figure moved. Dana's 11 `Income tax on capital gain` lines (2033-03 to 2035-05) each gained one `determination` entry, `CGT_MINIMUM_TAX_DETERMINATION`; a whole-walk diff finds those 11 and nothing else.
-  const DEMO_DIGEST = 'a895e6545773fc348c834ab324eeb80882f678276716dca7b57cbaad43e7df28';
+  const DEMO_DIGEST = '806fab4f7571820896d81b56900400b22494a361327855fb0c3b271e2e0ecc81';
   assert.equal(sha256(project(DEMO_SETTINGS, DEMO_HOUSEHOLD, DEMO_ENTRIES)), DEMO_DIGEST);
   const off = { ...death('2050-07-01', 'personB'), enabled: false };
   assert.equal(sha256(project(DEMO_SETTINGS, DEMO_HOUSEHOLD, [...DEMO_ENTRIES, off])), DEMO_DIGEST);

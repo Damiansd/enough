@@ -2933,10 +2933,14 @@ entry is called **"{{name|Live apart because of illness or care}}"**.
 
 From the date you add, each of you is paid the Age Pension **single rate** — more, between the
 two of you, than the couple rate you'd get living together. But you're still means-tested
-**together**, on your combined income and assets, and *enough* keeps taxing you as a couple.
-The law is a little kinder here. The senior's tax offset gives a couple living apart because of
-illness a higher income limit. *enough* doesn't use that limit, so it may show a little more tax
-than you would really pay.
+**together**, on your combined income and assets.
+
+For tax you're still a couple, with one difference. The seniors and pensioners tax offset has a
+larger amount for a couple living apart because of illness: up to $2,040 each, instead of $1,602.
+You get it for the **whole** financial year you start living apart in, even if you move in its last
+month, because the law gives it to anyone who was living apart at any time in the year. During
+the year, *enough* uses the larger amount from the month you move; when the year is settled in
+July, it works out the whole year again with the larger amount, and any tax overpaid comes back.
 
 ### What it's for
 

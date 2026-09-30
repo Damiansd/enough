@@ -1545,12 +1545,16 @@ test('the new Month field is ADDED and moves nothing: without it the demo digest
   // DOWN in 55 months from 2031-06, once her salary stops.
   const without = MONTHS.map(({ closingNonSuperPortfolio: _p, assetsTestThresholds: _t, ...rest }) => rest);
   // RE-PINNED 2026-09-29 (LR-1 slice 4): no figure moved. Dana's 11 `Income tax on capital gain` lines (2033-03 to 2035-05) each gained one `determination` entry, `CGT_MINIMUM_TAX_DETERMINATION`; a whole-walk diff finds those 11 and nothing else.
-  assert.equal(createHash('sha256').update(JSON.stringify(without)).digest('hex'), 'a895e6545773fc348c834ab324eeb80882f678276716dca7b57cbaad43e7df28');
+  assert.equal(createHash('sha256').update(JSON.stringify(without)).digest('hex'), '806fab4f7571820896d81b56900400b22494a361327855fb0c3b271e2e0ecc81');
   // And the whole walk, new key and all — the pin the stripped digests elsewhere leave to this one.
   // 2026-09-25: `assetsTestThresholds` was ADDED; without it the walk is the one pinned before, to the byte.
   const withoutThresholds = MONTHS.map(({ assetsTestThresholds: _t, ...rest }) => rest);
   // RE-PINNED 2026-09-29 (LR-1 slice 4), both: the 11 minimum-tax determinations, 11 × 377 = 4,147 bytes, and nothing else.
-  assert.equal(createHash('sha256').update(JSON.stringify(withoutThresholds)).digest('hex'), '666e2574255c66ebb9b16811cb65eb38e4b83fe97477fc4049671cd837b86739');
-  assert.equal(createHash('sha256').update(JSON.stringify(MONTHS)).digest('hex'), '0ed8564ca849086e107f63120507520824030bde3295b3e98225b8533e141432');
-  assert.equal(JSON.stringify(MONTHS).length, 3_623_969 + 11 * 377);
+  assert.equal(createHash('sha256').update(JSON.stringify(withoutThresholds)).digest('hex'), '8bc912e0b0ac57128b1d51ddccb7e5da759c873c58e541ca01db7af86cf59fbc');
+  assert.equal(createHash('sha256').update(JSON.stringify(MONTHS)).digest('hex'), 'd73b27b0a9d520d4ef38da00ce082131a08a8d7cf43352f627de81836f410de5');
+  // O90 (2026-09-30): the SAPTO caveat names `baseRebateAmount.coupleEach`, the record actually read,
+  // not the non-existent `.couple`: 4 bytes per caveat, no figure moved. Both digests above re-pinned for it.
+  const renamed = JSON.stringify(MONTHS).split('baseRebateAmount.coupleEach is stamped').length - 1;
+  assert.equal(JSON.stringify(MONTHS).length, 3_623_969 + 11 * 377 + renamed * 4);
+  assert.equal(JSON.stringify(MONTHS).replaceAll('baseRebateAmount.coupleEach is stamped', 'baseRebateAmount.couple is stamped').length, 3_623_969 + 11 * 377);
 });
