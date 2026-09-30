@@ -84,6 +84,9 @@ export const HINT_TEXT = 'The picked scenario is drawn, listed, and gets your ne
  * from the source comments, because a warning nobody parses is not one.
  */
 /** What stays on the page: the side effect in short, with `SWITCH_SCOPE_NOTE` behind the ⓘ (P17-6). */
+/** P3-20f — the ⓘ's short label beside the Age Pension sentence, where the pure layer attached a note. */
+export const AGE_PENSION_NOTE_SUMMARY = 'Super under Age Pension age is not counted';
+
 export const SWITCH_SCOPE_SUMMARY = 'Switching off affects this scenario only; copies still inherit new changes';
 
 export const SWITCH_SCOPE_NOTE =
@@ -209,9 +212,13 @@ const renderList = (list: HTMLElement, host: ScenarioPanelHost, announce: HTMLEl
     // sentence the pure layer built, printed unchanged, on `shortfall`'s own reason above.
     const agePension = document.createElement('span');
     agePension.className = 'age-pension';
-    agePension.textContent = host.agePensionOf(scenario.id)?.text ?? NO_WALK_TEXT;
+    const agePensionSummary = host.agePensionOf(scenario.id);
+    agePension.textContent = agePensionSummary?.text ?? NO_WALK_TEXT;
 
     row.append(choose, name, rename, clone, remove, inherits, shortfall, agePension);
+
+    // P3-20f — the means-test asymmetry beside the count it explains, in the engine's own reason.
+    if (agePensionSummary?.note !== undefined) row.append(infoButton(AGE_PENSION_NOTE_SUMMARY, agePensionSummary.note));
 
     // P9-1d — two Scenarios may price HEAS off two valuations; said beside the other two facts.
     const heas = host.heasOf(scenario.id);

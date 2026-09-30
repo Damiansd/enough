@@ -55,7 +55,8 @@ const NOW = () => new Date(2026, 8, 24);
 // RE-PINNED 2026-09-29 (LR-1 slice 3, Div 119's minimum tax): the demo walk's lines moved from
 // 2033-03 — see `app-chat-identity.test.mjs`'s copy of the re-pin for the mechanism and the figures.
 // RE-PINNED 2026-09-29 (LR-1 slice 4): no figure moved. Dana's 11 `Income tax on capital gain` lines (2033-03 to 2035-05) each gained one `determination` entry, `CGT_MINIMUM_TAX_DETERMINATION`; a whole-walk diff finds those 11 and nothing else.
-const DEMO_DIGEST = '806fab4f7571820896d81b56900400b22494a361327855fb0c3b271e2e0ecc81';
+// RE-PINNED 2026-09-30 (the Account-Based Pension minimum's provenance, carried): provenance only, no figure moved — the demo walk with every `provenance` stripped is byte-identical on both builds, asserted in `app-month-to-rows.test.mjs`.
+const DEMO_DIGEST = '48089359ed63916c7c48a86b16276e81d4d44c760149b2887749e0d8c0da706b';
 // Hashed without `closingNonSuperPortfolio` (the month table's Investments column, 2026-09-24): a
 // balance the walk already held, now exposed; it moves no figure. Same strip as the other walk pins.
 // 2026-09-25: and without `assetsTestThresholds`, read off the entitlement the walk already computed — no figure.

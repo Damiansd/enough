@@ -28,7 +28,6 @@ import assert from 'node:assert/strict';
 import { toCents } from '../dist/core/money.js';
 import {
   AGE_PENSION_LINE,
-  PENSION_MINIMUM_PROVENANCE,
   TAX_TRUE_UP_LINE,
   UNLEGISLATED,
   project,
@@ -273,7 +272,7 @@ test('a line with nothing legislated behind it SAYS so — the field is empty, n
   );
 });
 
-test('THREE kinds of nothing, not two: an ABP payment is `not carried`, and that is not `none`', () => {
+test('an ABP payment carries the Schedule 7 record — `legislated`, never `none` and no longer `not carried`', () => {
   // A Household that draws a pension. Pat is 66 with a $700,000 Account-Based Pension commenced in
   // 2020, so Schedule 7 governs the year's minimum and the payment line carries it.
   const drawer = {
@@ -292,19 +291,25 @@ test('THREE kinds of nothing, not two: an ABP payment is `not carried`, and that
   const payment = paying.lines.find((l) => l.description.startsWith('Account-Based Pension payment'));
 
   // **Filing this under `'none'` would state that no register stands behind a Schedule 7 minimum,
-  // which is false.** `minimumDrawdown` computes a `ComputedProvenance` for the percentage factors;
-  // `annualPensionMinimum` returns `.amount` and drops it. The line names the gap rather than
-  // papering over it as "nothing legislated" — the same distinction `Month.notes` was built for.
-  assert.equal(payment.provenance.basis, 'not carried');
+  // which is false.** Until 2026-09-30 the line said `'not carried'`, because `annualPensionMinimum`
+  // dropped `minimumDrawdown`'s record; the year's `MinimumDrawdown` now reaches the line. Pat is 66
+  // on 1 July 2026, the 5% band: 5% × $700,000.00 = $35,000.00, all of it swept in June as the floor.
+  assert.equal(payment.provenance.basis, 'legislated');
   assert.equal(payment.provenance.register, 'Account-Based Pension minimum');
-  assert.deepEqual(payment.provenance, PENSION_MINIMUM_PROVENANCE);
-  assert.notEqual(payment.provenance.basis, 'none');
+  assert.equal(payment.provenance.fy, '2026-27');
+  assert.deepEqual(payment.provenance.determination, [
+    "age 66 on the relevant day 2026-07-01: the Schedule 7 band's percentage factor is 5%",
+    'account balance 70000000 cents on the relevant day 2026-07-01 (Sch 7 cl 1(2))',
+    'Sch 7 cl 4A/4B relief 1/1',
+    'minimum 3500000 cents for FY2026-27, rounded once to the nearest ten dollars (Sch 7 cl 5)',
+  ]);
+  assert.equal(payment.amount, toCents(35_000));
   assert.notEqual(payment.provenance.basis, UNLEGISLATED.growth.basis);
 
-  // And the Month says which registers it could NOT vouch for, beside the ones it could. A month
-  // that listed only `registers` would read as though it had vouched for everything it reported.
-  assert.deepEqual([...paying.provenance.uncarried], ['Account-Based Pension minimum']);
-  assert.equal(paying.provenance.registers.includes('Account-Based Pension minimum'), false);
+  // And the Month now vouches for the register, and has nothing it could not vouch for.
+  assert.deepEqual([...paying.provenance.uncarried], []);
+  assert.equal(paying.provenance.registers.includes('Account-Based Pension minimum'), true);
+  assert.ok(paying.provenance.stamps.includes('2026-27'));
 });
 
 test('a month with NO legislated figure says so in a field, rather than by having none', () => {

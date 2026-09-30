@@ -1242,6 +1242,13 @@ export interface AssetSplit {
   readonly byPerson: readonly [PersonAssetSplit] | readonly [PersonAssetSplit, PersonAssetSplit];
 }
 
+/**
+ * The `AssetLine.reason` of Accumulation Phase super held by a Person under Age Pension age —
+ * exported so the comparison surface (P3-20f) shows the engine's own words and not a second copy.
+ */
+export const YOUNGER_PARTNER_EXEMPTION_REASON =
+  'Younger-partner exemption: Accumulation Phase super held by a Person under Age Pension age is exempt from BOTH tests, including when assessing the older partner claim (§4.8).';
+
 /** T27, and the register §4.8 treatment rules. Exemption needs the phase *and* the age gate. */
 const superInterestTreatment = (
   interest: SuperInterest,
@@ -1254,12 +1261,7 @@ const superInterestTreatment = (
           deemed: true,
           reason: 'Accumulation Phase super held by a Person of Age Pension age — assessed at the balance and deemed for income.',
         }
-      : {
-          treatment: 'protected',
-          deemed: false,
-          reason:
-            'Younger-partner exemption: Accumulation Phase super held by a Person under Age Pension age is exempt from BOTH tests, including when assessing the older partner claim (§4.8).',
-        };
+      : { treatment: 'protected', deemed: false, reason: YOUNGER_PARTNER_EXEMPTION_REASON };
   }
   return {
     treatment: 'assessable',

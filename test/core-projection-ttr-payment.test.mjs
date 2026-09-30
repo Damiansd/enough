@@ -28,11 +28,11 @@ import {
   NO_STATING_ENTRY,
   PENSION_MINIMUM_LINE,
   TTR_PAYMENT_LINE,
-  TTR_PAYMENT_PROVENANCE,
+  annualPensionMinimumDetermination,
   project,
   ttrAnnualPayment,
 } from '../dist/core/projection.js';
-import { TtrPaymentBelowTaxFreeAgeError } from '../dist/core/superLumpSum.js';
+import { TTR_PAYMENT_TAX_NOTE, TtrPaymentBelowTaxFreeAgeError } from '../dist/core/superLumpSum.js';
 
 const person = (name, dateOfBirth, superInterests) => ({
   name,
@@ -175,9 +175,33 @@ test('each payment is a cash inflow out of the account — cash reconciles and t
   const months = project(settings(), lee({ commencementDay: '2025-07-01', statedTtrDrawdownRate: 0.07 }), []);
   const first = monthAt(months, '2026-07');
   const line = first.lines.find((l) => l.description === `${TTR_PAYMENT_LINE}, Lee`);
+  // 2026-09-30: a STATED rate is the member's figure inside legislated bounds — `'stated'`, never
+  // `'legislated'`. 7% × $500,000 = $35,000.00, above the 4% minimum ($20,000.00), under 10% ($50,000.00).
+  const leeYear = annualPensionMinimumDetermination({
+    fy: '2026-27', dateOfBirth: LEE_DOB, commencementDay: '2025-07-01', relevantDay: '2026-07-01', balanceObservedOn: '2026-07-01', balanceOnRelevantDay: toCents(500_000),
+  });
   assert.deepEqual(
     { direction: line.direction, effect: line.effect, provenance: line.provenance, attribution: line.attribution },
-    { direction: 'inflow', effect: 'cash', provenance: TTR_PAYMENT_PROVENANCE, attribution: NO_STATING_ENTRY.ttrPayment },
+    {
+      direction: 'inflow',
+      effect: 'cash',
+      provenance: {
+        basis: 'stated',
+        register: 'transition to retirement income stream',
+        fy: '2026-27',
+        confidence: leeYear.provenance.confidence,
+        caveats: leeYear.provenance.caveats,
+        determination: [
+          'drawdown rate 7% stated by the member, within the Schedule 7 minimum of 2000000 cents and the SISR reg 6.01(2)(b)(ii) 10% maximum of 5000000 cents',
+          "age 62 on the relevant day 2026-07-01: the Schedule 7 band's percentage factor is 4%",
+          'account balance 50000000 cents on the relevant day 2026-07-01 (Sch 7 cl 1(2))',
+          'Sch 7 cl 4A/4B relief 1/1',
+          'minimum 2000000 cents for FY2026-27, rounded once to the nearest ten dollars (Sch 7 cl 5)',
+          TTR_PAYMENT_TAX_NOTE,
+        ],
+      },
+      attribution: NO_STATING_ENTRY.ttrPayment,
+    },
   );
   for (const month of months) {
     // Chunk 4's identity: the Offset closes at its opening plus the month's cash lines.
@@ -232,14 +256,24 @@ test('a TTR payment to a Person under 60 is REFUSED by name — the tax below 60
 });
 
 test('above 60 the tax is an ASSERTED nil on the line, with the taxed-source assumption disclosed', () => {
-  assert.match(TTR_PAYMENT_PROVENANCE.note, /Nil tax, and it is a computed nil/);
-  assert.match(TTR_PAYMENT_PROVENANCE.note, /aged 60 or over/);
-  assert.match(TTR_PAYMENT_PROVENANCE.note, /"tax-free, no PAYG"/);
-  assert.match(TTR_PAYMENT_PROVENANCE.note, /A TAXED SOURCE IS ASSUMED/);
-  assert.match(TTR_PAYMENT_PROVENANCE.note, /reg 6\.01\(2\)\(b\)\(ii\)/);
-  assert.equal(TTR_PAYMENT_PROVENANCE.register, 'transition to retirement income stream');
-  // And no tax line of any kind rides beside the payment.
+  // No rate stated: the Schedule 7 minimum is paid, and the line is `'legislated'`.
   const months = project(settings(), lee({ commencementDay: '2025-07-01' }), []);
+  const record = monthAt(months, '2026-07').lines.find((l) => l.description === `${TTR_PAYMENT_LINE}, Lee`).provenance;
+  assert.equal(record.basis, 'legislated');
+  assert.equal(record.register, 'transition to retirement income stream');
+  assert.equal(record.determination[0], 'no drawdown rate stated: the Schedule 7 minimum is paid, within the SISR reg 6.01(2)(b)(ii) 10% maximum of 5000000 cents');
+  const tax = record.determination.at(-1);
+  assert.equal(tax, TTR_PAYMENT_TAX_NOTE);
+  assert.match(tax, /Nil tax, and it is a computed nil/);
+  assert.match(tax, /aged 60 or over/);
+  assert.match(tax, /"tax-free, no PAYG"/);
+  assert.match(tax, /A TAXED SOURCE IS ASSUMED/);
+  // A stated rate that buys less than the minimum pays the minimum, and is labelled as the minimum.
+  const low = project(settings(), lee({ commencementDay: '2025-07-01', statedTtrDrawdownRate: 0.03 }), []);
+  const lowRecord = monthAt(low, '2026-07').lines.find((l) => l.description === `${TTR_PAYMENT_LINE}, Lee`).provenance;
+  assert.equal(lowRecord.basis, 'legislated');
+  assert.match(lowRecord.determination[0], /^the stated drawdown rate 3% buys no more than the Schedule 7 minimum, so the minimum is paid/);
+  // And no tax line of any kind rides beside the payment.
   assert.deepEqual(months.flatMap((m) => m.lines.filter((l) => l.direction === 'outflow')).map((l) => l.description), []);
 });
 

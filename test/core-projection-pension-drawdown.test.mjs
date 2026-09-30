@@ -52,7 +52,7 @@ import {
   SHORTFALL_LINE,
   TTR_PAYMENT_LINE,
   WATERFALL_LIMBS,
-  PENSION_MINIMUM_PROVENANCE,
+  PENSION_ABOVE_MINIMUM_DETERMINATION,
   NO_STATING_ENTRY,
   UNATTRIBUTED,
   UNLEGISLATED,
@@ -60,6 +60,7 @@ import {
   accountBasedPensionAboveMinimumLimb,
   accountBasedPensionMinimumLimb,
   annualPensionMinimum,
+  annualPensionMinimumDetermination,
   balanceAfterDrawdownAndGrowth,
   drawWaterfall,
   grownForOneMonth,
@@ -189,18 +190,46 @@ test('HAND-WORKED — the FIRST balance in this model that FALLS, and it falls b
   // left: $698,656.86 − $694,999.99 = $3,656.87. That is the growth line, `effect: 'wealth'` — it
   // is not cash, so it does not reach `closingBalance` (asserted by `reconciles` immediately
   // below), and the same figure reappears as the rise in `assessableAssets` the next month.
-  // **P5-3 limb 2 (2026-09-18): the pension payment's record is `'not carried'` and NOT `'none'`.**
-  // Schedule 7 governs the year's minimum, so a line claiming no register stood behind this payment
-  // would be false; `annualPensionMinimum` drops `minimumDrawdown`'s provenance, so the gap is named
-  // on the line instead of being papered over as "nothing legislated".
+  // **P5-3 limb 2's residual, closed 2026-09-30: the pension payment carries `minimumDrawdown`'s
+  // record.** It was `'not carried'` while `annualPensionMinimum` dropped the provenance; the line now
+  // reads the year's `MinimumDrawdown` and states the Schedule's working in the Schedule's terms.
+  // The first $5,000.01 is all toward the $28,000.00 minimum, so no Waterfall clause yet.
+  const patYear = annualPensionMinimumDetermination({
+    fy: '2026-27',
+    dateOfBirth: '1962-05-10',
+    commencementDay: '2024-07-01',
+    relevantDay: '2026-07-01',
+    balanceObservedOn: '2026-07-01',
+    balanceOnRelevantDay: toCents(700_000),
+  });
+  const PAT_RECORD = {
+    basis: 'legislated',
+    register: 'Account-Based Pension minimum',
+    fy: '2026-27',
+    confidence: patYear.provenance.confidence,
+    caveats: patYear.provenance.caveats,
+    determination: [
+      "age 64 on the relevant day 2026-07-01: the Schedule 7 band's percentage factor is 4%",
+      'account balance 70000000 cents on the relevant day 2026-07-01 (Sch 7 cl 1(2))',
+      'Sch 7 cl 4A/4B relief 1/1',
+      'minimum 2800000 cents for FY2026-27, rounded once to the nearest ten dollars (Sch 7 cl 5)',
+    ],
+  };
   assert.deepEqual(months[0].lines, [
-    { direction: 'inflow', effect: 'cash', description: 'Account-Based Pension payment, Pat', amount: 500_001, provenance: PENSION_MINIMUM_PROVENANCE, attribution: UNATTRIBUTED.pensionMinimum },
+    { direction: 'inflow', effect: 'cash', description: 'Account-Based Pension payment, Pat', amount: 500_001, provenance: PAT_RECORD, attribution: UNATTRIBUTED.pensionMinimum },
     { direction: 'outflow', effect: 'cash', description: 'Household spending', amount: 500_001, provenance: UNLEGISLATED.spending, attribution: statedBy('sc') },
     { direction: 'inflow', effect: 'wealth', description: 'Investment growth, Pat — Account-Based Pension', amount: 365_687, provenance: UNLEGISLATED.growth, attribution: NO_STATING_ENTRY.growth },
   ]);
-  assert.equal(months[0].lines[0].provenance.basis, 'not carried');
+  assert.equal(months[0].lines[0].provenance.basis, 'legislated');
   assert.notEqual(months[0].lines[0].provenance.basis, months[0].lines[1].provenance.basis);
-  assert.deepEqual([...months[0].provenance.uncarried], ['Account-Based Pension minimum']);
+  assert.deepEqual([...months[0].provenance.uncarried], []);
+  assert.ok(months[0].provenance.registers.includes('Account-Based Pension minimum'));
+  // $28,000.00 is met by the sixth $5,000.01 (2026-12: $2,999.95 toward it, $2,000.06 above it), and
+  // from that month the line says it carries more than the minimum.
+  const says = (isoMonth) => monthAt(months, isoMonth).lines[0].provenance.determination;
+  assert.deepEqual(says('2026-11'), PAT_RECORD.determination);
+  assert.deepEqual(says('2026-12'), [...PAT_RECORD.determination, PENSION_ABOVE_MINIMUM_DETERMINATION]);
+  assert.deepEqual(says('2027-01'), [...PAT_RECORD.determination, PENSION_ABOVE_MINIMUM_DETERMINATION]);
   assert.equal(69_865_686 - (70_000_000 - 500_001), 365_687);
   assert.equal(months[0].assessableAssets, toCents(700_000));
   assert.ok(reconciles(months[0]));
@@ -1254,7 +1283,21 @@ test('A PLAN STATED AS AT 1 JULY IS UNCHANGED BY P10-5, TO THE BYTE — the comm
   // `determination` entry): 18 × 377 bytes = 6,786, exactly the stripped walk's growth.
   assert.notEqual(createHash('sha256').update(withoutNotes).digest('hex'), 'd5fcc8a4ea46efb02e903ff3abb2944d2324b7f2dd4df9c97e01467534422290'); // pre-slice 4
   // RE-PINNED 2026-09-30 (O90): only the SAPTO caveat's record key changed, `.couple` -> `.coupleEach` (see the length below).
-  assert.equal(createHash('sha256').update(withoutNotes).digest('hex'), 'd88812d15b8fb926397898ecd85a08dd55019f9aadbce493445756c6cac640b0');
+  assert.notEqual(createHash('sha256').update(withoutNotes).digest('hex'), 'd88812d15b8fb926397898ecd85a08dd55019f9aadbce493445756c6cac640b0'); // pre-ABP provenance
+  // ⚠️ **RE-PINNED 2026-09-30 (the ABP minimum's provenance, carried) — PROVENANCE ONLY, NO FIGURE
+  // MOVED.** The 164 `Account-Based Pension payment` lines were `'not carried'` and now carry
+  // `minimumDrawdown`'s record (register, stamp, confidence, caveats and the Schedule 7 working; 75
+  // of them add the Waterfall clause): 10,824 → 105,543 bytes of line provenance. The months' rollup
+  // gains the register, its stamp and caveats: 291,865 → 321,807. 94,719 + 29,942 = 124,661, the
+  // stripped walk's whole growth. With `provenance` stripped too the walk is the same 917,189 bytes
+  // on both builds, to the digest below.
+  assert.equal(createHash('sha256').update(withoutNotes).digest('hex'), '92908214b319aec7b8eb13796b4a6105ee97bb302bdb5094d4e639aef95da04c');
+  assert.equal(
+    createHash('sha256').update(unrenamed(JSON.stringify(months, (key, value) => (added.has(key) || key === 'provenance' ? undefined : value)))).digest('hex'),
+    '3c9c3c8eb9916fd8d5981405120794d9d7ee99564c7458b3558b7546db5f33ad',
+    'a figure moved: the walk with every provenance stripped is no longer the pre-ABP-provenance walk',
+  );
+  assert.equal(105_543 - 10_824 + 321_807 - 291_865, 124_661);
   assert.equal(18 * 377, 6_786);
   assert.equal(29_249 + 1_236 + 1_500 + 227 - 227 + 162 - 382 - 163 - 2 + 3, 31_603);
   assert.equal(31_603 + 22_322 + 124, 54_049);
@@ -1279,7 +1322,7 @@ test('A PLAN STATED AS AT 1 JULY IS UNCHANGED BY P10-5, TO THE BYTE — the comm
   // O90 (2026-09-30): no figure moved. A SAPTO caveat now names the record actually read,
   // `baseRebateAmount.coupleEach` rather than the non-existent `.couple`: 134 caveats x 4 bytes = 536.
   assert.equal(withoutNotes.split('baseRebateAmount.coupleEach is stamped').length - 1, 134);
-  assert.equal(withoutNotes.length, 1_669_071 - 49_115 - 1 + 54_049 + 6_786 + 134 * 4);
+  assert.equal(withoutNotes.length, 1_669_071 - 49_115 - 1 + 54_049 + 6_786 + 134 * 4 + 124_661);
   assert.equal(1_669_071, 1_669_071, 'the pre-wage-growth stripped length, kept beside the new one');
   assert.equal(1_625_677 - 50_010 + 87_793, 1_663_460, "the pre-retirement-month-pay stripped length, kept beside the new one");
   // Not one stand-in was taken, and the assertion is made over the whole walk rather than month one.
@@ -1490,4 +1533,62 @@ process.stdout.write(JSON.stringify(project(${JSON.stringify(settings())}, ${JSO
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+// --- P5-3 residual, closed 2026-09-30: the payment line carries the Schedule 7 working ---------------
+
+const abpDetermination = (months, isoMonth, name) =>
+  monthAt(months, isoMonth).lines.find((l) => l.description === `${PENSION_MINIMUM_LINE}, ${name}`).provenance;
+
+test('the ABP line in a COMMENCEMENT year says cl 3 pro-rated it, by days, and says when it pays above the minimum', () => {
+  const months = project(settings(), KIM, [SPEND]);
+  // Hand-worked above: 64 on 15 October 2026, 4%; $711,107.78; 259 of 365 days; $20,180.00.
+  const ownYear = [
+    "age 64 on the relevant day 2026-10-15: the Schedule 7 band's percentage factor is 4%",
+    'account balance 71110778 cents on the relevant day 2026-10-15 (Sch 7 cl 1(2))',
+    'Sch 7 cl 3: pro-rated over 259/365 days, from the commencement day 2026-10-15',
+    'Sch 7 cl 4A/4B relief 1/1',
+    'minimum 2018000 cents for FY2026-27, rounded once to the nearest ten dollars (Sch 7 cl 5)',
+  ];
+  const record = abpDetermination(months, '2026-10', 'Kim');
+  assert.equal(record.basis, 'legislated');
+  assert.equal(record.register, 'Account-Based Pension minimum');
+  assert.equal(record.fy, '2026-27');
+  assert.deepEqual(record.determination, ownYear);
+  // The pro-rata record is consumed, so its caveat rides on the line (the denominator cl 3 never states).
+  const partYear = annualPensionMinimumDetermination({
+    fy: '2026-27', dateOfBirth: '1962-05-10', commencementDay: '2026-10-15', relevantDay: '2026-10-15', balanceObservedOn: '2026-10-15', balanceOnRelevantDay: 71_110_778,
+  });
+  assert.equal(partYear.proRated, true);
+  assert.deepEqual(record.caveats, partYear.provenance.caveats);
+  assert.equal(record.confidence, partYear.provenance.confidence);
+  // Four $5,000.01 payments leave $179.96 of the minimum; February 2027 pays it and $4,820.05 above it.
+  assert.deepEqual(abpDetermination(months, '2027-01', 'Kim').determination, ownYear);
+  assert.deepEqual(abpDetermination(months, '2027-02', 'Kim').determination, [...ownYear, PENSION_ABOVE_MINIMUM_DETERMINATION]);
+  // FY2027-28 is a full year: no cl 3 line, the 1 July balance, and 65's 5%.
+  const next = abpDetermination(months, '2027-07', 'Kim').determination;
+  assert.equal(next[0], "age 65 on the relevant day 2027-07-01: the Schedule 7 band's percentage factor is 5%");
+  assert.equal(next.some((line) => line.startsWith('Sch 7 cl 3')), false);
+});
+
+test('the ABP line in a cl 4 year says the minimum is NIL, and that what it pays is above it', () => {
+  const late = { persons: [person('Kim', '1962-05-10', { superInterests: [abp(700_000, '2027-06-15')] })], homeStatus: 'occupied' };
+  const months = project(settings(), late, [SPEND]);
+  assert.deepEqual(abpDetermination(months, '2027-06', 'Kim').determination, [
+    'Sch 7 cl 4: nil for FY2026-27 — the pension commenced on 2027-06-15, on or after 2027-06-01',
+    PENSION_ABOVE_MINIMUM_DETERMINATION,
+  ]);
+});
+
+test('where a later balance STOOD IN for the relevant day, the line says which day it was observed on', () => {
+  // The walk opens on 1 September 2026, after Sch 7's 1 July: the stated $700,000 stands in (P10-5).
+  const months = project(settings({ asAtDate: '2026-09-01' }), PAT, [SPEND]);
+  assert.deepEqual(abpDetermination(months, '2026-09', 'Pat').determination, [
+    "age 64 on the relevant day 2026-07-01: the Schedule 7 band's percentage factor is 4%",
+    'account balance 70000000 cents: the balance observed on 2026-09-01 stood in for the balance on the relevant day 2026-07-01, which is behind the forecast',
+    'Sch 7 cl 4A/4B relief 1/1',
+    'minimum 2800000 cents for FY2026-27, rounded once to the nearest ten dollars (Sch 7 cl 5)',
+  ]);
+  // No month of any walk here carries a `'not carried'` record any more.
+  assert.deepEqual(months.flatMap((m) => [...m.provenance.uncarried]), []);
 });

@@ -9,7 +9,11 @@
 //
 //   * `'none'` — NOTHING LEGISLATED STANDS BEHIND THIS FIGURE (a salary, a Setting-supplied return).
 //   * `'not carried'` — SOMETHING DOES AND THIS BUILD DROPS IT (the SIS Reg Sch 7 Account-Based
-//     Pension minimum, whose register `annualPensionMinimum` computes and discards).
+//     Pension minimum was the case until 2026-09-30; no line emits it now, and the wording stays).
+//
+// A fourth, `'stated'` (2026-09-30), is a figure the member chose inside legislated bounds — a TTR
+// paid at a stated drawdown rate — and has its own wording too: it is neither the law's figure nor
+// one with no law behind it.
 //
 // Rendering both as a blank cell, an em-dash or "n/a" would print, on screen, the claim that no
 // register governs a Schedule 7 minimum. That is a false statement about the law wearing the
@@ -79,13 +83,14 @@ import type {
 } from '../core/plan.js';
 
 /**
- * **The six strings, in one place so that no two of them can quietly become one.** Three for
+ * **The seven strings, in one place so that no two of them can quietly become one.** Four for
  * `LineProvenance`'s members and three for `LineAttribution`'s. They are prose rather than codes
  * because the reader of a month table is the person deciding whether to trust the figure beside
  * them, and `'not carried'` as a bare token says nothing to them.
  */
 export const PROVENANCE_LABELS = Object.freeze({
   legislated: 'Set by law',
+  stated: 'Your own choice, within limits set by law',
   none: 'Not set by law — this comes from your own plan',
   'not carried': 'Set by law (rule not named here)',
 } as const);
@@ -247,7 +252,7 @@ export interface ProvenanceCell {
   readonly basis: LineProvenance['basis'];
   /** One of `PROVENANCE_LABELS`. Never empty, never shared between two bases. */
   readonly label: string;
-  /** The rule, where one is named — both `'legislated'` and `'not carried'` name one. */
+  /** The rule, where one is named — `'legislated'`, `'stated'` and `'not carried'` each name one. */
   readonly register: string | null;
   /** The gloss of `register`, from `REGISTER_DETAILS`, or null where the name needs none. */
   readonly registerDetail: string | null;
@@ -274,12 +279,12 @@ export interface ProvenanceCell {
 }
 
 export const provenanceCell = (provenance: LineProvenance): ProvenanceCell => {
-  if (provenance.basis === 'legislated') {
+  if (provenance.basis === 'legislated' || provenance.basis === 'stated') {
     const caveats = caveatCells(provenance.caveats);
     const borrowed = caveats.some((c) => c.kind === 'borrowed');
     return Object.freeze({
-      basis: 'legislated' as const,
-      label: PROVENANCE_LABELS.legislated,
+      basis: provenance.basis,
+      label: PROVENANCE_LABELS[provenance.basis],
       register: provenance.register,
       registerDetail: REGISTER_DETAILS[provenance.register] ?? null,
       stamp: `FY${provenance.fy}`,

@@ -24,7 +24,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { toCents } from '../dist/core/money.js';
-import { NO_STATING_ENTRY, PENSION_MINIMUM_PROVENANCE, UNATTRIBUTED, UNLEGISLATED, nonSuperPortfolioLimb, project, statedBy, unfundedMiddleLimbs } from '../dist/core/projection.js';
+import { NO_STATING_ENTRY, UNATTRIBUTED, UNLEGISLATED, nonSuperPortfolioLimb, project, statedBy, unfundedMiddleLimbs } from '../dist/core/projection.js';
 
 const person = (name, dateOfBirth, over = {}) => ({
   name,

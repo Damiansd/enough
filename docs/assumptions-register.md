@@ -365,6 +365,7 @@ Income base by Person, never by Household — even where the eligibility gate re
 | Bracket table, FY2027-28 **and every later year** | nil to $18,200 · **14%** to $45,000 · 30% to $135,000 · 37% to $190,000 · 45% above | 2027-28 → | config | assembled from the five rows above | 2026-09-17 | primary-verified (as weak as its weakest rate, and its weakest rate is the Act) |
 | Bracket thresholds indexed? | **No** — never have been | — | constant | ADR-0001; ATO | 2026-09-03 | primary-verified |
 | Medicare levy rate | 2% | 2026-27 | config | [ATO resident tax rates](https://www.ato.gov.au/tax-rates-and-codes/tax-rates-australian-residents) | 2026-09-03 | primary-verified |
+| Rounding of tax payable, LITO, WATO and the Medicare levy (P3-1d) | **whole cents, no rounding** — the law states no rounding rule for any of the four: ITAA 1997 s 4-10(3) (the method statement), ss 61-110/61-115 (LITO), ss 61-155/61-160 (WATO), *Medicare Levy Act 1986* ss 7, 8. SAPTO alone rounds, **up**, by reg ss 9(8), 10(2) (§2.3, built). **Immaterial:** at current rates a whole-dollar income gives exact cents (every bracket rate, the 2% levy and the 10% s 7(2) shade-in are whole percentages; LITO's 5% and 1.5% tapers can leave a half-cent, which `mulCents` rounds); cents inside taxable income move tax by < 47c per dollar of cents (45% top rate + 2% levy) — under $1 a year. The TODO's former premise, *"the ATO rounds to whole dollars on assessment"*, is **unsourced**: no provision or ATO publication stating it was found, so it is not applied | — | constant | ITAA 1997 s 4-10(3), ss 61-110, 61-115, 61-155, 61-160; Medicare Levy Act 1986 ss 7, 8 | 2026-09-30 | primary-verified (absence of a rule in the provisions named); pinned by `test/core-tax-rounding.test.mjs` |
 
 **Sch 7 Pt I has now been read directly — open item O8 is CLOSED (2026-09-17, P2-10b).** The Act
 was retrieved from the Federal Register's epub text endpoint (the SPA page serves no text):
@@ -650,6 +651,18 @@ inferential is what "rebates" reaches:
   in FY2027-28, so the FY2027-28 rate cut does not move $16,680. **This is not prose — it is a test:**
   `test/assumptions-tax.test.mjs` reads both figures from `src/data/assumptions/` and fails the
   moment the two regions begin to overlap.
+* **Sources exhausted — P3-40 closed 2026-09-30.** The Explanatory Statement to F2025L01060 (fetched
+  2026-09-24) says only "tax payable", and its Example 4 sits below the tax-free threshold, so it
+  cannot tell the readings apart. The Schedule 3 text of Act No. 49 of 2026 settles the **order**,
+  not the reading: its item 2 inserts WATO as s 63-10(1) **item 3**, from FY2027-28, ahead of the
+  SAPTO items 5 and 10 — which is the order the build already uses. Sch 3 amends **only** the
+  ITAA 1997; it does not touch the 1936 Act Regulations, so nothing in it speaks to what reg
+  s 12(1)(b)'s "rebates" reaches. The gross reading therefore **stays a labelled inference**, and
+  there is no cheaper primary source left to fetch. It is worth **$0** while the O73 canary in
+  `test/assumptions-tax.test.mjs` is green; re-run 2026-09-30, the canary turns red under each of
+  its three expiry conditions (couple base rebate amount raised to $1,831; the $16,680 nil point
+  moved up to $18,280 via the floor; the FY2026-27 tax-free threshold lowered to $16,600). Reopen
+  when it goes red, not before.
 
 **The register's citation of reg s 12 was verified CORRECT on 2026-09-15 — do not re-check it.**
 F2025L01060 is the *Income Tax Assessment (1936 Act) Regulations 2025*, made 4 September 2025,

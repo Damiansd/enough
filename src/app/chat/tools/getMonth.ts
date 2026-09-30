@@ -58,7 +58,7 @@ const provenanceText = (household: Household, text: string, figure: Figure): str
 };
 
 const lineProvenance = (household: Household, provenance: LineProvenance, figure: Figure): LineProvenance =>
-  provenance.basis === 'legislated'
+  provenance.basis === 'legislated' || provenance.basis === 'stated'
     ? {
         ...provenance,
         caveats: provenance.caveats.map((text) => provenanceText(household, text, figure)),

@@ -39,6 +39,7 @@ Working task list for `enough`. Maintained throughout the build.
 - [x] **P1-4** Confirm Div 296 detail and indexation basis (CPI vs AWOTE) against the March 2026 Act — ✅ 2026-09-03. CPI as believed, but it **commenced 1 Apr 2026 and first applies to 2026-27** — store the application year — and it's 15% + 10% on the **same** earnings base, not marginal bands. The universal "30%/40%" framing is wrong above $10m.
 - [x] **P1-5** Capture the **20 Sep 2026** Age Pension reindexation — rates, free areas, deeming — ✅ 2026-09-03. The **20 Sep 2026 rates were already published (20 Aug 2026)** — closed 17 days early. Surprise: the year holds **three** parameter sets, not two, because free areas and deeming thresholds index on 1 July.
 - [ ] **P1-6** Confirm 2026-27 Medicare levy low-income thresholds when published
+  - Checked 2026-09-30: still not law — the Medicare Levy Act 1986 (C2004A03351) was last compiled at No. 53 (1 Jul 2026), for Act No. 58 of 2026 (the 2025-26 figures). No Medicare-levy Act or bill has appeared since; the Treasury Laws Acts of Aug and Sep 2026 (C2026A00071, 00079, 00086) don't touch it. The ATO QC 27031 page is still 2025-26 only, last updated 30 Jun 2026.
   - Reconciled 2026-09-30: WAITING on law — no FY2026-27 thresholds legislated; `src/data/assumptions/tax.ts:1537` still carries `priorYearFallbackFor: '2026-27'`.
   - **Checked 2026-09-24: not published.** ATO QC27031/QC27032 were last updated 30 Jun 2026 and cover 2025-26 only. There is no bill.
     The 2025-26 figures stand, enacted by Act No. 58 of 2026. Re-check after the next Treasury Laws Amendment bill.
@@ -391,12 +392,13 @@ Working task list for `enough`. Maintained throughout the build.
     BELOW BEFORE TRUSTING THIS LINE.** No age bands, no Setting, no per-account targeting: the gate
     ruled a different, narrower shape satisfies this item — an ordinary, explicit, per-Person
     `RETURN_CHANGE` entry, stated one rate at a time, `SPEND_CHANGE`'s own carried-level idiom.
-  - [ ] **P2-11a** It is a **Dated Parameter**, so the bands resolve into synthetic `RETURN_CHANGE`
+  - [x] ~~**P2-11a** It is a **Dated Parameter**, so the bands resolve into synthetic `RETURN_CHANGE`
     Journal Entries before projection (P6-3). One mechanism, and the band shows in the month table
     as an entry that applied. An explicit `RETURN_CHANGE` supersedes the synthetic one
     — ⚠️ **NOT TICKED, DELIBERATELY (2026-09-22): this is the missing generic mechanism, P6-3, and it
     is exactly as unbuilt today as it was before this item started.** See the SHIPPED note below.
-    Reconciled 2026-09-30: NO-GO — P6-3 was "CLOSED, NOT BUILT" by the LIZ gate of 2026-09-24 (no consumer; the Glide Path ships as explicit `RETURN_CHANGE` entries), so this synthetic resolution will not be built unless P6-3 reopens.
+    Reconciled 2026-09-30: NO-GO — P6-3 was "CLOSED, NOT BUILT" by the LIZ gate of 2026-09-24 (no consumer; the Glide Path ships as explicit `RETURN_CHANGE` entries), so this synthetic resolution will not be built unless P6-3 reopens.~~
+    **RULED OUT PERMANENTLY by the user, 2026-09-30: no Glide Path.** Not built, not to be re-offered; P6-3 does not reopen for it. A return change is an explicit `RETURN_CHANGE` entry.
   - [x] **P2-11b** This does **not** reopen Monte Carlo or sequencing risk, and the docs must keep
     saying so. Phased deterministic returns are one input and one reproducible projection; the
     Parked entry's reasoning is untouched. Anyone who reads the glide path as a foothold for a fan
@@ -660,9 +662,21 @@ Working task list for `enough`. Maintained throughout the build.
         caveat and no year stamp to `provenance`. The literal and the record agree in every year
         the register admits, and nothing in `MedicareLevyResult` can tell them apart.
     The s 8(2)/(3)/(4) apportionment is still **not** implemented — see P3-1c, which stays open.
-  - [ ] **P3-1d** Tax and levy amounts are computed in whole cents. The register states no rounding
+  - [x] **P3-1d** Tax and levy amounts are computed in whole cents. The register states no rounding
     rule for either, so none was invented; the ATO rounds to whole dollars on assessment. Confirm
     and, if it matters, put the rule in the register before putting it in the code
+    — ✅ 2026-09-30, docs + test only. **Confirmed: there is no rule to put in.** The law states no
+    rounding for tax payable, LITO, WATO or the Medicare levy (ITAA 1997 s 4-10(3), ss 61-110/115,
+    61-155/160; Medicare Levy Act ss 7, 8); SAPTO alone rounds, up (reg ss 9(8), 10(2), built). The
+    premise above, *"the ATO rounds to whole dollars on assessment"*, is **unsourced** — no provision
+    or publication was found stating it — and is not applied. Register §2.1 row "Rounding of tax
+    payable, LITO, WATO and the Medicare levy": whole cents, no rounding; immaterial (a whole-dollar
+    income gives exact cents at current rates; cents inside taxable income move tax by < 47c per
+    dollar of cents, under $1 a year). `taxOnTaxableIncome`'s comment cites the row.
+    `test/core-tax-rounding.test.mjs` pins `taxOnTaxableIncome` (FY2026-27 and FY2027-28 sweep
+    against integer arithmetic) and `medicareLevy` (full and s 7(2) shade-in). Mutations, each red:
+    tax floored to $1, tax rounded to $1, taxable income truncated to whole dollars first (tax and
+    levy), levy rounded to $1.
 - [x] **P3-2** Separate taxable income from the Div 293 / offset income base
   — ✅ 2026-09-04. `core/incomeBases.ts`. Four distinct brands over `Cents` —
   `TaxableIncome`, `RebateIncome`, `FamilyIncome`, `SurchargeIncome` — rather than a shared
@@ -2396,7 +2410,7 @@ Working task list for `enough`. Maintained throughout the build.
     carries `financialAssets` and `splitAssets` emits no line when it is zero
     (`src/core/household.ts`) — so the test is that the rest matches it. Assert it: the current
     hand-worked Age Pension fixtures must not move when the pool lands
-  - [ ] **P3-20f** ⬜ *(2026-09-23 reconciliation: OPEN BOX CORRECT, PARTIAL. The engine obeys the
+  - [x] **P3-20f** ⬜ *(2026-09-23 reconciliation: OPEN BOX CORRECT, PARTIAL. The engine obeys the
     asymmetry and a test asserts it in both directions (`core-projection-sacrifice-credit`). P6-8b
     surfaces it on the comparison only as a COUNT of Age Pension months — the `AssetLine.reason`
     strings this item names are not used by the comparison surface.)*
@@ -2408,6 +2422,15 @@ Working task list for `enough`. Maintained throughout the build.
     them (P6-8) instead of leaving the user to notice. The exemption itself is **P3-13**; do not
     duplicate its rules here
     Reconciled 2026-09-30: the engine obeys and tests the asymmetry (`core-projection-sacrifice-credit`) and the comparison shows an Age Pension month count / the comparison surface (`comparisonSeries.ts`, `scenarioPanel.ts`) still never shows the `AssetLine.reason` strings.
+    ✅ **2026-09-30, closed.** The younger-partner reason is `YOUNGER_PARTNER_EXEMPTION_REASON`, exported
+    from `household.ts` and used by `superInterestTreatment` (no output change). `agePensionSummary`
+    takes the household and sets `ScenarioAgePension.note` to that constant when some Person is under
+    Age Pension age at the walk's start (read off the first month's date only, so month fixtures without
+    asset fields work); `scenarioPanel.ts` appends `infoButton(AGE_PENSION_NOTE_SUMMARY, note)` beside the
+    Age Pension span exactly when a note is present. Tests: `app-comparison-series` (the ruling, the
+    67th-birthday boundary, the note === the engine's own asset-line reason on the demo walk) and
+    `app-scenario-panel` (the guarded append). Mutations, each red: append removed; guard removed; note
+    never set; note always set; note a drifted literal; the engine's reason drifted from the constant.
 - [x] **P3-21** **CGT on the Non-Super Portfolio** — un-parked 2026-09-04 by ADR-0009, because
   - ✅ **VERIFIED BUILT 2026-09-22** (LIZ audit, checked against `src/`, not the checkbox). FIFO parcel selection, 12-month discount, tax-base integration and disposal draw all shipped 2026-09-18; `core-non-super-parcels.test.mjs` (773 lines), `core-non-super-disposal.test.mjs` (699 lines).
   "nothing outside super to tax" stopped being true. A substantial rules area entering scope
@@ -3438,7 +3461,14 @@ Working task list for `enough`. Maintained throughout the build.
   table either** — R12 supplied it on 2026-09-15, so limb (b) has a rate ladder to run against; note
   that it is `unverified` and over-states tax, so a WATO computed on it is a conservative figure and
   must carry that provenance through.
-- [ ] **P3-40** **Fetch the Explanatory Statement to F2025L01060** — *Income Tax Assessment (1936
+- [x] **P3-40** **Fetch the Explanatory Statement to F2025L01060** — *Income Tax Assessment (1936
+  - ✅ **CLOSED 2026-09-30 — sources exhausted.** Sch 3 of Act No. 49 of 2026 read: item 2 puts WATO at
+    s 63-10(1) **item 3** (FY2027-28 on), ahead of SAPTO items 5 and 10 — that settles the order the build
+    uses. Sch 3 amends only the ITAA 1997, so reg s 12(1)(b)'s gross reading stays a labelled inference
+    (register §2.6, new bullet "Sources exhausted"), worth $0 while the O73 canary is green. Canary
+    mutations re-run, each RED (`--test-name-pattern "O73 CANARY"`, restored and `cmp`-checked): couple
+    base rebate $1,602 → $1,831; transfer floor $6,000 → $7,600 (nil point $16,680 → $18,280); FY2026-27
+    tax-free threshold $18,200 → $16,600. Reopen only when the canary goes red.
   - **Fetched 2026-09-24; it does NOT settle the question.** The ES (legislation.gov.au/F2025L01060/asmade/2025-09-09/es/original/pdf; the dated
     `/asmade/<date>/es/original/pdf` path is the one that works) says only "tax payable". Its Example 4 is below the tax-free threshold, so it
     can't tell the readings apart. §2.6's gross reading stays a labelled inference. Still to check: the actual Schedule 3 text of Act No. 49 of 2026.
@@ -5309,11 +5339,29 @@ Working task list for `enough`. Maintained throughout the build.
         no register behind it says so (`basis: 'none'`), and the Account-Based Pension minimum says
         that Schedule 7 governs it and that this build does not carry the stamp (`basis: 'not
         carried'`) — see the residual below.
-  - [ ] **The one register whose provenance is computed and still dropped: the Account-Based Pension
+  - [x] **The one register whose provenance is computed and still dropped: the Account-Based Pension
         minimum.** `minimumDrawdown` returns a `ComputedProvenance`; `annualPensionMinimum` returns
         `.amount` and discards it, and that function's `Cents` return is asserted at eight call sites
         in `core-projection-pension-drawdown.test.mjs`. Carrying it means widening that signature and
         the `pensionYears` record. Named on the line today rather than hidden.
+        ✅ 2026-09-30. `annualPensionMinimumDetermination` returns the whole `MinimumDrawdown`;
+        `annualPensionMinimum` is its `.amount` (call sites unchanged). The `pensionYears` record
+        carries the year's provenance, built once when the year is determined. ONE payment line, now
+        `'legislated'`, register `Account-Based Pension minimum`, the year's stamp, confidence and
+        caveats (the pro-rata denominator's included where cl 3 applied), and a `determination`: age
+        and band factor on the relevant day, the balance and that day, or *"the balance observed on X
+        stood in"*, cl 3's days/daysInYear, cl 4A/4B relief, cl 4's nil, and
+        `PENSION_ABOVE_MINIMUM_DETERMINATION` in a month the interest paid above the minimum. The TTR
+        line in the same slice: `'stated'` (new `LineProvenance` member, `StatedWithinLegislatedBounds`)
+        when the member's rate decided the year — the rate, inside the Sch 7 minimum and the 10%
+        maximum — and `'legislated'` when the minimum is paid; the tax-nil note rides as its last
+        determination. `PENSION_MINIMUM_PROVENANCE` and `TTR_PAYMENT_PROVENANCE` are gone and
+        `Month.provenance.uncarried` is empty in every month. **No figure moved**: every one of the
+        6,773 `project()` walks the suite makes is byte-identical to the old build's with `provenance`
+        stripped (and the 166 refusals identical); digests re-pinned for provenance alone, each with a
+        stripped-digest proof beside it. Mutations, each red: band line dropped; relevant-day text used
+        when a later balance stood in; `proRated` flipped; line reverted to the old constant; a stated
+        TTR rate labelled `'legislated'`.
   - [x] **Line → entry attribution** — ✅ 2026-09-18. `MonthLine.attribution` is REQUIRED on every
         line and is a three-member union for `LineProvenance`'s reason: `'entries'` carries a
         NEVER-EMPTY id list, `'none'` is a figure no entry states (the Age Pension, a Setting's
@@ -8690,8 +8738,9 @@ moved 16 → 17. Test files run green: `app-entry-form`, `app-plan-edits`, `app-
 
 *Separable from the engine; can run in parallel from Phase 2 onward.*
 
-- [ ] **P11-1** Transaction store, append-only, separate from the plan file
+- [x] **P11-1** Transaction store, append-only, separate from the plan file
   - Reconciled 2026-09-30: the store is built (`src/core/ledger.ts`, `src/app/ledgerStore.ts`, `ledger.json`; P11-1a/b ticked, `test/core-ledger.test.mjs`) / only P11-1c's standing SQLite trigger remains, which is a watch, not work.
+  - ✅ Closed 2026-09-30: P11-1c was ruled out permanently by the user, so nothing remains under this item.
   - **Gate 2026-09-28: GO after decisions** (`docs/research/phase11-gate-2026-09-28.md`). Slice 1 (ledger type + append-only guard) needs no input. Four user decisions: CSV mapping persistence, re-import overlap handling (review it, never auto-drop), bulk-review granularity, and the baseline recompute trigger.
   - **Slice 1 BUILT 2026-09-28: the ledger core, no UI.** `src/core/ledger.ts` — `Transaction`, `Categorisation`, the branded `Ledger` (P3-41 private-member witness; `test/brand-spread-sweep.test.mjs` now 16 brands), the `parseLedger` door (version 1, absent → empty Ledger) and `appended`; `src/app/ledgerStore.ts` — `loadLedger`/`saveLedger`/`appendToLedger` over an injected transport, the writer refusing any candidate that is not the last-loaded Ledger plus records after it (`LedgerNotAnExtensionError`, before the transport). Seven refusals, register §11.2. **Append-only is NOT chronological:** a back-dated Transaction is legal — the gate doc's slice-1 "must fail if a day before the last entry is accepted" is superseded. **A Category is a separate appended `Categorisation`, not a Transaction field** (the last one naming a Transaction wins), so categorising never edits in place. `amount` is signed Cents, money OUT negative. A `reverses` must name an EARLIER, not-yet-reversed Transaction and cancel it to the cent. Nothing in `src/` imports the store yet, and nothing in the projection reads the Ledger (P11-10). `test/core-ledger.test.mjs`. ~~⚠️ Slice 2 decision due~~ **Decided and wired 2026-09-28 (slice 2, see P11-3).** `main.ts` now imports `writeLedger` and hands `{ readLedger, writeLedger }` to the Transactions panel, which tripped `test/import-graph.test.mjs`'s Reset tripwire as designed; Reset was EXTENDED and the tripwire now pins exactly the new wiring. **USER RULING (2026-09-28), Reset:** "Start again" asks separately **"Also delete my transaction history?"**, default **No**. No → the Ledger is untouched (bytes identical, never written). Yes → once the new plan has LANDED, the Ledger is replaced with the empty Ledger by `ledgerStore.replaceWithEmptyLedger` — the one sanctioned non-extension write, a distinct named function so `requireExtension` stays strict on every other write. A plan the door refuses leaves the Ledger alone either way, and the question is not asked at all over a Ledger that did not load
   - [x] **P11-1a** `ledger.json` — a **separate file** from `plan.json`, with its own sensitivity.
@@ -8700,10 +8749,11 @@ moved 16 → 17. Test files run green: `app-entry-form`, `app-plan-edits`, `app-
   - [x] **P11-1b** **No SQLite.** JSON wins on diffability, and auditability is the governing
     constraint (ADR-0004); every documented read is a whole-set read (ADR-0002); and the export
     shape is a security control that must stay assertable (ADR-0006:83-85). See ADR-0008
-  - [ ] **P11-1c** SQLite is deferred to Phase 11 behind a **written trigger**: >250,000
+  - [x] ~~**P11-1c** SQLite is deferred to Phase 11 behind a **written trigger**: >250,000
     transactions, **or** a full ledger write measured above 250ms. Measured, not felt. The trigger
     is expected never to fire; if it does, it is evidence, and the argument gets reopened
-    Reconciled 2026-09-30: PARKED — deliberately deferred behind its written trigger; nothing in the log shows it firing (no SQLite anywhere, no write-time measurement recorded).
+    Reconciled 2026-09-30: PARKED — deliberately deferred behind its written trigger; nothing in the log shows it firing (no SQLite anywhere, no write-time measurement recorded).~~
+    **RULED OUT PERMANENTLY by the user, 2026-09-30.** No SQLite, whatever the ledger's size or write time; the trigger above is withdrawn and must not be re-offered. The ledger stays a JSON file (`ledger.json`).
 - [x] **P11-2** CSV import with column mapping (bank formats differ)
   - **Decided by LIZ 2026-09-28:** Start again's delete also removes the saved bank formats (they live in `ledger.json`), and the question now says so: "(and the saved bank formats)". The account label is required on import, since it's part of the duplicate key. A blank line mid-file is listed, not skipped. Verified: 3131 green; LIZ mutation (manual entries counted as already imported) red.
   - **USER RULINGS 2026-09-28.** (1) A column mapping is remembered per bank CSV format, keyed by the header row (exact column names, order-independent): a known header re-uses the saved mapping with no questions, an unknown one asks once. Headerless exports (CommBank) are keyed by column count + a user-given format name. Mappings live in `ledger.json`, append-only: a changed mapping is a new record, last wins. (2) Rows already imported are skipped by MULTISET on (date, cents, raw description, account): k copies in the file over j imported copies held adds max(0, k − j); the page says "N added, M skipped as already imported". (3) Nothing is silently dropped: an unreadable row is listed with its line number and reason, and nothing is appended until "Import the N good rows" (or Cancel).
@@ -9800,12 +9850,40 @@ guide Chapter 85.
   mutations each killed).
 - [ ] **LR-4 Aged care accommodation supplement restructure — announced for 20 March 2027, not yet
   law.** Top tier $77.30 a day; `agedCare.ts` holds one $73.73 figure. Wait for the instrument.
+  - **Checked 2026-09-30: NOW LAW — code not yet changed.** The instrument is the Aged Care Amendment
+    (September Indexation and Other Measures) Rules 2026, **F2026L01252** (made 17 Sep 2026), Schedule 8,
+    which **commences 20 March 2027**. It amends Aged Care Rules 2025 s 230-10(2)/(2A), s 230-15 and s 242B-25:
+    - A newly built or significantly refurbished home is paid by its low-means resident percentage:
+      under 30% **$59.23** a day; 30% to under 40% **$66.00**; 40% or more **$78.73**.
+    - Any other home is paid a flat **$53.09** a day.
+    - The building status amount (s 230-15) becomes $78.73 for new or refurbished homes and $53.09 otherwise.
+      The means-tested care fee step in s 285A-14(1) now points to s 230-15(a).
+    - The concessional resident supplement gets the same tiers.
+    - Saving provision s 610-65: days before commencement keep the old s 230-15 (the $73.73 set in Schedule 1 of the same instrument).
+    - The top tier is **$78.73, not the announced $77.30** (probably indexed).
+    - The explanatory statement also mentions a separate supplement for homes with high supported-resident ratios "from 20 March 2028".
+      That is not in this instrument's text.
 - [ ] **LR-5 The rate that turns a room deposit into a daily payment (MPIR) is to be replaced by 1
   July 2027 — announced, not law, no formula published.** The guide carries a caveat; revisit at
   the next refresh.
-- [ ] **LR-6 Seventeen appendix links (AustLII, DSS Social Security Guide) refuse automated
+  - Checked 2026-09-30: still not law — no 2026 Act or instrument on the Federal Register replaces the MPIR.
+    The 2026 aged care Rules (F2026L00292, F2026L00862, F2026L00982, F2026L01252 and its explanatory statement) mention the MPIR only in refund-interest wording.
+    Health's 20 Sep 2026 schedule of fees still publishes a quarterly MPIR for 1 Oct to 31 Dec 2026.
+- [x] **LR-6 Seventeen appendix links (AustLII, DSS Social Security Guide) refuse automated
   checks (403).** They were checked through Internet Archive copies up to 15 months old; the user
-  should open one or two in a browser to confirm they still load.
+  should open one or two in a browser to confirm they still load. — ✅ 2026-09-30. All 17 load
+  LIVE in headless Chrome (`--headless=new --dump-dom`, desktop UA), which gets past the 403.
+  Every page title matches the guide's citation:
+  - 7 AustLII: ITAA97 s 290-230, 290-235, 995-1, 128-10, 128-15; SSA s 11A, 1118.
+  - 10 DSS Guide: 2.2.5.60, 3.1.5.30, 3.1.5.70, 3.4.5.30, 4.3.3.05, 4.3.3.10, 4.6.3.60, 4.6.3.70, 4.6.3.90, 5.1.8.10.
+
+  The cited content is present on every page, for example:
+  - "separately and apart … on a permanent basis"
+  - 18% of $3,000
+  - the "spouse" (b) genuine-domestic-basis limb
+  - ss 1072/1073A/1073BB
+  - s 4(7)
+  - 12 months
 
 ## Phase 18 — Try changes: a slider sandbox over the chart (designed 2026-09-30, SHIPPED @22c2551)
 

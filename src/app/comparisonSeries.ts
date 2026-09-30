@@ -48,9 +48,10 @@ import { agesCaption } from './monthsToSeries.js'; // `.js` is correct in a `.ts
 import { ageAxis, agePensionAgeLines } from './monthsToSeries.js';
 import type { AgeAxis, AgePensionAgeLines } from './monthsToSeries.js';
 import { shortfallAge } from '../core/outcomes.js';
-import { AGE_PENSION_LINE } from '../core/projection.js';
+import { AGE_PENSION_LINE, firstDayOf } from '../core/projection.js';
 import { crossoverPoint } from './crossover.js';
 import type { Household } from '../core/household.js';
+import { YOUNGER_PARTNER_EXEMPTION_REASON, hasReachedAgePensionAge } from '../core/household.js';
 import type { Month, Scenario } from '../core/plan.js';
 import type { PlanFile } from '../core/parsePlan.js';
 import type { ScenarioWalks } from './scenarioWalks.js';
@@ -99,17 +100,35 @@ export interface ScenarioAgePension {
   readonly firstMonth: string | undefined;
   /** The whole fact as one sentence, for the Scenario list, on `ScenarioShortfall.text`'s pattern. */
   readonly text: string;
+  /**
+   * **P3-20f — the means-test asymmetry, in the engine's own words**: `YOUNGER_PARTNER_EXEMPTION_REASON`,
+   * present where some Person is under Age Pension age when the walk starts, so their Accumulation
+   * Phase super is outside both tests while financial assets are counted at any age. Absent otherwise.
+   */
+  readonly note?: string;
 }
 
-/** Every month of `months` in which the walk paid something described `AGE_PENSION_LINE`. */
-export const agePensionSummary = (months: readonly Month[]): ScenarioAgePension => {
+/**
+ * Every month of `months` in which the walk paid something described `AGE_PENSION_LINE`. The age
+ * test reads `household` and the first month's date only, never a month's asset fields.
+ */
+export const agePensionSummary = (months: readonly Month[], household?: Household): ScenarioAgePension => {
   const paid = months.filter((month) => month.lines.some((line) => line.description === AGE_PENSION_LINE));
   const firstMonth = paid[0]?.month as string | undefined;
   const text =
     paid.length === 0
       ? 'Age Pension: not paid in any month of this plan.'
       : `Age Pension: paid in ${paid.length} of ${months.length} months, from ${firstMonth as string}.`;
-  return Object.freeze({ monthsPaid: paid.length, totalMonths: months.length, firstMonth, text });
+  const start = months[0]?.month;
+  const younger =
+    household !== undefined && start !== undefined && household.persons.some((person) => !hasReachedAgePensionAge(person, firstDayOf(start)));
+  return Object.freeze({
+    monthsPaid: paid.length,
+    totalMonths: months.length,
+    firstMonth,
+    text,
+    ...(younger ? { note: YOUNGER_PARTNER_EXEMPTION_REASON } : {}),
+  });
 };
 
 /**
@@ -320,7 +339,7 @@ export const comparisonSeries = (
         noPensionAbove: Object.freeze(walk.map((month) => (month.assetsTestThresholds?.noPensionAbove ?? null) as number | null)),
       }),
       shortfall: shortfallSummary(walk, plan.household),
-      agePension: agePensionSummary(walk),
+      agePension: agePensionSummary(walk, plan.household),
       ...(heas === undefined ? {} : { heas }),
     });
   });

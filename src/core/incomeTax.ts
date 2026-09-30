@@ -193,8 +193,9 @@ const bracketsFor = (fy: FinancialYear): readonly TaxBracket[] => bracketTableFo
  * Income Tax Rates Act 1986 Sch 7 Pt I, as the register's bracket table. Marginal: each bracket's
  * rate applies to the slice of income inside it, never to the whole.
  *
- * The register states no rounding rule for the tax amount itself, so none is invented — the
- * result is whole cents, each slice rounded by `mulCents`.
+ * No rounding rule: the law states none for tax payable, LITO, WATO or the Medicare levy (register
+ * §2.1, row "Rounding of tax payable, LITO, WATO and the Medicare levy", P3-1d) — the result is
+ * whole cents, each slice rounded by `mulCents`. Only SAPTO rounds (up, reg ss 9(8), 10(2)).
  */
 export const taxOnTaxableIncome = (fy: FinancialYear, income: TaxableIncome): BasicIncomeTaxLiability => {
   let tax = toCents(0);

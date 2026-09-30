@@ -7,10 +7,12 @@
 // untested half decides nothing. So this file is the whole of the guarantee, and it is written
 // against four specific ways the table could lie:
 //
-//   1. **A THREE-MEMBER UNION COLLAPSED INTO TWO.** `'none'` means nothing legislated stands behind
-//      the figure; `'not carried'` means the SIS Reg Sch 7 Account-Based Pension minimum does and
-//      this build drops it. Printing both as a blank cell would assert, on screen, that no register
-//      governs a Schedule 7 minimum. Same for `'none'` vs `'not attributed'`.
+//   1. **A FOUR-MEMBER UNION COLLAPSED.** `'none'` means nothing legislated stands behind the
+//      figure; `'not carried'` means something does and this build drops it (the SIS Reg Sch 7
+//      Account-Based Pension minimum was that case until 2026-09-30, and no line emits it now);
+//      `'stated'` is a figure the member chose inside legislated bounds (a TTR at a stated rate).
+//      Printing any two alike would misstate the law behind a figure. Same for `'none'` vs
+//      `'not attributed'`.
 //   2. **A BORROWED FY STAMP READ AS AN ORDINARY ONE (P5-4a).** The Medicare low-income thresholds
 //      carry `priorYearFallbackFor: '2026-27'`, so real months of this walk carry the borrowed
 //      sentence. It must not acquire the ordinary out-of-year wording.
@@ -99,6 +101,23 @@ const FUTURE = { view: 'futureDollars', asAtDate: DEMO_SETTINGS.asAtDate, cpi: D
 const ROWS = monthsToRows(MONTHS, FUTURE);
 
 const everyLine = MONTHS.flatMap((month) => month.lines);
+
+// **The two provenance members the demo walk no longer reaches (2026-09-30), made where they can be.**
+// A TTR paid at a stated 7% is the engine's own `'stated'` record. Nothing in the engine emits
+// `'not carried'` any more, so that one is a record of the type's own shape.
+const TTR_WALK = project(
+  { asAtDate: '2026-07-01', planningHorizonAge: 63, economicSeries: { cpi: 0, pblci: 0.025, awote: 0.035, mtawe: 0.035 }, deemingRates: { lower: 0.0175, upper: 0.0375 }, nominalReturn: 0 },
+  {
+    persons: [{
+      name: 'Lee', dateOfBirth: '1964-01-01', parcels: [], employmentIncomePerFortnight: toCents(0), workBonusBalance: toCents(0),
+      superInterests: [{ phase: 'ttr', balance: toCents(500_000), statedStreamSettings: { commencementDay: '2025-07-01', statedTtrDrawdownRate: 0.07 } }],
+    }],
+    homeStatus: 'occupied',
+  },
+  [],
+);
+const STATED_LINE = TTR_WALK[0].lines.find((l) => l.provenance.basis === 'stated');
+const UNCARRIED = Object.freeze({ basis: 'not carried', register: 'Account-Based Pension minimum', note: 'A governed figure this build does not stamp.' });
 const setOf = (values) => [...new Set(values)].sort();
 
 /**
@@ -122,9 +141,12 @@ const linesOf = (row) => [...row.cashLines, ...row.wealthLines];
 
 // --- §1 The vacuity control: the fixture reaches every renderable shape --------------------------
 
-test('the demo Scenario emits all three provenance bases, all three attribution bases, both effects and FOUR of the seven note subjects', () => {
+test('the demo Scenario emits two of the four provenance bases, all three attribution bases, both effects and FOUR of the seven note subjects', () => {
   assert.ok(MONTHS.length > 300, `the walk is only ${MONTHS.length} months`);
-  assert.deepEqual(setOf(everyLine.map((l) => l.provenance.basis)), ['legislated', 'none', 'not carried']);
+  // 2026-09-30: the pension line carries the Schedule 7 record, so `'not carried'` left the demo; it
+  // holds no TTR, so `'stated'` never joined it. Both are exercised on `STATED_LINE` and `UNCARRIED`.
+  assert.deepEqual(setOf(everyLine.map((l) => l.provenance.basis)), ['legislated', 'none']);
+  assert.equal(STATED_LINE.provenance.register, 'transition to retirement income stream');
   assert.deepEqual(setOf(everyLine.map((l) => l.attribution.basis)), ['entries', 'none', 'not attributed']);
   assert.deepEqual(setOf(everyLine.map((l) => l.effect)), ['cash', 'wealth']);
   // **All FOUR subjects since 2026-09-20**, the third because the demo Household draws on Dana's
@@ -174,9 +196,9 @@ test('the demo Scenario emits all three provenance bases, all three attribution 
 
 // --- §2 The six strings: three provenance, three attribution, none of them shared ----------------
 
-test('the three LineProvenance bases render as three DIFFERENT strings, and none of them is blank', () => {
-  const labels = ['legislated', 'none', 'not carried'].map((basis) => PROVENANCE_LABELS[basis]);
-  assert.equal(new Set(labels).size, 3, `two provenance bases share a string: ${JSON.stringify(labels)}`);
+test('the four LineProvenance bases render as four DIFFERENT strings, and none of them is blank', () => {
+  const labels = ['legislated', 'stated', 'none', 'not carried'].map((basis) => PROVENANCE_LABELS[basis]);
+  assert.equal(new Set(labels).size, 4, `two provenance bases share a string: ${JSON.stringify(labels)}`);
   for (const label of labels) {
     assert.ok(label.trim().length > 3, `a provenance label is empty or a placeholder: ${JSON.stringify(label)}`);
     assert.doesNotMatch(label, /^(—|-|n\/a|N\/A|none|\?)$/);
@@ -192,16 +214,29 @@ test('the three LineAttribution bases render as three DIFFERENT strings, and non
   }
 });
 
-test('`not carried` does NOT render as `none` — the Sch 7 minimum is governed, not unlegislated', () => {
-  const uncarried = everyLine.find((l) => l.provenance.basis === 'not carried');
+test('`not carried` does NOT render as `none` — a governed figure is not an unlegislated one', () => {
   const unlegislated = everyLine.find((l) => l.provenance.basis === 'none');
-  assert.ok(uncarried !== undefined && unlegislated !== undefined);
-  const a = provenanceCell(uncarried.provenance);
+  assert.ok(unlegislated !== undefined);
+  const a = provenanceCell(UNCARRIED);
   const b = provenanceCell(unlegislated.provenance);
   assert.notEqual(a.label, b.label, 'a governed-but-uncarried figure renders as an unlegislated one');
   // And the gap is NAMED rather than merely admitted: the register reaches the cell.
   assert.equal(a.register, 'Account-Based Pension minimum');
   assert.equal(b.register, null);
+});
+
+test('`stated` renders as its own label and keeps everything a legislated cell shows — register, stamp, working', () => {
+  const cell = provenanceCell(STATED_LINE.provenance);
+  const law = provenanceCell(everyLine.find((l) => l.provenance.basis === 'legislated').provenance);
+  assert.equal(cell.basis, 'stated');
+  assert.equal(cell.label, PROVENANCE_LABELS.stated);
+  assert.notEqual(cell.label, law.label, 'a member-chosen rate renders as the law\'s own figure');
+  assert.equal(cell.register, 'transition to retirement income stream');
+  assert.equal(cell.stamp, 'FY2026-27');
+  assert.ok(cell.confidence !== null);
+  assert.deepEqual(cell.determination, [...STATED_LINE.provenance.determination]);
+  assert.match(cell.determination[0], /^drawdown rate 7% stated by the member/);
+  assert.equal(cell.note, null);
 });
 
 test('`not attributed` does NOT render as `none` — an entry is behind the figure either way', () => {
@@ -347,21 +382,21 @@ test('every row carries `appliedEntryIds`, in the month’s own order', () => {
 });
 
 test('every row carries the MONTH-level provenance rollup, with `uncarried` kept apart from `registers`', () => {
-  const withUncarried = ROWS.find((r) => r.provenance.uncarried.length > 0);
-  assert.ok(withUncarried !== undefined, 'no month reports an uncarried register');
-  assert.deepEqual(withUncarried.provenance.uncarried, ['Account-Based Pension minimum']);
-  assert.equal(
-    withUncarried.provenance.registers.includes('Account-Based Pension minimum'),
-    false,
-    'an uncarried register was merged into the vouched-for list',
-  );
+  // 2026-09-30: nothing is uncarried in any month now — the pension minimum is vouched for.
+  assert.deepEqual(ROWS.flatMap((r) => r.provenance.uncarried), []);
+  const paying = ROWS.find((r) => MONTHS.find((m) => m.month === r.month).lines.some((l) => l.provenance.register === 'Account-Based Pension minimum'));
+  assert.ok(paying !== undefined, 'no month pays the pension');
+  assert.ok(paying.provenance.registers.includes('Account-Based Pension minimum'), 'a carried register is missing from the vouched-for list');
   // ⚠️ **ON DANA ALONE SINCE 2026-09-23.** The demo couple's walk had 49 months that carried no
   // register — months with no tax and no Age Pension — and has none now: the pension indexes on the
   // plan's own growth rates and is paid in 495 of its 501 months. Dana on her own, between her
   // retirement and her Age Pension age, still has 48 of them, and none of that depends on a rate.
+  // ⚠️ **AND NONE ON DANA ALONE SINCE 2026-09-30**: those 48 months pay her pension, and its line now
+  // carries the Account-Based Pension minimum's register. The couple's own register-free months
+  // (below) are the fixture for a month that carried nothing.
   const soleMonths = project(DEMO_SETTINGS, { ...DEMO_HOUSEHOLD, persons: [DEMO_HOUSEHOLD.persons[0]] }, DEMO_ENTRIES);
-  const soleRows = monthsToRows(soleMonths, FUTURE);
-  const empty = soleRows.find((r) => r.provenance.registers.length === 0);
+  assert.equal(soleMonths.filter((m) => m.provenance.registers.length === 0).length, 0);
+  const empty = ROWS.find((r) => r.provenance.registers.length === 0);
   assert.ok(empty !== undefined);
   // ⚠️ **AND 21 ON THE COUPLE AGAIN SINCE THE SWITCH AT RETIREMENT (2026-09-23).** Dana's account
   // becomes an account-based pension from 2031-06 (her RETIRE is 2031-05-14), and a pension counts in
@@ -400,8 +435,12 @@ test('every row carries the MONTH-level provenance rollup, with `uncarried` kept
   assert.equal(MONTHS.find((m) => m.month === '2033-04').assessableAssets, 130_944_635 + 209_504 + 1_937_121 - 2_312);
   assert.equal(Math.round(2_300 * 1.065 ** (1 / 12)), 2_312);
   assert.equal(130_944_635 - 130_205_637, toCents(7_389.98));
-  assert.deepEqual(noRegister, noPension.filter((month) => month !== '2031-07' && !(month >= '2033-03' && month <= '2033-06')));
-  assert.equal(noRegister.length, 22);
+  // ⚠️ **AND 6 SINCE THE PENSION LINE CARRIES ITS REGISTER (2026-09-30), not 22.** The 16 of those
+  // months in which Dana's (or Ash's) Account-Based Pension paid anything now carry the Schedule 7
+  // record; the six left are months the household funded without a pension payment. No figure moved.
+  const paysAPension = (month) => MONTHS.find((m) => m.month === month).lines.some((l) => l.description.startsWith('Account-Based Pension payment'));
+  assert.deepEqual(noRegister, noPension.filter((month) => month !== '2031-07' && !(month >= '2033-03' && month <= '2033-06') && !paysAPension(month)));
+  assert.deepEqual(noRegister, ['2032-02', '2032-03', '2032-04', '2032-05', '2032-06', '2033-02']);
   // **The month that carried nothing says so IN WORDS (2026-09-20).** This pinned the literal
   // `'nothing carried'`, which is the engine's own token and was being printed under a heading
   // reading "Weakest check". The token is still what the `Month` says — asserted at the source, so
@@ -409,7 +448,7 @@ test('every row carries the MONTH-level provenance rollup, with `uncarried` kept
   // token, long enough to be a sentence, and different from the strongest real confidence, because
   // a month with nothing in it must never read as a well-checked one (`plan.ts` on why the literal
   // is deliberately not a `Confidence`).
-  assert.equal(soleMonths[soleRows.indexOf(empty)].provenance.confidence, 'nothing carried');
+  assert.equal(MONTHS[ROWS.indexOf(empty)].provenance.confidence, 'nothing carried');
   assert.equal(empty.provenance.confidence, CONFIDENCE_LABELS['nothing carried']);
   assert.ok(empty.provenance.confidence.trim().length > 20, empty.provenance.confidence);
   assert.notEqual(empty.provenance.confidence, CONFIDENCE_LABELS['primary-verified']);
@@ -1072,7 +1111,7 @@ test('a real name keeps its name and gets a gloss, and the gloss is written ONCE
   // in a line's provenance and at the head of a money-source note, and two copies of one explanation
   // are two things that can be reworded apart. The length floor is what keeps this from being a
   // constant compared with itself: emptying the gloss would pass the equalities and fail here.
-  const uncarried = everyLine.find((l) => l.provenance.basis === 'not carried');
+  const uncarried = everyLine.find((l) => l.provenance.register === 'Account-Based Pension minimum');
   const cell = provenanceCell(uncarried.provenance);
   // The limb's TITLE was "Account-Based Pension" for part of 2026-09-23 and is two titles since
   // "spend cash first" split the account at its minimum — both glossed from the ONE register, which
@@ -1548,25 +1587,41 @@ test('the new Month field is ADDED and moves nothing: without it the demo digest
   // DOWN in 55 months from 2031-06, once her salary stops.
   const without = MONTHS.map(({ closingNonSuperPortfolio: _p, assetsTestThresholds: _t, concessionalCapByPerson: _c, ...rest }) => rest);
   // RE-PINNED 2026-09-29 (LR-1 slice 4): no figure moved. Dana's 11 `Income tax on capital gain` lines (2033-03 to 2035-05) each gained one `determination` entry, `CGT_MINIMUM_TAX_DETERMINATION`; a whole-walk diff finds those 11 and nothing else.
-  assert.equal(createHash('sha256').update(JSON.stringify(without)).digest('hex'), '806fab4f7571820896d81b56900400b22494a361327855fb0c3b271e2e0ecc81');
+  // RE-PINNED 2026-09-30 (the ABP minimum's provenance, carried), ALL FOUR DIGESTS BELOW, PROVENANCE
+  // ONLY: the 518 `Account-Based Pension payment` lines were `'not carried'` and now carry
+  // `minimumDrawdown`'s record (10 of them say Ash's 1 September balance stood in; 25 add the
+  // Waterfall clause) — 139,342 → 323,183 bytes of line provenance — and the months' rollups gain the
+  // register, its stamp and caveats, 294,657 → 384,507. With every `provenance` stripped the walk is
+  // the same 2,525,929 bytes on both builds, to the digest asserted here.
+  assert.equal(
+    createHash('sha256').update(JSON.stringify(MONTHS, (key, value) => (key === 'provenance' ? undefined : value))).digest('hex'),
+    'd73aeecddc8ffe2d0a27694b16a16ea4c3ad05ffe29a308dc1abffb79bc37075',
+    'a figure moved: with provenance stripped the walk is no longer the pre-ABP-provenance walk',
+  );
+  assert.notEqual(createHash('sha256').update(JSON.stringify(without)).digest('hex'), '806fab4f7571820896d81b56900400b22494a361327855fb0c3b271e2e0ecc81'); // pre-ABP provenance
+  assert.equal(createHash('sha256').update(JSON.stringify(without)).digest('hex'), '48089359ed63916c7c48a86b16276e81d4d44c760149b2887749e0d8c0da706b');
   // And the whole walk, new key and all — the pin the stripped digests elsewhere leave to this one.
   // 2026-09-25: `assetsTestThresholds` was ADDED; without it the walk is the one pinned before, to the byte.
   const withoutThresholds = MONTHS.map(({ assetsTestThresholds: _t, concessionalCapByPerson: _c, ...rest }) => rest);
   // RE-PINNED 2026-09-29 (LR-1 slice 4), both: the 11 minimum-tax determinations, 11 × 377 = 4,147 bytes, and nothing else.
-  assert.equal(createHash('sha256').update(JSON.stringify(withoutThresholds)).digest('hex'), '8bc912e0b0ac57128b1d51ddccb7e5da759c873c58e541ca01db7af86cf59fbc');
+  assert.equal(createHash('sha256').update(JSON.stringify(withoutThresholds)).digest('hex'), 'a9b8d10b7a9733650b6163ecf1646d8b4cde615a67a6147e5fb62cf880471b70');
   // P3-4b (2026-09-30): `concessionalCapByPerson` was ADDED, 200,812 bytes, and both stripped digests
   // above (which now strip it too) are unchanged: no figure moved. The old full digest is the new
   // walk without it.
-  assert.equal(createHash('sha256').update(JSON.stringify(MONTHS.map(({ concessionalCapByPerson: _c, ...rest }) => rest))).digest('hex'), 'd73b27b0a9d520d4ef38da00ce082131a08a8d7cf43352f627de81836f410de5');
+  assert.equal(createHash('sha256').update(JSON.stringify(MONTHS.map(({ concessionalCapByPerson: _c, ...rest }) => rest))).digest('hex'), '891a5d9b179fa384d010178cf8495aefd642a9aa7657656b1af287042912fc5f');
   // P3-4b slice 2 (2026-09-30): the plan is dated 2026-09-01, not 1 July, and states no 30 June
   // balance, so FY2026-27's `totalSuperBalance` is `null` (not known) for both Persons and Dana's
   // window reads closed — 10 months, 90 bytes shorter, no other key and no figure moved (the
   // stripped digest above did not). Re-pinned for that alone.
   assert.notEqual(createHash('sha256').update(JSON.stringify(MONTHS)).digest('hex'), '99b663af8dfd7dd4eb4a37d6cab18eef401fe60a0afbf07dde162e8bd82fb918'); // pre-slice 2
-  assert.equal(createHash('sha256').update(JSON.stringify(MONTHS)).digest('hex'), 'bda4be63f4265595e8bd86a941e019cd594aa4b5afe2a6267b6138cc415f4c52');
+  assert.notEqual(createHash('sha256').update(JSON.stringify(MONTHS)).digest('hex'), 'bda4be63f4265595e8bd86a941e019cd594aa4b5afe2a6267b6138cc415f4c52'); // pre-ABP provenance
+  assert.equal(createHash('sha256').update(JSON.stringify(MONTHS)).digest('hex'), '13f63f3a3a922cbd2e72d176b1ea60cfa72a104d7b465fbf3fa3f86eed25e502');
   // O90 (2026-09-30): the SAPTO caveat names `baseRebateAmount.coupleEach`, the record actually read,
   // not the non-existent `.couple`: 4 bytes per caveat, no figure moved. Both digests above re-pinned for it.
   const renamed = JSON.stringify(MONTHS).split('baseRebateAmount.coupleEach is stamped').length - 1;
-  assert.equal(JSON.stringify(MONTHS).length, 3_623_969 + 11 * 377 + renamed * 4 + 200_812 - 90);
-  assert.equal(JSON.stringify(MONTHS).replaceAll('baseRebateAmount.coupleEach is stamped', 'baseRebateAmount.couple is stamped').length, 3_623_969 + 11 * 377 + 200_812 - 90);
+  // 2026-09-30: + 183,841 of pension-line provenance and + 89,850 of month rollup = 273,691.
+  const abpProvenance = (323_183 - 139_342) + (384_507 - 294_657);
+  assert.equal(abpProvenance, 273_691);
+  assert.equal(JSON.stringify(MONTHS).length, 3_623_969 + 11 * 377 + renamed * 4 + 200_812 - 90 + abpProvenance);
+  assert.equal(JSON.stringify(MONTHS).replaceAll('baseRebateAmount.coupleEach is stamped', 'baseRebateAmount.couple is stamped').length, 3_623_969 + 11 * 377 + 200_812 - 90 + abpProvenance);
 });

@@ -231,6 +231,7 @@ import { trisConversionDayUnderItem106 } from './trisConversionDay.js';
 import { PUBLISHED_TRANSFER_BALANCE_CAP, retirementSwitches, workSpells } from './retirementPension.js';
 import type { WorkSpellChange } from './retirementPension.js';
 import { minimumDrawdown, pensionAccountBalance, pensionAccountBalanceObservedLater } from './minimumDrawdown.js';
+import type { MinimumDrawdown } from './minimumDrawdown.js';
 import { UnvaluedAssessableHomeError, agePensionEntitlement } from './agePension.js';
 import { BEREAVEMENT_DAYS_TO_PERIOD_END, bereavementLumpSum } from './bereavement.js';
 import { applyWorkBonus } from './workBonus.js';
@@ -259,7 +260,7 @@ import type { Cents } from './money.js';
 import type { AssetSplit, Household, HomeStatus, Mortgage, MortgageMonth, Parcel, Person, PersonAssetSplit, SuperInterest } from './household.js';
 import type { QualifyingEarnings } from './superContributions.js';
 import type { ConcessionalContributionComponents, ContributionsTax } from './superConcessional.js';
-import type { ConcessionalCapHeadroom, Entry, FigureProvenance, HeasCapacityCapNote, TtrAccountOpenedNote, IsoMonth, LineAttribution, Month, MonthLine, MonthNote, MonthProvenance, ParameterWindowNote, ParcelSelection, PensionAtRetirementNote, ProvenanceRegister, Settings, StandingParametersNote, StatedByEntries, SuperGuaranteeNote, UncarriedProvenance, UnattributedFigure, UnlegislatedFigure, UnstatedFigure, WaterfallLimbNote } from './plan.js';
+import type { ConcessionalCapHeadroom, Entry, FigureProvenance, HeasCapacityCapNote, TtrAccountOpenedNote, IsoMonth, LineAttribution, Month, MonthLine, MonthNote, MonthProvenance, ParameterWindowNote, ParcelSelection, PensionAtRetirementNote, ProvenanceRegister, Settings, StandingParametersNote, StatedByEntries, StatedWithinLegislatedBounds, SuperGuaranteeNote, UncarriedProvenance, UnattributedFigure, UnlegislatedFigure, UnstatedFigure, WaterfallLimbNote } from './plan.js';
 import type { ComputedProvenance, Consumed, ProvenanceBearing } from './provenance.js';
 import type { AgePensionEntitlement } from './agePension.js';
 import type { MinimumTaxFacts, SaptoPerson } from './incomeTax.js';
@@ -3916,7 +3917,7 @@ export const schedule7RelevantDay = (fy: FinancialYear, commencementDay: IsoDate
  * commutation or a rollover: `plan.ts` has no entry type that performs one. Passing `true` would be
  * a refusal (`MidYearProportioningError`) over a fact no `Scenario` can carry.
  */
-export const annualPensionMinimum = (input: {
+export const annualPensionMinimumDetermination = (input: {
   readonly fy: FinancialYear;
   readonly dateOfBirth: IsoDate;
   readonly commencementDay: IsoDate;
@@ -3930,7 +3931,7 @@ export const annualPensionMinimum = (input: {
    * omission at a call site, which is the whole thing `PensionBalanceDateError` was written to stop.
    */
   readonly balanceObservedOn: IsoDate;
-}): Cents =>
+}): MinimumDrawdown =>
   minimumDrawdown({
     fy: input.fy,
     dateOfBirth: input.dateOfBirth,
@@ -3949,7 +3950,11 @@ export const annualPensionMinimum = (input: {
             withdrawalBenefit: withdrawalBenefitOf(input.balanceOnRelevantDay),
           }),
     commutedOrRolledOverDuringYear: false,
-  }).amount;
+  });
+
+/** `annualPensionMinimumDetermination`'s figure alone, for the call sites that need only the dollars. */
+export const annualPensionMinimum = (input: Parameters<typeof annualPensionMinimumDetermination>[0]): Cents =>
+  annualPensionMinimumDetermination(input).amount;
 
 /**
  * **One financial year's payment from a transition to retirement income stream** —
@@ -4823,31 +4828,104 @@ export const UNLEGISLATED = Object.freeze({
   rentOutHome: Object.freeze({ basis: 'none', note: 'The household’s own estimate of the weekly rent and the yearly council rates, insurance, agent’s fees and repairs; no register figure stands behind any of the five. Net of the four costs, this is assessable income for tax and for the Age Pension and aged-care means tests — never deemed — and a net loss is floored at nil for the two means tests but not for tax.' } as const),
 }) satisfies Readonly<Record<string, UnlegislatedFigure>>;
 
-/**
- * **The one `'not carried'` record in the build, and it is named rather than generic.** The payment
- * line carries the year's Schedule 7 minimum and the Waterfall's own draw as one payment, which is
- * what a fund actually pays; `annualPensionMinimum` returns `minimumDrawdown(...).amount` and drops
- * the `ComputedProvenance` beside it, so no stamp can reach here without changing that signature.
- */
-export const PENSION_MINIMUM_PROVENANCE: UncarriedProvenance = Object.freeze({
-  basis: 'not carried',
-  register: 'Account-Based Pension minimum',
-  note: 'Schedule 7 governs the minimum and this payment also carries what the Waterfall drew; annualPensionMinimum returns the amount without minimumDrawdown’s provenance, so no stamp reaches the line.',
-});
+const percentOf = (rate: number): string => `${Number((rate * 100).toFixed(6))}%`;
 
 /**
- * **A TTR payment's record, `'not carried'` for `PENSION_MINIMUM_PROVENANCE`'s reason** — the
- * Schedule 7 floor inside it comes through `annualPensionMinimum`, which drops `minimumDrawdown`'s
- * provenance — and it carries the tax nil and the taxed-source assumption under it, because no tax
- * line is written beside the payment and silence about a tax is not a tax of nil.
+ * **Schedule 7's working for one year, in the Schedule's own terms** — the `determination` of every
+ * line paid out of that year's minimum. Read off the `MinimumDrawdown` itself, so it cannot say a
+ * different thing from the figure: the age and band factor on the relevant day, the balance and the
+ * day it was really observed on where a later one stood in (P10-5), cl 3's day count where it
+ * pro-rated, cl 4A/4B's relief, and cl 4's nil where that switched the determination off.
  */
-export const TTR_PAYMENT_PROVENANCE: UncarriedProvenance = Object.freeze({
-  basis: 'not carried',
-  register: 'transition to retirement income stream',
-  note:
-    'The year’s payment is the stated drawdown rate on the relevant-day balance, or the Schedule 7 minimum where that is more or no rate is stated, and never more than the SISR reg 6.01(2)(b)(ii) 10% ceiling; annualPensionMinimum returns the minimum without minimumDrawdown’s provenance, so no stamp reaches the line. ' +
-    TTR_PAYMENT_TAX_NOTE,
-});
+const minimumDrawdownDetermination = (drawdown: MinimumDrawdown): readonly string[] => {
+  const { balance, relevantDay } = drawdown;
+  if (drawdown.nil) {
+    return [`Sch 7 cl 4: nil for FY${drawdown.fy} — the pension commenced on ${drawdown.commencementDay}, on or after ${drawdown.nilFrom}`];
+  }
+  return [
+    `age ${drawdown.age} on the relevant day ${relevantDay}: the Schedule 7 band's percentage factor is ${percentOf(drawdown.factor)}`,
+    balance.proxiedFrom === undefined
+      ? `account balance ${balance.value} cents on the relevant day ${relevantDay} (Sch 7 cl 1(2))`
+      : `account balance ${balance.value} cents: the balance observed on ${balance.proxiedFrom} stood in for the balance on the relevant day ${relevantDay}, which is behind the forecast`,
+    ...(drawdown.proRated
+      ? [`Sch 7 cl 3: pro-rated over ${drawdown.days}/${drawdown.daysInYear} days, from the commencement day ${drawdown.commencementDay}`]
+      : []),
+    `Sch 7 cl 4A/4B relief ${drawdown.relief.numerator}/${drawdown.relief.denominator}`,
+    `minimum ${drawdown.amount} cents for FY${drawdown.fy}, rounded once to the nearest ten dollars (Sch 7 cl 5)`,
+  ];
+};
+
+/** Said on an Account-Based Pension line that carries more than the year's minimum. */
+export const PENSION_ABOVE_MINIMUM_DETERMINATION = 'this payment may include more than the minimum, drawn by the Waterfall';
+
+/**
+ * **The Account-Based Pension payment line's record, built once per year from the year's
+ * `MinimumDrawdown`** (2026-09-30; it was `'not carried'` until then). Two variants, because the one
+ * line carries the year's minimum and the Waterfall's own draw as a single payment: the second says
+ * so, and the line takes it in any month its interest paid from above the minimum.
+ */
+const pensionMinimumProvenance = (drawdown: MinimumDrawdown): { readonly minimum: FigureProvenance; readonly aboveMinimum: FigureProvenance } => {
+  const record = (extra: readonly string[]): FigureProvenance =>
+    Object.freeze({
+      basis: 'legislated',
+      register: 'Account-Based Pension minimum',
+      fy: drawdown.provenance.fy,
+      confidence: drawdown.provenance.confidence,
+      caveats: drawdown.provenance.caveats,
+      determination: Object.freeze([...minimumDrawdownDetermination(drawdown), ...extra]),
+    });
+  return Object.freeze({ minimum: record([]), aboveMinimum: record([PENSION_ABOVE_MINIMUM_DETERMINATION]) });
+};
+
+/**
+ * **A TTR payment's record.** `'stated'` where the member's stated drawdown rate decided the year's
+ * figure — it is theirs, inside the Schedule 7 minimum and the reg 6.01(2)(b)(ii) 10% maximum — and
+ * `'legislated'` where the Schedule 7 minimum is what is paid. Either way it carries the tax nil and
+ * the taxed-source assumption, because no tax line is written beside the payment and silence about a
+ * tax is not a tax of nil.
+ */
+const ttrPaymentProvenance = (input: {
+  readonly drawdown: MinimumDrawdown;
+  readonly rate: number | undefined;
+  readonly amount: Cents;
+  readonly ceiling: Cents;
+  /** The day a `TTR_RATE_CHANGE` re-set the year from, where one did. */
+  readonly revisedFrom?: IsoDate;
+}): FigureProvenance | StatedWithinLegislatedBounds => {
+  const { drawdown, rate, amount, ceiling } = input;
+  const common = {
+    register: 'transition to retirement income stream',
+    fy: drawdown.provenance.fy,
+    confidence: drawdown.provenance.confidence,
+    caveats: drawdown.provenance.caveats,
+  } as const;
+  const minimum = minimumDrawdownDetermination(drawdown);
+  if (rate !== undefined && amount !== drawdown.amount) {
+    return Object.freeze({
+      basis: 'stated',
+      ...common,
+      determination: Object.freeze([
+        `drawdown rate ${percentOf(rate)} stated by the member${input.revisedFrom === undefined ? '' : `, in force from ${input.revisedFrom}`}, within the Schedule 7 minimum of ${drawdown.amount} cents and the SISR reg 6.01(2)(b)(ii) 10% maximum of ${ceiling} cents`,
+        ...(amount === ceiling ? ['capped at the 10% maximum'] : []),
+        ...minimum,
+        TTR_PAYMENT_TAX_NOTE,
+      ]),
+    });
+  }
+  return Object.freeze({
+    basis: 'legislated',
+    ...common,
+    determination: Object.freeze([
+      `${
+        rate === undefined
+          ? 'no drawdown rate stated: the Schedule 7 minimum is paid'
+          : `the stated drawdown rate ${percentOf(rate)} buys no more than the Schedule 7 minimum, so the minimum is paid`
+      }, within the SISR reg 6.01(2)(b)(ii) 10% maximum of ${ceiling} cents`,
+      ...minimum,
+      TTR_PAYMENT_TAX_NOTE,
+    ]),
+  });
+};
 
 /**
  * **Past the published window the Age Pension parameters are a FORECAST, and they arrive saying so.**
@@ -5112,7 +5190,9 @@ const heasProvenance = (fy: FinancialYear): FigureProvenance => {
  * ranking an unknown value as stronger than primary-verified.
  */
 const monthProvenance = (lines: readonly MonthLine[]): MonthProvenance => {
-  const carried = lines.map((line) => line.provenance).filter((p): p is FigureProvenance => p.basis === 'legislated');
+  const carried = lines
+    .map((line) => line.provenance)
+    .filter((p): p is FigureProvenance | StatedWithinLegislatedBounds => p.basis === 'legislated' || p.basis === 'stated');
   const uncarried = lines
     .map((line) => line.provenance)
     .filter((p): p is UncarriedProvenance => p.basis === 'not carried')
@@ -6131,12 +6211,23 @@ export const project = (
 
   // `instalment` is set only when a `TTR_RATE_CHANGE` re-sets a TTR year part-way (the remaining
   // figure spread over the months left), and `ttr` carries what that re-set needs from the relevant day.
+  // `provenance` is the year's line records, built once from the year's `MinimumDrawdown` when the
+  // year is determined (and a TTR's again when a rate change re-sets it).
   const pensionYears: ({
     fy: FinancialYear;
     amount: Cents;
     remaining: Cents;
     instalment?: Cents;
-    ttr?: { rate: number | undefined; balanceOnRelevantDay: Cents; balanceObservedOn: IsoDate; minimum: Cents };
+    drawdown: MinimumDrawdown;
+    provenance: ReturnType<typeof pensionMinimumProvenance>;
+    ttr?: {
+      rate: number | undefined;
+      balanceOnRelevantDay: Cents;
+      balanceObservedOn: IsoDate;
+      minimum: Cents;
+      ceiling: Cents;
+      provenance: FigureProvenance | StatedWithinLegislatedBounds;
+    };
   } | undefined)[][] = household.persons.map((person) => person.superInterests.map(() => undefined));
 
   // **P3-8's conversion limb, WIRED (2026-09-22): each TTR interest's conversion day, resolved
@@ -9909,7 +10000,7 @@ export const project = (
         if (determinedIn !== month) return;
         const balanceObservedOn = determinedIn === monthOf(relevantDay) ? relevantDay : firstDayOf(first);
         const balanceOnRelevantDay = balances[personIndex]?.superInterestBalances[slot] as Cents;
-        const minimum = annualPensionMinimum({
+        const drawdown = annualPensionMinimumDetermination({
           fy,
           dateOfBirth: person.dateOfBirth,
           commencementDay,
@@ -9917,6 +10008,7 @@ export const project = (
           balanceObservedOn,
           balanceOnRelevantDay,
         });
+        const minimum = drawdown.amount;
         const rate = phase === 'ttr' ? ttrRateInForce(personIndex, slot, month) : undefined;
         const amount =
           phase === 'ttr'
@@ -9943,11 +10035,16 @@ export const project = (
             }),
           );
         }
+        const ceiling = phase === 'ttr' ? ttrAnnualCeiling({ measuredAt: balanceObservedOn, accountBalance: balanceOnRelevantDay }) : undefined;
         (pensionYears[personIndex] ?? [])[slot] = {
           fy,
           amount,
           remaining: amount,
-          ...(phase === 'ttr' ? { ttr: { rate, balanceOnRelevantDay, balanceObservedOn, minimum } } : {}),
+          drawdown,
+          provenance: pensionMinimumProvenance(drawdown),
+          ...(ceiling !== undefined
+            ? { ttr: { rate, balanceOnRelevantDay, balanceObservedOn, minimum, ceiling, provenance: ttrPaymentProvenance({ drawdown, rate, amount, ceiling }) } }
+            : {}),
         };
       });
     });
@@ -9975,11 +10072,14 @@ export const project = (
         const holding = balances[personIndex];
         const commencementDay = commencementDayFor(personIndex, slot);
         if (held === undefined || held.fy !== fy || holding === undefined || commencementDay === undefined) return;
+        // A TTR year is determined with its `ttr` record: the determination and this payment read the
+        // same `ttrPhaseForPayment` on the same day, so a TTR paying from a year without one is a bug.
+        if (held.ttr === undefined) throw new RangeError(`${month}: a TTR payment from a year determined without its TTR record`);
         // **A dated rate change re-sets the rest of the year** (`ttrAnnualPaymentRevised` gives the
         // law): the year's figure is re-priced from this month, and what is left of it is spread
         // evenly over the months to June.
         const rate = ttrRateInForce(personIndex, slot, month);
-        if (held.ttr !== undefined && rate !== undefined && rate !== held.ttr.rate) {
+        if (rate !== undefined && rate !== held.ttr.rate) {
           const paidSoFar = subCents(held.amount, held.remaining);
           const amount = ttrAnnualPaymentRevised({
             fy,
@@ -9995,7 +10095,11 @@ export const project = (
           held.amount = amount;
           held.remaining = subCents(amount, paidSoFar);
           held.instalment = Math.round(held.remaining / (monthsBetween(month, finalMonthOfTheYear) + 1)) as Cents;
-          held.ttr = { ...held.ttr, rate };
+          held.ttr = {
+            ...held.ttr,
+            rate,
+            provenance: ttrPaymentProvenance({ drawdown: held.drawdown, rate, amount, ceiling: held.ttr.ceiling, revisedFrom: date }),
+          };
         }
         const balance = holding.superInterestBalances[slot] as Cents;
         const due = month === finalMonthOfTheYear ? held.remaining : Math.min(held.instalment ?? monthlyFromAnnual(held.amount), held.remaining);
@@ -10012,7 +10116,7 @@ export const project = (
             effect: 'cash',
             description: superPaymentDescription(TTR_PAYMENT_LINE, person),
             amount: paid,
-            provenance: TTR_PAYMENT_PROVENANCE,
+            provenance: held.ttr.provenance,
             attribution: NO_STATING_ENTRY.ttrPayment,
           }),
         );
@@ -10543,6 +10647,8 @@ export const project = (
       return draw.drawn;
     };
     const drawnPerInterest: number[][] = household.persons.map((person) => person.superInterests.map(() => 0));
+    // Which interests paid from ABOVE the year's minimum this month — provenance only: the line says so.
+    const aboveMinimumPerInterest: boolean[][] = household.persons.map((person) => person.superInterests.map(() => false));
     for (const [limb, capacityOf] of [
       ['accountBasedPensionMinimum', (claim: PensionClaim) => claim.towardMinimum],
       ['accountBasedPensionAboveMinimum', (claim: PensionClaim) => claim.available - claim.towardMinimum],
@@ -10554,6 +10660,10 @@ export const project = (
         toAllocate -= share;
         const row = drawnPerInterest[claim.personIndex];
         if (row !== undefined) row[claim.slot] = (row[claim.slot] ?? 0) + share;
+        if (limb === 'accountBasedPensionAboveMinimum' && share > 0) {
+          const above = aboveMinimumPerInterest[claim.personIndex];
+          if (above !== undefined) above[claim.slot] = true;
+        }
         const held = pensionYears[claim.personIndex]?.[claim.slot];
         if (held !== undefined) held.remaining = Math.max(0, held.remaining - share) as Cents;
       }
@@ -10608,13 +10718,16 @@ export const project = (
       person.superInterests.forEach((_interest, slot) => {
         const amount = drawnPerInterest[personIndex]?.[slot] ?? 0;
         if (amount <= 0) return;
+        // Every draw above came from a claim, and a claim exists only where the year was determined.
+        const held = pensionYears[personIndex]?.[slot];
+        if (held === undefined || held.fy !== fy) throw new RangeError(`${month}: a pension payment from a year with no determined minimum`);
         lines.push(
           Object.freeze({
             direction: 'inflow',
             effect: 'cash',
             description: superPaymentDescription(PENSION_MINIMUM_LINE, person),
             amount: amount as Cents,
-            provenance: PENSION_MINIMUM_PROVENANCE,
+            provenance: aboveMinimumPerInterest[personIndex]?.[slot] === true ? held.provenance.aboveMinimum : held.provenance.minimum,
             attribution: UNATTRIBUTED.pensionMinimum,
           }),
         );

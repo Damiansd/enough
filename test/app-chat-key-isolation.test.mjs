@@ -62,7 +62,8 @@ const sha256 = (value) =>
 // RE-PINNED 2026-09-29 (LR-1 slice 3, Div 119's minimum tax): the demo walk's lines moved from
 // 2033-03 — see `app-chat-identity.test.mjs`'s copy of the re-pin for the mechanism and the figures.
 // RE-PINNED 2026-09-29 (LR-1 slice 4): no figure moved. Dana's 11 `Income tax on capital gain` lines (2033-03 to 2035-05) each gained one `determination` entry, `CGT_MINIMUM_TAX_DETERMINATION`; a whole-walk diff finds those 11 and nothing else.
-const DEMO_DIGEST = '806fab4f7571820896d81b56900400b22494a361327855fb0c3b271e2e0ecc81';
+// RE-PINNED 2026-09-30 (the Account-Based Pension minimum's provenance, carried): provenance only, no figure moved — the demo walk with every `provenance` stripped is byte-identical on both builds, asserted in `app-month-to-rows.test.mjs`.
+const DEMO_DIGEST = '48089359ed63916c7c48a86b16276e81d4d44c760149b2887749e0d8c0da706b';
 
 /** A load, a question, an edit and a save, a second question and a second save: the chat on throughout. */
 const session = async () => {
@@ -229,7 +230,8 @@ RICH.activeScenarioId = 'base';
 // `low income super tax offset not paid` note is inserted in 2028-07; a whole-walk diff finds that note
 // (and the later notes of that month shifted one place) and nothing else.
 // RE-PINNED 2026-09-30 (P3-4b): caveat text only on RICH's sacrifice credit lines; proved in `app-chat-identity.test.mjs`.
-const RICH_DIGEST = 'c3f7baeaaf79630cee30383e43d37b3687910e3d031d8a87af36a3db81fc5c0b';
+// RE-PINNED 2026-09-30 (the Account-Based Pension minimum's provenance, carried): provenance only on RICH's 83 pension lines — with `provenance` stripped RICH is identical on both builds, asserted in `app-chat-get-month.test.mjs`.
+const RICH_DIGEST = 'd76438467f9bf705b05821983ea951ade86cd316ae13d55aa420e441e9e98576';
 
 /** The plan loaded as the page loads it, with the chat as `settings` says, a conversation made and never asked, then walked. */
 const forecastWith = async (stored, settings) => {

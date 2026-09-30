@@ -3542,10 +3542,12 @@ looking at:
   income tax each month is labelled this way.
 - **{{name|Not set by law — this comes from your own plan}}** — this figure is simply what you told *enough*.
   Pip and Jo's salaries, and their {{fig spend-from-now nearest-1|$70,000}}-a-year spending figure, are labelled this way.
-- **{{name|Set by law (rule not named here)}}** (rarer, and marked in orange) — the law does
-  govern this figure, but this version of *enough* can't show exactly which rule. Pip's first
-  Account-Based Pension payment, the month Pip retires, carries this label, because it blends a legal
-  minimum with a top-up *enough* itself decided to draw.
+  Pip's Account-Based Pension payments are labelled this way too: open the ⓘ and it shows the
+  working behind the legal minimum — Pip's age and the percentage that age attracts, the balance it
+  was worked out on — and says so when a payment includes more than the minimum, drawn because the
+  household needed it.
+- **{{name|Your own choice, within limits set by law}}** — a transition to retirement pension paid at a
+  drawdown rate you chose. The rate is yours; the legal minimum and the 10% maximum around it are not.
 
 Beside the "where it came from" label, most lines also carry **{{name|Stated by these entries}}** (and
 name them). Others carry **{{name|No entry states this figure}}** if *enough* worked the amount out

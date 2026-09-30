@@ -212,7 +212,10 @@ test('RF-3: the new account is charged the source’s fees and none of its insur
 
 test('RF-3: no amount, no account — the demo walk is byte for byte what it was', () => {
   const walk = JSON.stringify(project(DEMO_PLAN.settings, DEMO_PLAN.household, DEMO_PLAN.entries));
-  assert.equal(createHash('sha256').update(walk).digest('hex'), 'bda4be63f4265595e8bd86a941e019cd594aa4b5afe2a6267b6138cc415f4c52');
+  // RE-PINNED 2026-09-30 (the Account-Based Pension minimum's provenance, carried): provenance only —
+  // the same walk with every `provenance` stripped is byte-identical on both builds, asserted in
+  // `app-month-to-rows.test.mjs`, which pins this full digest too.
+  assert.equal(createHash('sha256').update(walk).digest('hex'), '13f63f3a3a922cbd2e72d176b1ea60cfa72a104d7b465fbf3fa3f86eed25e502');
 });
 
 test('RF-3: one account and no nomination — the new account is closed to the Guarantee from month 0', () => {

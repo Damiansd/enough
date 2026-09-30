@@ -423,7 +423,8 @@ test('without a DEATH the demo walk is byte-identical — and with one switched 
   // and lower assets raise the Age Pension in 417 months from 2033-09. The limb-3 probe moved again,
   // DOWN in 55 months from 2031-06, once her salary stops.
   // RE-PINNED 2026-09-29 (LR-1 slice 4): no figure moved. Dana's 11 `Income tax on capital gain` lines (2033-03 to 2035-05) each gained one `determination` entry, `CGT_MINIMUM_TAX_DETERMINATION`; a whole-walk diff finds those 11 and nothing else.
-  const DEMO_DIGEST = '806fab4f7571820896d81b56900400b22494a361327855fb0c3b271e2e0ecc81';
+  // RE-PINNED 2026-09-30 (the Account-Based Pension minimum's provenance, carried): provenance only, no figure moved — the demo walk with every `provenance` stripped is byte-identical on both builds, asserted in `app-month-to-rows.test.mjs`.
+  const DEMO_DIGEST = '48089359ed63916c7c48a86b16276e81d4d44c760149b2887749e0d8c0da706b';
   assert.equal(sha256(project(DEMO_SETTINGS, DEMO_HOUSEHOLD, DEMO_ENTRIES)), DEMO_DIGEST);
   const off = { ...death('2050-07-01', 'personB'), enabled: false };
   assert.equal(sha256(project(DEMO_SETTINGS, DEMO_HOUSEHOLD, [...DEMO_ENTRIES, off])), DEMO_DIGEST);

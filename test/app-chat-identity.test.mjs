@@ -417,7 +417,8 @@ test('the forecast did not move when its descriptions moved into helpers', () =>
       .update(JSON.stringify(value, (key, field) => (key === 'closingNonSuperPortfolio' || key === 'assetsTestThresholds' || key === 'concessionalCapByPerson' ? undefined : field)))
       .digest('hex');
   // RE-PINNED 2026-09-29 (LR-1 slice 4): no figure moved. Dana's 11 `Income tax on capital gain` lines (2033-03 to 2035-05) each gained one `determination` entry, `CGT_MINIMUM_TAX_DETERMINATION`; a whole-walk diff finds those 11 and nothing else.
-  assert.equal(sha256(project(DEMO_SETTINGS, DEMO_HOUSEHOLD, DEMO_ENTRIES)), '806fab4f7571820896d81b56900400b22494a361327855fb0c3b271e2e0ecc81');
+  // RE-PINNED 2026-09-30 (the Account-Based Pension minimum's provenance, carried): provenance only, no figure moved — the demo walk with every `provenance` stripped is byte-identical on both builds, asserted in `app-month-to-rows.test.mjs`.
+  assert.equal(sha256(project(DEMO_SETTINGS, DEMO_HOUSEHOLD, DEMO_ENTRIES)), '48089359ed63916c7c48a86b16276e81d4d44c760149b2887749e0d8c0da706b');
   // RE-PINNED 2026-09-29 (LR-1 slice 3, Div 119's minimum tax): RICH moved only in the limb-3
   // `available` probe again, DOWN in 36 months from 2028-01 (after Wilhelmina's RETIRE, selling
   // everything would now pay the minimum tax). No line moved.
@@ -432,8 +433,12 @@ test('the forecast did not move when its descriptions moved into helpers', () =>
   const BEFORE = 'against the general concessional cap for the year it started in — so this figure is not an unchecked one. It is still not a finding that the Person has no excess: carry-forward headroom is not run, and';
   const richJson = JSON.stringify(RICH_WALK, (key, field) => (key === 'closingNonSuperPortfolio' || key === 'assetsTestThresholds' || key === 'concessionalCapByPerson' ? undefined : field));
   assert.equal(richJson.split(NOW).length - 1, 12);
-  assert.equal(createHash('sha256').update(richJson.replaceAll(NOW, BEFORE)).digest('hex'), 'b91c6e5cadb86c4c8914c9f38191ddfc233c3781af9156bec2b85d88479bbead');
-  assert.equal(sha256(RICH_WALK), 'c3f7baeaaf79630cee30383e43d37b3687910e3d031d8a87af36a3db81fc5c0b');
+  // RE-PINNED 2026-09-30: the swapped walk also carries the Account-Based Pension minimum's record on
+  // RICH's 83 pension lines now (provenance only; see `app-chat-get-month.test.mjs`), so its digest
+  // moved with that and with nothing else. Pre-ABP-provenance value: b91c6e5c…bbead.
+  assert.equal(createHash('sha256').update(richJson.replaceAll(NOW, BEFORE)).digest('hex'), '301f1395cf8e5db11d2fd1fb00e024d7ae6c3e0f2fb79c498ec23053cfc1d9a3');
+  // RE-PINNED 2026-09-30 (the Account-Based Pension minimum's provenance, carried): provenance only on RICH's 83 pension lines — with `provenance` stripped RICH is identical on both builds, asserted in `app-chat-get-month.test.mjs`.
+  assert.equal(sha256(RICH_WALK), 'd76438467f9bf705b05821983ea951ade86cd316ae13d55aa420e441e9e98576');
 });
 
 test('the financial-year summary goes out through the guard', () => {

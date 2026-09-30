@@ -11,14 +11,13 @@
 // on top of it.
 //
 // **What it is built to produce, and why each input is here.** The row has to be able to show a
-// legislated figure with its FY stamp, an unlegislated one, a figure whose register this build does
-// not carry, an entry-attributed line, an unattributed one, a wealth movement that is not cash, and
+// legislated figure with its FY stamp, an unlegislated one, an entry-attributed line, an unattributed one, a wealth movement that is not cash, and
 // both kinds of `MonthNote`. So:
 //
 //   * Ash holds an Account-Based Pension with a stated commencement day → Waterfall limb 2 pays a
-//     Schedule 7 minimum, whose line carries `provenance.basis === 'not carried'` and
-//     `attribution.basis === 'not attributed'` — the two third members that a display must never
-//     collapse into the `'none'` ones.
+//     Schedule 7 minimum, whose line carries the Schedule 7 working (`'legislated'`, since
+//     2026-09-30; `'not carried'` before) and `attribution.basis === 'not attributed'` — the third
+//     member that a display must never collapse into the `'none'` one.
 //   * Dana is still working → a salary line (`'none'` provenance, `'none'` attribution) and an
 //     income-tax line (legislated, FY-stamped, and carrying the borrowed Medicare thresholds'
 //     prior-year-fallback caveat — P5-4a).
@@ -59,8 +58,8 @@ const ASH: Person = {
       phase: 'accountBasedPension',
       balance: toCents(538_000),
       // Sch 7 keys everything off the commencement day and `projection.ts` never guesses one; with
-      // it absent, limb 2 stays nil in every month and the `'not carried'` provenance this slice
-      // must render would never appear.
+      // it absent, limb 2 stays nil in every month and the pension line this slice must render
+      // would never appear.
       statedStreamSettings: { commencementDay: '2022-08-01' },
     },
   ],

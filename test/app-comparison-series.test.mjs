@@ -25,6 +25,8 @@ import {
   shortfallSummary,
 } from '../dist/app/comparisonSeries.js';
 import { shortfallAge } from '../dist/core/outcomes.js';
+import { YOUNGER_PARTNER_EXEMPTION_REASON, splitAssets } from '../dist/core/household.js';
+import { DEMO_HOUSEHOLD } from '../dist/app/demoHousehold.js';
 
 const BIG_SPEND = Object.freeze({
   id: 'extra-1',
@@ -345,6 +347,29 @@ test('a walk that pays the Age Pension in some months counts them and names the 
   assert.equal(summary.totalMonths, 3);
   assert.equal(summary.firstMonth, '2026-10');
   assert.match(summary.text, /paid in 2 of 3 months, from 2026-10/);
+});
+
+// P3-20f — the asymmetry is shown in the engine's own reason, and only where it can be running.
+test('P3-20f: the note is the engine\'s younger-partner reason when some Person is under Age Pension age at the walk\'s start', () => {
+  // Month fixtures without any asset field: the test reads the household and the first month only.
+  const months = [{ month: '2026-09', lines: [] }, { month: '2026-10', lines: [] }];
+  const olderAndYounger = { persons: [{ dateOfBirth: '1955-01-01' }, { dateOfBirth: '1960-02-09' }] };
+  assert.equal(agePensionSummary(months, olderAndYounger).note, YOUNGER_PARTNER_EXEMPTION_REASON);
+  // 67 on 2026-09-01 exactly is of age; a day later born is not.
+  assert.equal(agePensionSummary(months, { persons: [{ dateOfBirth: '1959-09-01' }] }).note, undefined);
+  assert.equal(agePensionSummary(months, { persons: [{ dateOfBirth: '1959-09-02' }] }).note, YOUNGER_PARTNER_EXEMPTION_REASON);
+  // Everyone of age, no household, or no months: no note.
+  assert.equal(agePensionSummary(months, { persons: [{ dateOfBirth: '1950-01-01' }, { dateOfBirth: '1955-01-01' }] }).note, undefined);
+  assert.equal('note' in agePensionSummary(months), false);
+  assert.equal('note' in agePensionSummary([], olderAndYounger), false);
+});
+
+test('P3-20f: the note is the SAME string the engine writes on the asset line, not a copy of it', () => {
+  // The demo's Persons (born 1968 and 1960) are under Age Pension age in 2026 and hold Accumulation Phase super.
+  const reasons = splitAssets(DEMO_HOUSEHOLD, '2026-09-01').lines.map((line) => line.reason);
+  assert.ok(reasons.includes(YOUNGER_PARTNER_EXEMPTION_REASON), 'the engine no longer writes the exported reason');
+  const series = comparisonSeries(planWith(TWO), scenarioWalks(planWith(TWO)));
+  for (const line of series.lines) assert.equal(line.agePension.note, YOUNGER_PARTNER_EXEMPTION_REASON);
 });
 
 test('comparisonSeries carries an agePension summary on every line, off the same walk shortfall reads', () => {

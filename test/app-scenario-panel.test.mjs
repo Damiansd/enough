@@ -405,3 +405,14 @@ test('the switch-scope pin FAILS on emptied or merely half-said text', () => {
   // Positive control: reworded but complete still passes, so this is a property and not a phrase.
   guard('Turning a change off affects only the scenario on screen and to no other. Scenarios do still share the changes themselves: anything you add to a scenario others were built from shows up in those too.');
 });
+
+// P3-20f — the ⓘ beside the Age Pension sentence: appended exactly when the pure layer attached a
+// note (`agePensionSummary` decides when; `app-comparison-series` pins that), and carrying it unchanged.
+test('P3-20f: the Age Pension ⓘ is appended when, and only when, the summary carries a note', () => {
+  assert.match(
+    PANEL_RAW,
+    /if \(agePensionSummary\?\.note !== undefined\) row\.append\(infoButton\(AGE_PENSION_NOTE_SUMMARY, agePensionSummary\.note\)\);/,
+  );
+  assert.equal([...PANEL_RAW.matchAll(/infoButton\(AGE_PENSION_NOTE_SUMMARY/g)].length, 1);
+  assert.ok(prose('AGE_PENSION_NOTE_SUMMARY').trim().length > 0);
+});

@@ -160,9 +160,17 @@ test('the copied fixture is the fd02679 fixture', () => {
   // `low income super tax offset not paid` note is inserted in 2028-07; a whole-walk diff finds that note
   // (and the later notes of that month shifted one place) and nothing else.
   // RE-PINNED 2026-09-30 (P3-4b): caveat text only on RICH's sacrifice credit lines; proved in `app-chat-identity.test.mjs`.
-  assert.equal(sha256(RICH_WALK), 'c3f7baeaaf79630cee30383e43d37b3687910e3d031d8a87af36a3db81fc5c0b');
+  // RE-PINNED 2026-09-30 (the Account-Based Pension minimum's provenance, carried): RICH's 83 pension
+  // payment lines now carry the Schedule 7 record instead of `'not carried'`. Provenance only: with
+  // every `provenance` stripped as well, RICH is the same walk on both builds, to the digest below.
+  assert.equal(
+    createHash('sha256').update(JSON.stringify(RICH_WALK, (key, field) => (key === 'closingNonSuperPortfolio' || key === 'assetsTestThresholds' || key === 'concessionalCapByPerson' || key === 'provenance' ? undefined : field))).digest('hex'),
+    '4d143636e59e3dc298674f09fecf549ca6b0ed587f0a47181dd4f4b061a5c5c2',
+  );
+  assert.equal(sha256(RICH_WALK), 'd76438467f9bf705b05821983ea951ade86cd316ae13d55aa420e441e9e98576');
   // RE-PINNED 2026-09-29 (LR-1 slice 4): no figure moved. Dana's 11 `Income tax on capital gain` lines (2033-03 to 2035-05) each gained one `determination` entry, `CGT_MINIMUM_TAX_DETERMINATION`; a whole-walk diff finds those 11 and nothing else.
-  assert.equal(sha256(project(DEMO_SETTINGS, DEMO_HOUSEHOLD, DEMO_ENTRIES)), '806fab4f7571820896d81b56900400b22494a361327855fb0c3b271e2e0ecc81');
+  // RE-PINNED 2026-09-30 (the Account-Based Pension minimum's provenance, carried): provenance only, no figure moved — the demo walk with every `provenance` stripped is byte-identical on both builds, asserted in `app-month-to-rows.test.mjs`.
+  assert.equal(sha256(project(DEMO_SETTINGS, DEMO_HOUSEHOLD, DEMO_ENTRIES)), '48089359ed63916c7c48a86b16276e81d4d44c760149b2887749e0d8c0da706b');
 });
 
 // --- Every month, through the guard, every amount labelled ---------------------------------------

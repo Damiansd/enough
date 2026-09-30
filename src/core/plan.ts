@@ -1925,6 +1925,16 @@ export interface FigureProvenance {
 }
 
 /**
+ * **A FIGURE THE MEMBER CHOSE, INSIDE BOUNDS THE LAW SETS** — a transition to retirement income
+ * stream paid at a stated drawdown rate. The rate is nobody's register figure, so `'legislated'`
+ * would claim too much; the Schedule 7 minimum and the reg 6.01(2)(b)(ii) maximum it sits between
+ * are, so `'none'` would claim too little. It carries `FigureProvenance`'s fields for those bounds.
+ */
+export interface StatedWithinLegislatedBounds extends Omit<FigureProvenance, 'basis'> {
+  readonly basis: 'stated';
+}
+
+/**
  * **NOTHING LEGISLATED STANDS BEHIND THE FIGURE, and the line SAYS so rather than omitting it.**
  *
  * `MonthLine.provenance` is required, never optional, on exactly `MonthLine.effect`'s and
@@ -1944,13 +1954,11 @@ export interface UnlegislatedFigure {
  * **A figure that IS legislated and whose provenance this build does not bring to the line — a
  * THIRD member, for `MonthNote`'s reason.**
  *
- * The Account-Based Pension minimum is the whole of the case at P5-3 limb 2. `minimumDrawdown`
- * computes a `ComputedProvenance` for the Schedule 7 factors; `annualPensionMinimum` returns
- * `.amount` and drops it, and the payment line then carries the year's minimum and the Waterfall's
- * own draw as ONE payment, which is what a member's fund actually makes. Filing that line under
- * `'none'` would state that no register stands behind a Schedule 7 minimum, which is false — and
- * collapsing "nobody legislated it" into "somebody did and we did not carry it" is the same
- * confusion `Month.notes` exists to end.
+ * The Account-Based Pension minimum was the whole of the case at P5-3 limb 2, and it is carried
+ * now (2026-09-30): the pension and TTR payment lines read `minimumDrawdown`'s record through
+ * `annualPensionMinimumDetermination`. **No line in the build emits this member any more**, so
+ * `MonthProvenance.uncarried` is empty in every month; the member stays so that the next figure
+ * the build governs and cannot yet stamp is named rather than filed under `'none'`.
  */
 export interface UncarriedProvenance {
   readonly basis: 'not carried';
@@ -1961,7 +1969,7 @@ export interface UncarriedProvenance {
 }
 
 /** What one `MonthLine` can say about where its figure came from. Required on every line. */
-export type LineProvenance = FigureProvenance | UnlegislatedFigure | UncarriedProvenance;
+export type LineProvenance = FigureProvenance | StatedWithinLegislatedBounds | UnlegislatedFigure | UncarriedProvenance;
 
 /**
  * **WHICH JOURNAL ENTRIES STATED THIS FIGURE — P5-3's line → entry attribution.**
@@ -2048,8 +2056,8 @@ export type LineAttribution = StatedByEntries | UnstatedFigure | UnattributedFig
  */
 export interface MonthProvenance {
   /**
-   * The registers that produced a figure carried to a line this month, in line order, deduplicated.
-   * Empty where none did.
+   * The registers that produced a figure carried to a line this month, in line order, deduplicated —
+   * a `'stated'` line's register included, for the legislated bounds it carries. Empty where none did.
    */
   readonly registers: readonly ProvenanceRegister[];
   /**
