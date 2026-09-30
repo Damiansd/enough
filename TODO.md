@@ -9625,6 +9625,90 @@ guide Chapter 85.
   checks (403).** They were checked through Internet Archive copies up to 15 months old; the user
   should open one or two in a browser to confirm they still load.
 
+## Phase 18 — Try changes: a slider sandbox over the chart (designed 2026-09-30, not built)
+
+*Rulings from a design interview on 2026-09-30. The idea: play with a few big choices against the
+chart, then keep the version you like. **A sandbox is an unsaved child Scenario.** It needs no new
+engine code and no second way of stating changes, and "save" means giving it a name.*
+
+- [x] **P18-1 The model.** The sandbox is a child `Scenario` (`parentId` = the selected Scenario),
+  held in memory only and never written to the plan file. Each slider writes entries into it:
+  - it switches the parent's entry off via `entryOverrides`;
+  - it adds its own replacement to `entryIds`.
+
+  Its entries come after the parent's, so they win (`effectiveEntryIds`). Parent edits made while
+  the sandbox is open flow through live, exactly as for a saved child.
+  — ✅ 2026-09-30 built as `sandbox.ts`'s `sandboxCandidate`, one whole candidate `PlanFile` through `parsePlan`; a replacement keeps the parent entry's fields under a new id and `createdAt` (and drops `origin`), and an unmoved slider writes nothing, so an untouched sandbox is an empty child.
+- [x] **P18-2 Three sliders, entry-based only (ruling: no Settings levers).** Return and CPI are
+  plan-wide Settings, and a Scenario cannot hold them, so they could not be saved. "What if returns
+  are lower?" is a separate future feature, not a slider whose effect disappears when you save.
+  - **Retirement age:** moves each existing `RETIRE` entry. A household `RETIRE` gets one slider;
+    per-person entries get one slider each. Shown as an age, in 1-month steps; the range runs from
+    next month to age 75.
+  - **Spend level:** one ×% factor applied to EVERY `SPEND_CHANGE`, per the P10 ruling that a phased
+    plan is never flattened. The range is 50–150%. The label shows the resulting first-year spend in
+    whole dollars.
+  - **Refinance loan amount:** moves `openingBalance` on the Scenario's `MORTGAGE_REFINANCE`. The
+    range runs from $0 to 2× the parent's figure, in whole dollars. If the Scenario has several
+    refinances, the slider moves the earliest; confirm this at the gate.
+  - **A slider with nothing to move is greyed with its reason** (e.g. "No refinance in this
+    scenario"). It never invents an entry: adding one is the entry form's job.
+  — ✅ 2026-09-30 earliest enabled per owner via `scenarioEntries`; spend replaces only ENABLED `SPEND_CHANGE`s. Rulings taken in the build: a household `RETIRE`'s range ends when the FIRST Person turns 75, every range is widened to include where the entry already sits, and $0 on the refinance is left to `parsePlan`'s own nil-`openingBalance` refusal (shown by name) rather than clamped.
+- [x] **P18-3 The chart shows the pair only.** While the sandbox is open the Compare chart draws the
+  parent and "Sandbox (unsaved)" and nothing else. `comparisonSeries` only finds a crossover for a
+  single pair on screen (`scenarioSelection.ts` header). The ticked set is restored on close.
+  — ✅ 2026-09-30 `main.ts`'s `sandboxPair` takes the Compare chart while open and the picker is hidden; the ticked set is never written, so it is simply what comes back. The chart view is switched to Compare on open and restored on close.
+- [x] **P18-4 Four figures beside the sliders:** Selected | Sandbox | difference.
+  - Money lasts until (`shortfallAge`): live.
+  - Living on the Age Pension alone from (`pensionOnlyAge`): live.
+  - Mortgage paid off (`mortgagePayoff`): live.
+  - Sustainable spend: about 18 walks, around 1 s. Work it out about 0.5 s after dragging stops and
+    show "updating…" until it lands. Never compute it on every drag step.
+  — ✅ 2026-09-30 `sandboxFigures` + `sustainableRow`; the search runs 500 ms after the last input, the parent's once per plan, and an unmoved sandbox reuses the parent's answer instead of a second 18-walk search.
+  — LIZ page check 2026-09-30 (headless, demo couple): one 498 ms long task after a drag stops, nothing during it. At 110% spend the gap read "−$2", which is solver noise: gaps within `RESOLUTION_CENTS` ($12) now read "same". **Sustainable spend does not move with the spend slider, by design:** the search scales the same levels by its own factor, so it is invariant under a uniform pre-scale. It moves with retirement and the loan.
+- [x] **P18-5 Live while dragging: measured feasible.** `project()` on the demo couple takes about
+  60 ms (56–72 ms warm, 107 ms cold, 2026-09-30). Redraw at most once per animation frame, and
+  always draw the position the slider stops at. The parent's walk is cached, so only the sandbox
+  re-projects. **Re-measure on the user's real plan at the gate**, since it has more entries than the
+  demo.
+  — ✅ 2026-09-30 one `requestAnimationFrame` per burst reading the positions when it fires; the parent's walk is `main.ts`'s cached `walks`. A frame is `parsePlan` + one walk: 110–124 ms cold on the demo couple plus a refinance (2026-09-30).
+- [x] **P18-6 Refusals blank, not stale.** If a combination can't be forecast (e.g. retiring
+  before an existing `TTR_START`, a known refusal), the Sandbox line and its figures go blank and
+  the refusal is shown by name. The last good figures are never left on screen looking current.
+  — ✅ 2026-09-30 both doors refuse by name: `sandboxCandidate` catches `parsePlan` and `sandboxWalk` catches `project()`. Found: retiring before a `TTR_START` is refused by `parsePlan`, not the walk. The pair falls back to the parent's line alone and the sandbox column blanks.
+- [x] **P18-7 Save as scenario.** It asks for a name, then writes through the existing `save` door
+  (`parsePlan` then `project()`). The result is a **live child of the parent** (ADR-0002): it
+  stores only the slider entries and switch-offs, never a copy. The saved Scenario becomes the
+  selected one and the sandbox closes.
+  — ✅ 2026-09-30 `sandboxSaved` renames the child, keeps `parentId`, selects it, and goes through `main.ts`'s own `save`; the panel then closes. Round trip through `parsePlan` pinned in `test/app-sandbox.test.mjs`.
+- [x] **P18-8 Leaving with unsaved changes (ruling: ask).**
+  - If any slider has moved, switching Scenario asks **"Save these changes as a scenario, or
+    discard?"**. If none has moved, it switches without asking.
+  - Slider positions never carry over to another Scenario: "+2 years" means something different
+    there.
+  - A page reload with moved sliders gets the browser's leave-page warning. Nothing is kept between
+    sessions.
+  — ✅ 2026-09-30 only the Scenario panel is handed the asking save (`saveAskingFirst`), since it is where the selection changes; OK saves then switches, Cancel discards, and cancelling the name prompt stays put. Closing the panel with moved sliders asks the same question. `beforeunload` warns.
+- [x] **P18-9 Parent edits remove a slider's target.** If the parent's refinance or `RETIRE` is
+  deleted while the sandbox is open, that slider goes grey and its change is dropped, with a
+  one-line notice.
+  — ✅ 2026-09-30 `reconcilePositions` keys each slider on its target entry's id, so a target that changed or went drops that slider's change with a one-line notice and the slider greys.
+- [x] **P18-10 Gate — GO (LIZ, 2026-09-30).** Findings:
+  - **Timing:** measured on a real household plan (35 entries, 12 Scenarios, resolved through
+    `scenarioEntries`). Each Scenario takes 49–114 ms (the first, cold run is 112 ms). Live dragging
+    stands.
+  - **Which entry each slider moves:** in that plan every Scenario has exactly ONE enabled
+    `RETIRE` (household) and at most one enabled refinance. Ruling:
+    each slider moves the **earliest enabled** entry of its kind per owner, and later ones (e.g. a
+    second `RETIRE` after a return to work) are left alone. If a move puts dates out of order, the
+    forecast refuses and P18-6 shows the refusal by name.
+  - **The age label for a household `RETIRE`** shows every person's age at that date, e.g.
+    "Alex 63y 0m · Sam 61y 0m", because a couple is never reduced to one age (the P7 ruling).
+  - **Validation:** the sandbox is best built as a whole candidate `PlanFile` (the plan plus the new
+    entries plus the child Scenario). That way `parsePlan`, `scenarioEntries` and `save` all take it
+    unchanged, and Discard simply drops the candidate.
+  - **Placement and guide text:** left to the build, under the screen-text rule.
+
 ## Parked — not scoped
 
 - [~] Monte Carlo and sequencing risk — excluded on merit; deterministic answers the actual

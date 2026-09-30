@@ -22,11 +22,14 @@
 // page. No wording that a reader could be misled by is chosen in this file or in either writer.
 import { loadPlanOrNone, PlanWriteFailure } from './loadPlan.js'; // `.js` is correct in a `.ts` file — see tsconfig.json
 import { clearPlanStatus, showEntryRefusal, showPlanFailure } from './planStatus.js';
-import { savePlan } from './planEdits.js';
+import { planWithActiveScenario, savePlan } from './planEdits.js';
 import { infoButton } from './infoButton.js';
 import { entrySummary, mountEntryEditor } from './entryForm.js';
 import { mountFirstRunPanel } from './firstRunPanel.js';
 import { mountScenarioPanel } from './scenarioPanel.js';
+import { mountSandboxPanel } from './sandboxPanel.js';
+import type { SandboxPanel } from './sandboxPanel.js';
+import { LEAVE_QUESTION } from './sandbox.js';
 import { mountComparisonTemplateForm } from './comparisonTemplateForm.js';
 import { mountSettingsPanel } from './settingsPanel.js';
 import { mountTransactionsPanel } from './transactionsPanel.js';
@@ -209,6 +212,12 @@ const boot = async (): Promise<void> => {
   // it has been pressed. Cleared on every `draw()`, `resetSustainable`'s own rule: a figure worked
   // out from a plan that has since changed is a figure about a plan nobody is looking at.
   let sustainableResult: SustainableSpend | undefined;
+  // P18 — the "Try changes" sandbox. While it is open the Compare chart draws `sandboxPair` (the
+  // selected Scenario and "Sandbox (unsaved)") in place of the ticked set, which is left untouched and
+  // so is what comes back on close. `viewBeforeSandbox` is the chart view to go back to.
+  let sandboxPanel: SandboxPanel | undefined;
+  let sandboxPair: ComparisonSeries | undefined;
+  let viewBeforeSandbox: 'focused' | 'compare' = 'focused';
 
   /**
    * ⚠️ **`walked` IS THE ACTIVE SCENARIO'S WALK, NEVER THE POOL'S (P7-1).** Until this slice this
@@ -255,6 +264,7 @@ const boot = async (): Promise<void> => {
     drawPhaseSentences(plan);
     drawCaption(plan);
     drawPanelSummaries(plan);
+    sandboxPanel?.redraw();
   };
 
   /**
@@ -313,10 +323,11 @@ const boot = async (): Promise<void> => {
   const measureToggle = document.getElementById('compare-measure-toggle');
 
   const paintChart = (): void => {
-    const comparing = chartView === 'compare' && comparison.lines.length > 1;
-    if (picker) picker.hidden = !comparing;
+    const comparing = sandboxPair !== undefined || (chartView === 'compare' && comparison.lines.length > 1);
+    if (picker) picker.hidden = !comparing || sandboxPair !== undefined;
     if (measureToggle) measureToggle.hidden = !comparing;
-    const empty = comparing && shown === undefined;
+    const drawn = sandboxPair ?? shown;
+    const empty = comparing && drawn === undefined;
     if (chartBox) chartBox.hidden = empty;
     if (chartEmpty) {
       chartEmpty.hidden = !empty;
@@ -327,9 +338,9 @@ const boot = async (): Promise<void> => {
       chart = undefined;
       return;
     }
-    if (comparing && shown !== undefined) {
+    if (comparing && drawn !== undefined) {
       chart?.destroy();
-      chart = renderComparisonChart(canvas, shown, moneyBasis(moneyView, plan.settings), axisMode, compareMeasure);
+      chart = renderComparisonChart(canvas, drawn, moneyBasis(moneyView, plan.settings), axisMode, compareMeasure);
       return;
     }
     chart?.destroy();
@@ -535,6 +546,26 @@ const boot = async (): Promise<void> => {
     });
     paintChart();
     drawNote();
+  };
+
+  /** P18-3 — the sandbox's pair takes the Compare chart while it is open; `undefined` hands it back. */
+  const showSandboxPair = (pair: ComparisonSeries | undefined): void => {
+    const opening = sandboxPair === undefined && pair !== undefined;
+    const closing = sandboxPair !== undefined && pair === undefined;
+    sandboxPair = pair;
+    if (opening) {
+      viewBeforeSandbox = chartView;
+      switchToComparison();
+      return;
+    }
+    if (closing) {
+      chartView = viewBeforeSandbox;
+      document.querySelectorAll('input[name="chart-view"]').forEach((el) => {
+        if (el instanceof HTMLInputElement) el.checked = el.value === chartView;
+      });
+      drawNote();
+    }
+    paintChart();
   };
 
   const chartNote = document.getElementById('chart-note');
@@ -851,6 +882,27 @@ const boot = async (): Promise<void> => {
     redrawComparisonTemplate();
   };
 
+  /**
+   * **P18-8 — switching Scenario with sandbox sliders moved asks first.** OK saves the sandbox as a
+   * scenario and then makes the switch; Cancel discards the sliders. Only the Scenario panel is handed
+   * this: it is where the selected Scenario is changed.
+   */
+  const saveAskingFirst = async (candidate: unknown): Promise<void> => {
+    const target = typeof candidate === 'object' && candidate !== null ? (candidate as { activeScenarioId?: unknown }).activeScenarioId : undefined;
+    if (sandboxPanel?.moved() && typeof target === 'string' && target !== plan.activeScenarioId) {
+      if (window.confirm(LEAVE_QUESTION)) {
+        if (!(await sandboxPanel.saveAs())) {
+          redrawScenarios();
+          return;
+        }
+        if (plan.scenarios.some((scenario) => scenario.id === target)) await save(planWithActiveScenario(plan, target));
+        return;
+      }
+      sandboxPanel.discard();
+    }
+    await save(candidate);
+  };
+
   const redrawEntries: () => void =
     formBox && listBox
       ? mountEntryEditor(formBox, listBox, { currentPlan: () => plan, save })
@@ -908,12 +960,28 @@ const boot = async (): Promise<void> => {
           shortfallOf: (scenarioId) => comparison.lines.find((line) => line.scenarioId === scenarioId)?.shortfall,
           agePensionOf: (scenarioId) => comparison.lines.find((line) => line.scenarioId === scenarioId)?.agePension,
           heasOf: (scenarioId) => comparison.lines.find((line) => line.scenarioId === scenarioId)?.heas,
-          save,
+          save: saveAskingFirst,
           // A delete the pure layer refuses — a Scenario with children, or the last one left — never
           // reaches `save`, so it gets the same banner a refused edit does rather than a second one.
           refuse: (error) => showEntryRefusal(banner, error),
         })
       : (): void => {};
+
+  /** P18 — "Try changes". Mounted after the first draw, so the parent's cached walk exists. */
+  const sandboxBox = document.getElementById('sandbox');
+  const sandboxBody = document.getElementById('sandbox-body');
+  if (sandboxBox instanceof HTMLDetailsElement && sandboxBody) {
+    sandboxPanel = mountSandboxPanel(sandboxBox, sandboxBody, {
+      currentPlan: () => plan,
+      walkOf: (scenarioId) => walks.byScenarioId.get(scenarioId),
+      showPair: showSandboxPair,
+      commit: async (candidate) => {
+        const before = plan;
+        await save(candidate);
+        return plan !== before;
+      },
+    });
+  }
 
   const comparisonTemplateBox = document.getElementById('comparison-template-form');
 

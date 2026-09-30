@@ -69,6 +69,7 @@ const TOP_LEVEL = [
   'chart-view-toggle',
   'chart-axis-toggle',
   'chart-box',
+  'sandbox-panel',
 ];
 
 test('the page\'s container tags open and close as a stack — no stray, crossed or unclosed tag', () => {

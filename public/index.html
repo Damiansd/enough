@@ -337,6 +337,18 @@
   #chart-scenario-picker summary { cursor: pointer; }
   #chart-scenario-boxes label { display: block; margin: 0.2rem 0 0 1rem; cursor: pointer; }
   #chart-empty { color: #555; margin: 1rem 0 2rem; }
+  /* P18 — "Try changes": the slider sandbox under the chart. */
+  #sandbox-panel { border: 1px solid #ddd; padding: 0.75rem 1rem; margin: 0 0 1.5rem; }
+  #sandbox-panel summary { cursor: pointer; }
+  #sandbox-panel summary h2 { display: inline; font-size: 1rem; }
+  #sandbox-body { font-size: 0.9rem; }
+  div.sandbox-slider { margin: 0.4rem 0; }
+  div.sandbox-slider input[type="range"] { width: 18rem; vertical-align: middle; }
+  div.sandbox-slider.greyed { color: #888; }
+  p.sandbox-notice { color: #7a4a00; }
+  p.sandbox-refusal { color: #a4161a; }
+  table.sandbox-figures { border-collapse: collapse; margin: 0.5rem 0; }
+  table.sandbox-figures th, table.sandbox-figures td { padding: 0.2rem 0.75rem 0.2rem 0; text-align: left; }
   /* P7-6 — the month table's Household/per-Person switch. The two Persons and the Offset are three
      blocks and not two: the Offset belongs to the Household and to neither Person, so it is given
      its own heading rather than being folded into a column or dropped. */
@@ -566,6 +578,14 @@
 <!-- A <div>, not a <p>: `main.ts` puts one short sentence here and folds the rest into an info
      button, and a <details> is not phrasing content a paragraph may hold. -->
 <div id="chart-note">…</div>
+<!-- P18 — "Try changes": sliders drawn against the selected scenario on the chart above. Held in
+     memory only until Save; filled by `app/sandboxPanel.js`. Starts closed. -->
+<section id="sandbox-panel">
+  <details id="sandbox">
+    <summary><h2>Try changes</h2></summary>
+    <div id="sandbox-body"></div>
+  </details>
+</section>
 <!--
   the income/spend chart design gate — the second chart: "Money coming in and going out, by financial year". Always
   the ACTIVE Scenario's own walk (never the Compare view's N scenarios — see `main.ts`), because

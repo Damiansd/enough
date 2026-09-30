@@ -2255,6 +2255,33 @@ Each Scenario's **{{name|Shortfall Age}}** is listed as text beside the Scenario
 chart itself. With several Scenarios compared at once, that many captions on one chart would sit on
 top of each other and be unreadable.
 
+### Trying changes with sliders {#try-changes}
+
+Under the chart, open **{{name|Try changes}}**. It shows up to three sliders for the Scenario you have
+picked:
+
+- **Retirement**: moves the retirement date, one month at a time, from next month up to age 75. For a
+  date the two of you share, it shows both your ages on that date.
+- **Spending**: makes every spending level in the plan bigger or smaller together, from 50% to 150%.
+  It shows what you would spend in the first year.
+- **Refinance loan amount**: changes how much the new loan is for, from $0 up to twice the amount.
+
+A slider only moves a change that is already in the plan. If there is none, it is greyed out and says
+why. To add one, use **{{name|Change the plan}}**.
+
+As you move a slider, the chart draws just two lines: your Scenario and **{{name|Sandbox (unsaved)}}**.
+Beside the sliders, four answers are shown for each: when the money runs out, when you would live on
+the Age Pension alone, when the loan is paid off, and how much you could spend. The last one takes a
+second to work out, so it says "updating…" until it is ready.
+
+Some mixes can't be forecast, such as stopping work before a transition to retirement pension starts.
+Then the sandbox line and its answers go blank, and a sentence says why.
+
+Nothing is kept until you press **{{name|Save as a scenario}}** and give it a name. The new Scenario
+builds on the one you started from, so later changes to that one still reach it. **{{name|Discard}}**
+puts every slider back. If you pick another Scenario or leave the page with sliders moved, *enough*
+asks first.
+
 ### Pip and Jo
 
 Pip and Jo tick both **{{name|Baseline}}** and their "What if Pip works one more year" clone. Two lines appear,
