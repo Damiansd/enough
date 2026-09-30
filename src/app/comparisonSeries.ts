@@ -284,20 +284,28 @@ const crossoverPairOf = (scenarios: readonly Scenario[]): readonly [Scenario, Sc
  * against one shared label array, so a pair of walks that disagreed by one month would draw two
  * scenarios' figures against each other's dates with nothing on screen to say so.
  */
-export const comparisonSeries = (plan: PlanFile, walks: ScenarioWalks): ComparisonSeries => {
-  const first = walks.byScenarioId.get(plan.scenarios[0]?.id ?? '');
-  if (plan.scenarios.length === 0 || first === undefined) {
+export const comparisonSeries = (
+  plan: PlanFile,
+  walks: ScenarioWalks,
+  // The Scenarios to draw a line for — by default all of them. A SUBSET is passed here rather than as
+  // a plan with its `scenarios` cut down, because each line's entries are resolved up its parent
+  // chain: a cut-down plan loses the ancestors of any child drawn without its parent, and resolving
+  // it throws (the 2026-09-30 "Try changes does nothing" defect, and the same for a ticked child).
+  drawn: readonly Scenario[] = plan.scenarios,
+): ComparisonSeries => {
+  const first = walks.byScenarioId.get(drawn[0]?.id ?? '');
+  if (drawn.length === 0 || first === undefined) {
     throw new RangeError('a comparison needs at least one scenario walk — there is nothing to compare');
   }
   const months = first.map((month) => month.month as string);
-  const lines = plan.scenarios.map((scenario) => {
+  const lines = drawn.map((scenario) => {
     const walk = walks.byScenarioId.get(scenario.id);
     if (walk === undefined) {
       throw new RangeError(`scenario "${scenario.id}" has no walk — every scenario being compared must have been projected`);
     }
     if (walk.length !== months.length || walk.some((month, index) => month.month !== months[index])) {
       throw new RangeError(
-        `scenario "${scenario.id}" covers different months from "${plan.scenarios[0]?.id}" — the lines share one axis, so a walk over other months would be drawn against the wrong dates`,
+        `scenario "${scenario.id}" covers different months from "${drawn[0]?.id}" — the lines share one axis, so a walk over other months would be drawn against the wrong dates`,
       );
     }
     const heas = heasSummary(scenarioEntries(plan, scenario));
@@ -319,7 +327,7 @@ export const comparisonSeries = (plan: PlanFile, walks: ScenarioWalks): Comparis
   // P6-8c — the crossover, only where there is a single, unambiguous PAIR to ask about. See
   // `ComparisonCrossover`'s own doc for why the other three `crossoverPoint` outcomes draw nothing.
   let crossover: ComparisonCrossover | undefined;
-  const pair = crossoverPairOf(plan.scenarios);
+  const pair = crossoverPairOf(drawn);
   if (pair !== undefined) {
     const [scenarioA, scenarioB] = pair;
     const walkA = walks.byScenarioId.get(scenarioA.id);
@@ -341,7 +349,7 @@ export const comparisonSeries = (plan: PlanFile, walks: ScenarioWalks): Comparis
     ageAxis: ageAxis(first, plan.household),
     agePensionAge: agePensionAgeLines(first, plan.household),
     lines: Object.freeze(lines),
-    styleIds: Object.freeze(plan.scenarios.map((scenario) => scenario.id)),
+    styleIds: Object.freeze(drawn.map((scenario) => scenario.id)),
     notes: Object.freeze([COMPARISON_NOTE, SHORTFALL_IN_LIST_NOTE]),
     ...(crossover === undefined ? {} : { crossover }),
   });

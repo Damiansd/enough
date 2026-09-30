@@ -46,7 +46,7 @@ export const tickedComparison = (
 ): ComparisonSeries | undefined => {
   const scenarios = plan.scenarios.filter((scenario) => ticked.has(scenario.id));
   if (scenarios.length === 0) return undefined;
-  const series = comparisonSeries({ ...plan, scenarios }, walks);
+  const series = comparisonSeries(plan, walks, scenarios);
   return Object.freeze({ ...series, styleIds: Object.freeze(plan.scenarios.map((scenario) => scenario.id)) });
 };
 

@@ -150,3 +150,33 @@ test('the summary counts the ticked scenarios the plan holds', () => {
   assert.equal(tickedSummary(PLAN, new Set(['super-side', 'invest-side'])), 'Scenarios shown (2 of 3)');
   assert.equal(tickedSummary(PLAN, new Set()), 'Scenarios shown (0 of 3)');
 });
+
+// 2026-09-30 — "Try changes does nothing once a second scenario exists." The sandbox is a child of
+// the selected Scenario and is drawn beside it alone; when the selected one is itself a child, its
+// parent is not drawn. Cutting the plan's `scenarios` down to the ticked set dropped that ancestor,
+// and resolving the child's entries up its chain threw — inside an animation frame, so silently.
+// The same held for any child ticked in the picker without its parent.
+test('a child ticked without its parent is drawn, resolved against its full chain', () => {
+  const plan = parsePlan(
+    JSON.parse(
+      JSON.stringify({
+        ...DEMO_PLAN,
+        entries: [...DEMO_ENTRIES, SUPER_ENTRY],
+        scenarios: [
+          { id: 'root', name: 'Base', parentId: null, entryIds: demoIds },
+          { id: 'child', name: 'Child', parentId: 'root', entryIds: [SUPER_ENTRY.id] },
+          { id: 'grandchild', name: 'Grandchild', parentId: 'child', entryIds: [] },
+        ],
+        activeScenarioId: 'child',
+      }),
+    ),
+  );
+  const walks = scenarioWalks(plan);
+  for (const ticked of [['child'], ['grandchild'], ['child', 'grandchild']]) {
+    const series = tickedComparison(plan, walks, new Set(ticked));
+    assert.deepEqual(series.lines.map((line) => line.scenarioId), ticked);
+    for (const line of series.lines) {
+      assert.deepEqual(line.values, comparisonSeries(plan, walks).lines.find((l) => l.scenarioId === line.scenarioId).values);
+    }
+  }
+});
