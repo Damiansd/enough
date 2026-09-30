@@ -163,7 +163,11 @@ export const RULE_CLASSIFICATION: Readonly<Record<string, RuleClassification>> =
     'agePension.deemingDeterminations.2026-03-20',
     'agePension.deemingDeterminations.2026-09-20',
   ]),
-  ...shown('agePension', G.workBonus, ['agePension.workBonus.fortnightlyAccrual']),
+  ...shown('agePension', G.workBonus, [
+    'agePension.workBonus.fortnightlyAccrual',
+    'agePension.workBonus.startingBalance',
+    'agePension.workBonus.maximumBalance',
+  ]),
   ...hidden('a time limit that applies only on the way into aged care; the aged care chapter gives it', ['agePension.assetsTest.careVacatedHomeExemptionMonths']),
   ...hidden('a time limit on one event, a home sale; the home-sale chapter gives it', ['agePension.assetsTest.saleProceedsExemptionMonths']),
   ...hidden(FORMULA, [
@@ -214,8 +218,6 @@ export const RULE_CLASSIFICATION: Readonly<Record<string, RuleClassification>> =
     'agePension.transitionalMaximumRate',
     'agePension.transitionalMaximumRate20Sep2026',
   ]),
-  ...hidden('the most a Work Bonus balance can bank; a detail of the Work Bonus shown', ['agePension.workBonus.maximumBalance']),
-  ...hidden('the balance a new pensioner starts with; a detail of the Work Bonus shown', ['agePension.workBonus.startingBalance']),
 
   // --- Aged care ---
   ...shown('agedCare', G.careFees, ['agedCare.residentialSchedule.2026-09-20']),
@@ -782,6 +784,10 @@ const specs = (date: IsoDate): readonly RowSpec[] => [
   row('pension-deeming-upper', 'agePension', G.deeming, 'Deeming rate above the threshold', 'rate', fromDeeming((rates) => rates.upper)),
   row('pension-work-bonus', 'agePension', G.workBonus, 'Work Bonus: pay not counted', 'aFortnight',
     stamped('agePension.workBonus.fortnightlyAccrual', itself)),
+  row('pension-work-bonus-top-up', 'agePension', G.workBonus, 'Work Bonus: balance topped up to when the pension starts', 'dollars',
+    stamped('agePension.workBonus.startingBalance', itself)),
+  row('pension-work-bonus-ceiling', 'agePension', G.workBonus, 'Work Bonus: most the balance can hold', 'dollars',
+    stamped('agePension.workBonus.maximumBalance', itself)),
 
   row('heas-interest', 'heas', G.heasInterest, 'Interest rate on the loan', 'rate', stamped('heas.interest.rate', itself)),
   row('heas-fortnightly-limit', 'heas', G.heasLimit, 'Most a fortnight, as a share of the full Age Pension', 'rate',

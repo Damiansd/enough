@@ -1574,6 +1574,11 @@ export interface PersonFormValues {
   readonly employmentIncomePerFortnight: string;
   /** DOLLARS, as typed. The Work Bonus bank, which the means test draws down (P4-10). */
   readonly workBonusBalance: string;
+  /**
+   * P4-10a: the day the Work Bonus balance was last topped up to $4,000, as typed (`YYYY-MM-DD`).
+   * Blank is not stated and writes no key; `parsePlan` judges a typed one.
+   */
+  readonly lastWorkBonusTopUp: string;
   readonly superInterests: readonly SuperInterestFormValues[];
   readonly parcels: readonly ParcelFormValues[];
   /**
@@ -2251,6 +2256,7 @@ export const planWithStatedPosition = (plan: PlanFile, values: StatedPositionFor
         })),
         employmentIncomePerFortnight: dollarsToCents(person.employmentIncomePerFortnight),
         workBonusBalance: dollarsToCents(person.workBonusBalance),
+        ...(person.lastWorkBonusTopUp.trim() === '' ? {} : { statedLastWorkBonusTopUp: person.lastWorkBonusTopUp.trim() }),
         ...priorRetirementPhase(person, held?.statedPriorRetirementPhase),
         // P3-4b slice 2: one writer each, the boxes. Only typed years are written; none is no key.
         ...statedUnusedCap(person.unusedConcessionalCap),
@@ -2374,6 +2380,7 @@ export const positionFormValues = (plan: PlanFile): StatedPositionFormValues => 
     dateOfBirth: person.dateOfBirth,
     employmentIncomePerFortnight: centsToDollars(person.employmentIncomePerFortnight),
     workBonusBalance: centsToDollars(person.workBonusBalance),
+    lastWorkBonusTopUp: person.statedLastWorkBonusTopUp ?? '',
     superInterests: person.superInterests.map((interest) => ({
       phase: interest.phase,
       balance: centsToDollars(interest.balance),
@@ -2484,6 +2491,7 @@ export const BLANK_PERSON: PersonFormValues = {
   dateOfBirth: '',
   employmentIncomePerFortnight: '',
   workBonusBalance: '',
+  lastWorkBonusTopUp: '',
   superInterests: [],
   parcels: [],
   // **NO ELECTION, and it is not a placeholder for one.** A new Person has made no Subdiv 293-B

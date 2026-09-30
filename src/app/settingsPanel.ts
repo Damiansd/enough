@@ -203,16 +203,27 @@ export const releaseElectionOptionLabel = (position: number): string =>
 /**
  * **The Work Bonus, in the user's words on the page and the mechanic behind the button.** The
  * mechanic is read off `core/workBonus.ts` and `data/assumptions/agePension.ts`: $300 a fortnight
- * applied first, the excess drawn from the balance, the unused part banked to a $11,800 ceiling,
- * and eligibility gated on Age Pension age (67) ALONE — the register's "and receiving" limb is
- * circular in a means test and is not checked, which is said rather than implied.
+ * applied first, the excess drawn from the balance, the unused part banked to a $11,800 ceiling.
+ * Since P4-10a it moves only in a month the person is of Age Pension age AND paid some Age Pension,
+ * and a balance under $4,000 is topped up to $4,000 when the pension starts (or starts again, at
+ * most once in two years). Carer Payment, DSP and the transitional rate are not modelled.
  */
 export const WORK_BONUS_SUMMARY =
   'Pay Centrelink ignores that you’ve banked. Leave 0 if not on the Age Pension.';
 
 export const WORK_BONUS_NOTICE =
-  'Type the balance you actually hold; nothing is filled in for you. The forecast uses it to shelter this' +
-  ' person’s own pay from the Age Pension income test.';
+  'Type the balance you actually hold today; nothing is filled in for you. It builds and is used only in' +
+  ' months this person is of Age Pension age and paid some Age Pension. When that pension starts, or starts' +
+  ' again, a small balance is topped up to the starting amount from the month after. The forecast uses it to' +
+  ' shelter this person’s own pay from the Age Pension income test.';
+
+/** P4-10a: the last $4,000 top-up, which decides whether a restart inside the forecast gets another. */
+export const WORK_BONUS_TOP_UP_SUMMARY =
+  'The day Centrelink last topped your Work Bonus balance up. Blank if never.';
+
+export const WORK_BONUS_TOP_UP_NOTICE =
+  'A balance is topped up at most once in two years. Left blank with a balance above nil, the forecast' +
+  ' takes it as topped up on the plan’s start date, so no top-up comes for two years.';
 
 /**
  * **What the fortnightly pay box means, and the two ways it is easy to fill in wrongly**: net
@@ -1113,6 +1124,7 @@ const renderPosition = (
         dateOfBirth: field('dateOfBirth'),
         employmentIncomePerFortnight: field('employmentIncomePerFortnight'),
         workBonusBalance: field('workBonusBalance'),
+        lastWorkBonusTopUp: field('lastWorkBonusTopUp'),
         superInterests: Array.from({ length: count('balance') }, (_unused, index) => ({
           phase: field(`phase-${index}`),
           balance: field(`balance-${index}`),
@@ -1187,6 +1199,8 @@ const renderPosition = (
       infoButton(EMPLOYMENT_INCOME_SUMMARY, EMPLOYMENT_INCOME_NOTICE, 'guide:household-people'),
       label('Work Bonus balance $', input('text', 'workBonusBalance', person.workBonusBalance)),
       infoButton(WORK_BONUS_SUMMARY, WORK_BONUS_NOTICE, 'guide:work-bonus'),
+      label('Work Bonus last topped up on ', input('date', 'lastWorkBonusTopUp', person.lastWorkBonusTopUp)),
+      infoButton(WORK_BONUS_TOP_UP_SUMMARY, WORK_BONUS_TOP_UP_NOTICE, 'guide:work-bonus'),
     );
     // The redraw a phase change triggers reads the form as it stands, exactly as the Add buttons
     // do, so nothing typed is lost and nothing is written: only the election list is rebuilt.

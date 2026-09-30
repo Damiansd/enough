@@ -1588,6 +1588,23 @@ test('a malformed Household is refused by name', () => {
   }
 });
 
+test('P4-10a: a stated last Work Bonus top-up is a real day, on or before the plan date, not before 2024', () => {
+  const asAt = onDisk().settings.asAtDate;
+  const stating = (day) => mutated((file) => { file.household.persons[0].statedLastWorkBonusTopUp = day; });
+  // Accepted and kept, at both ends of the window; absent stays absent.
+  assert.equal(parsePlan(stating('2024-01-01')).household.persons[0].statedLastWorkBonusTopUp, '2024-01-01');
+  assert.equal(parsePlan(stating(asAt)).household.persons[0].statedLastWorkBonusTopUp, asAt);
+  assert.equal('statedLastWorkBonusTopUp' in parsePlan(onDisk()).household.persons[0], false);
+  // Refused by name: not a date (the date door's own refusal), the day after the plan date, the day
+  // before the $4,000 began.
+  const dayAfter = new Date(Date.parse(`${asAt}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+  for (const [day, Kind] of [['2025-2-1', PlanFileDateError], [20250201, PlanFileHouseholdError], [dayAfter, PlanFileHouseholdError], ['2023-12-31', PlanFileHouseholdError]]) {
+    assert.throws(() => parsePlan(stating(day)),
+      (error) => error instanceof Kind && error.message.includes('household.persons[0].statedLastWorkBonusTopUp'),
+      `${day} was accepted`);
+  }
+});
+
 test('two people is a household and three is not', () => {
   assert.equal(parsePlan(onDisk()).household.persons.length, 2);
   const one = mutated((file) => { file.household.persons = [file.household.persons[0]]; });

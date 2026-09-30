@@ -22,6 +22,7 @@ import {
   taxYear,
 } from '../dist/data/assumptions/index.js';
 import { RULE_CLASSIFICATION, ruleRowText, rulesInForce } from '../dist/app/rulesInForce.js';
+import { WORK_BONUS_MAXIMUM_BALANCE, WORK_BONUS_STARTING_BALANCE } from '../dist/core/workBonus.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE = readFileSync(join(ROOT, 'src', 'app', 'rulesInForce.ts'), 'utf8');
@@ -136,6 +137,9 @@ const EXPECTED = {
   'pension-deeming-lower': (d) => deemingRatesAt(d).lower,
   'pension-deeming-upper': (d) => deemingRatesAt(d).upper,
   'pension-work-bonus': () => leaf('agePension.workBonus.fortnightlyAccrual'),
+  // P4-10a: the top-up and the ceiling are the constants the walk reads, not the leaves re-read.
+  'pension-work-bonus-top-up': () => WORK_BONUS_STARTING_BALANCE,
+  'pension-work-bonus-ceiling': () => WORK_BONUS_MAXIMUM_BALANCE,
   'heas-interest': () => leaf('heas.interest.rate'),
   'heas-fortnightly-limit': () => leaf('heas.drawModes.fortnightlyCapMultiple'),
   'care-basic-daily-fee': (d) => (d < '2026-09-20' ? undefined : care(d).rates.basicDailyFee),

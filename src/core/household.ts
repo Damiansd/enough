@@ -729,6 +729,16 @@ export interface Person {
   /** This Person's Work Bonus balance. Per Person, never poolable (T29). */
   readonly workBonusBalance: Cents;
   /**
+   * **P4-10a — the day this Person's Work Bonus balance was last topped up to $4,000**, as the
+   * Services Australia record shows it. A balance under $4,000 is topped up when the pension starts
+   * again, unless it was topped up in the last two years (SS Act s 1073AAA, DSS Guide 3.1.15.30), so
+   * the walk needs this to know whether a restart inside the forecast gets one. `parsePlan` accepts a
+   * date on or before `asAtDate` and not before 2024-01-01, when the $4,000 began. Absent with a
+   * stated balance above nil, the walk treats the balance as topped up on the plan's first day, which
+   * blocks a top-up for two years (conservative); absent with a nil balance, never topped up.
+   */
+  readonly statedLastWorkBonusTopUp?: IsoDate;
+  /**
    * **Did this Person's transfer balance account start BEFORE the forecast? A DECLARED fact, and
    * the first of the two conjuncts `UnknownPersonalTransferBalanceCapError` turns on (O42).**
    *

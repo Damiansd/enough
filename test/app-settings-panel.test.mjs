@@ -1846,6 +1846,9 @@ test('the Work Bonus is asked for in plain words, and the mechanic is behind the
   explains('the Work Bonus disclosure', notice, [
     ['that the balance is the one actually held, and nothing is filled in', [/actually hold/i], [/nothing is filled in/i]],
     ['what the forecast does with it', [/shelter/i], [/income test/i]],
+    // P4-10a: who it moves for, and that the forecast now fills in the top-up when the pension starts.
+    ['that it moves only while of Age Pension age and paid some', [/Age Pension age/i], [/paid some Age Pension/i]],
+    ['that a small balance is topped up when the pension starts', [/topped up/i], [/starts/i]],
   ], 100);
   // P17-3: the four figures and the two gates that `core/workBonus.ts` actually implements are the
   // guide's to state now, and are pinned on its section. A build that changed any of them and left
@@ -1858,7 +1861,14 @@ test('the Work Bonus is asked for in plain words, and the mechanic is behind the
     ['that investment income is outside it', [/deem/i]],
     ['that it is per person and never shared', [/per person|never cover the other/i]],
     ['that it starts at Age Pension age', [/\b67\b/]],
+    ['that it counts only while actually paid', [/actually paid some Age\s+Pension/i]],
+    ['the $4,000 top-up when the pension starts', [/under \*\*\$4,000\*\* is topped up to \$4,000/]],
+    ['the two-year limit on a top-up', [/last two years/i]],
+    ['what the forecast assumes with no top-up day', [/assumes it was topped up on your plan's start date/i]],
+    ['the payments it does not model', [/Carer Payment/], [/Disability Support/], [/transitional rate/i]],
   ]);
+  assert.match(PANEL_RAW, /label\('Work Bonus last topped up on ', input\('date', 'lastWorkBonusTopUp'/);
+  assert.match(PANEL, /infoButton\(WORK_BONUS_TOP_UP_SUMMARY, WORK_BONUS_TOP_UP_NOTICE, ""\)/);
   // Both are on the page, once each, beside the box they are about.
   assert.match(PANEL_RAW, /label\('Work Bonus balance \$', input\('text', 'workBonusBalance'/);
   assert.match(PANEL, /infoButton\(WORK_BONUS_SUMMARY, WORK_BONUS_NOTICE, ""\)/);
@@ -2237,6 +2247,8 @@ const ROUND_TRIPS = {
   dateOfBirth: { form: 'person', value: '1970-01-02' },
   employmentIncomePerFortnight: { form: 'person', value: '2222.22' },
   workBonusBalance: { form: 'person', value: '333.00' },
+  // **P4-10a.** A day on or before the demo plan's date and not before 2024-01-01.
+  lastWorkBonusTopUp: { form: 'person', value: '2025-03-14' },
   releaseAuthorityInterest: { form: 'person', value: '0' },
   // **Register O82 (2026-09-29).** Written only while shown: a salary (Dana has one) and two accumulation accounts.
   employerPaysInto: { form: 'person', value: '1', also: { superInterests: [BLANK_TWO[0], BLANK_TWO[1]] } },
@@ -3228,8 +3240,9 @@ test('P17-3 — every ⓘ box on the panel names a guide page, and no box restat
   // 27 since the insurance group's own box (2026-09-29); 28 with the value just before 1 July 2027.
   // 29 with the employer-pays-into select (register O82). 35 with the rules-in-force fold (2026-09-30):
   // one for the fold and one per area, each pointing at the area's sources in Chapter 85. 36 with the
-  // unused concessional cap group (P3-4b slice 2), pointing at the catch-up section.
-  assert.equal(calls.length, 36, 'the panel no longer has the 36 ⓘ boxes this pass covered');
+  // unused concessional cap group (P3-4b slice 2), pointing at the catch-up section. 37 with the Work
+  // Bonus last top-up box (P4-10a), pointing at the Work Bonus section.
+  assert.equal(calls.length, 37, 'the panel no longer has the 37 ⓘ boxes this pass covered');
   assert.equal([...PANEL_RAW.matchAll(/infoButton\(/g)].length, calls.length, 'an ⓘ box is built some other way');
   for (const [, summary, notice, guide] of calls) {
     assert.ok(guide !== undefined, `${summary} links to no page of the guide`);

@@ -3875,6 +3875,22 @@ Sources: [Work Bonus balance](https://www.servicesaustralia.gov.au/work-bonus-ba
 The one-off $4,000 boost for claims lodged 1 Dec 2022 – 30 Jun 2024 is **spent**. A first-time
 claim simply starts at $4,000.
 
+**As modelled (P4-10a, 2026-09-30).** SS Act s 1073AA / 1073AAA / 1073AB, read through DSS Guide
+3.1.15.10, .20, .30 and .50. The walk's balance moves only in a month the Person is of Age Pension
+age **and** paid a rate above nil — "where a person receives no pension payment in an instalment
+period there can be no accrual or depletion" (3.1.15.20) — and is held, not accrued, otherwise.
+The rate itself is still worked out with the balance for every Person of age: the balance only
+lowers assessed income, so there is no circularity. When a Person **starts** being paid (not paid
+last month, paid this month) with less than $4,000 banked, ($4,000 − the opening balance) is added
+to the month's closing balance, capped at $11,800, unless topped up in the last 24 months
+(s 1073AAA: commencing from 1 Jan 2024, recommencing from 1 Jul 2024). Month 0 never tops up: the
+stated balance is the balance. `Person.statedLastWorkBonusTopUp` states a pre-plan top-up (on or
+before `asAtDate`, not before 2024-01-01); absent with a stated balance above nil it is taken as the
+plan's first day (blocks a top-up for 24 months — conservative), absent with nil as never.
+**Residual:** the start month is assessed on its opening balance, so the top-up shelters from the
+month after — an understatement of at most one month. **Not modelled:** Carer Payment, DSP and the
+transitional rate.
+
 ### 4.7 Indexation mechanism — store this, not the dollar figures (T23, T24)
 
 ```

@@ -561,6 +561,8 @@ later, like retiring, go somewhere else. See [Chapter 16](#dated-entries).)
   in this box — that's counted separately (see [Chapter 49](#means-test)).
 - **{{name|Work Bonus balance $}}.** Leave this at **0** unless you already get the Age Pension. ([Chapter 50](#work-bonus)
   explains it.)
+- **{{name|Work Bonus last topped up on}}.** The day Centrelink last topped your Work Bonus balance up to
+  $4,000. Leave it blank if it never has been. ([Chapter 50](#work-bonus) explains why it matters.)
 - **{{name|Already had a super pension before this plan}}.** Choose **{{name|No}}** unless you've already been paid a pension
   from your super. Almost everybody says No.
 - **{{name|Division 293 charge comes out of}}.** This is about an extra tax for people who earn a lot.
@@ -2824,26 +2826,39 @@ Once you reach Age Pension age, working doesn't wipe out your pension straight a
 - Any of that $300 you don't use is **banked**, up to a ceiling of **$11,800**. Fortnights you
   don't work, the balance grows; fortnights you earn more than $300, the extra is drawn from the
   balance before your pension is reduced.
-- It only starts counting from Age Pension age, 67. Before then, the balance just sits, unused.
+- It only counts in a fortnight you're of Age Pension age, 67, **and** actually paid some Age
+  Pension. Any other time — before 67, or a month your pension is nil — the balance just sits,
+  neither growing nor being used.
+- When your Age Pension starts, a balance under **$4,000** is topped up to $4,000. If your pension
+  stops and later starts again, it's topped up again — but not if it was already topped up in the
+  last two years.
 - It's per person — one person's balance can never cover the other person's pay.
 - Money your investments make is never covered by the Work Bonus. That's deemed instead
   ([Chapter 49](#means-test)).
 
-By law, you also need to actually be getting the Age Pension, Carer Payment or Disability Support
-Pension for the Work Bonus to apply. *enough* only checks your age against Age Pension age. So in a
-what-if where your household isn't actually paid one of those three, *enough* may apply the Work
-Bonus when the real rule wouldn't.
+By law, Carer Payment and the Disability Support Pension carry a Work Bonus too, and so does the
+old transitional rate of Age Pension. *enough* doesn't model any of those — only the Age Pension.
+
+*enough* works month by month, so the top-up lands from the month **after** the pension starts; the
+first month is worked out on the balance you had going in. That can understate your pension by up to
+one month.
 
 ### Where you tell *enough*
 
 Under **{{name|Household and settings}}**, each person has a **{{name|Work Bonus balance $}}** box. Type what
-you've actually banked with Centrelink so far — *enough* doesn't start you off with the $4,000
-new-pensioners normally begin with; you type your own figure.
+you've actually banked with Centrelink so far. If you're not on the Age Pension yet, type 0: *enough*
+adds the $4,000 itself when your pension starts in the forecast.
+
+Beside it, **{{name|Work Bonus last topped up on}}** is the day your balance was last topped up to
+$4,000. Leave it blank if it never has been. If you leave it blank but type a balance above 0, *enough*
+assumes it was topped up on your plan's start date, so no top-up comes in the forecast's first two
+years — the careful choice, since it can't know better.
 
 ### Pip and Jo — a what-if
 
-Pip and Jo both stop working in January 2034, well before Pip's Age Pension starts in {{fig age-pension-first-year nearest-1|2038}}, so
-their Work Bonus balance is 0 the whole way through — there's no pay left to shelter.
+Pip and Jo both stop working in January 2034, well before Pip's Age Pension starts in {{fig age-pension-first-year nearest-1|2038}}. Each
+balance is topped up to $4,000 when that person's Age Pension starts, but there's no pay left to
+shelter, so it changes nothing.
 **What-if:** if Pip decided to keep doing a few paid shifts a week past 67 instead of fully
 retiring, the first $300 of that fortnight's pay would be ignored by the income test, on top of
 everything else.

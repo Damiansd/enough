@@ -6059,21 +6059,25 @@ Working task list for `enough`. Maintained throughout the build.
 
     `core-projection-tax.test.mjs`. **Still open beside it: P4-8** — none of this reaches the Age
     Pension income test, and neither does `RETIRE`.
-  - [ ] **P4-10a** Two Work Bonus model gaps, left open on purpose rather than papered over —
-    ⚠️ **needs a decision: implement the full register condition, or keep age-only and say so
-    everywhere it matters.** (1) `applyWorkBonus`'s `eligible` is gated on **Age Pension age (67)
-    alone** (`core/workBonus.ts:51-56`); the register's condition is "of Age Pension age **and
-    receiving** Age Pension, Carer Payment or DSP", which the file's own doc calls circular in a
-    means test — whether the Person receives the Age Pension depends on the assessed income this
-    function produces. (2) the **$4,000 new-claimant starting credit is never seeded** by the
-    engine — confirmed again alongside P4-10, no consumer anywhere in `src/`. Both are now **stated
-    on screen** rather than silently assumed: `settingsPanel.ts`'s `WORK_BONUS_NOTICE` (~line 197)
-    says plainly that this forecast checks age only and that nothing fills in the $4,000 for the
-    user. Options for (1): accept age-only as a documented approximation (current state), or break
-    the circularity with an iterate-to-fixed-point check the way `agePensionEntitlement` might need
-    to anyway. Options for (2): seed `workBonusBalance` at $4,000 for a Household not yet drawing
-    the pension, or leave it a user-typed figure as now and keep saying so.
-    Reconciled 2026-09-30: WAITING on the user's decision — unchanged: `applyWorkBonus` is age-gated only (`src/core/workBonus.ts`) and `WORK_BONUS_STARTING_BALANCE` has no importer.
+  - [x] **P4-10a** Two Work Bonus model gaps — ✅ 2026-09-30 (uncommitted at hand-off), both landed
+    together on the user's ruling (SS Act s 1073AA / 1073AAA / 1073AB via DSS Guide 3.1.15.10/.20/.30/.50).
+    (1) The walk's write-back (`projection.ts`, the P4-10 block) moves the balance only when the Person
+    is of Age Pension age **and** this month's per-Person rate is above nil; a nil-rate month holds it.
+    `agePensionEntitlement` still assesses every Person of age with the balance (it only lowers income,
+    so no circularity). (2) Per-Person `wasReceiving` (starts true, so month 0 keeps the stated figure)
+    and `lastTopUp`: a Person who starts being paid with < $4,000 gets ($4,000 − opening) added to the
+    CLOSING balance, capped at $11,800, not within 24 months of the last top-up — the start month is
+    assessed on its opening bank (≤ 1 month understated). New `Person.statedLastWorkBonusTopUp` (parsePlan:
+    on/before `asAtDate`, not before 2024-01-01; absent with a balance > 0 → the plan's first day; with nil
+    → never), a box beside the Work Bonus balance with its own ⓘ. Carer Payment, DSP and the
+    transitional rate are out of scope, said in the guide (Chapter 50) and the register (§4.6). Rules in
+    force now show the $4,000 and $11,800 beside the $300. **Evidence:**
+    `test/core-projection-means-test-income.test.mjs` §7 (five walks), each killed by a named mutant —
+    gap 1 reverted / `>= 0` / income-test-only (assets-test nil walk); rate without the age limb (younger
+    partner); no `!wasReceiving` / `wasReceiving` starting false (§1–§3 and §7); `max(closing, 4000)`;
+    top-up gated on eligibility alone; the 24-month rule dropped; a stated last top-up ignored.
+    `test/core-parse-plan.test.mjs` (the date door), `test/app-settings-panel.test.mjs` (round trip,
+    notice, guide), `test/app-rules-in-force.test.mjs` (the two new rows).
 - [x] **P6-7** Scenario list, create/clone/rename — ✅ 2026-09-19 (uncommitted at hand-off;
   `src/app/scenarioList.ts`). Three pure functions over a `readonly Scenario[]`, in
   `planEdits.ts`'s idiom: no DOM, no clock, no `crypto`, and **no second write path** — the caller

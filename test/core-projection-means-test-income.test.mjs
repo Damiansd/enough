@@ -28,9 +28,9 @@
 //   $11,800 run out and the shelter END, §2 watches two months off pay for a restart, and §6 pins
 //   the $11,800 cap and the fortnight-per-month convention the carry needed.
 //
-//   ⚠️ **STILL OPEN — `applyWorkBonus`'s `eligible` flag is gated on Age Pension age alone.** A
-//   separate blast radius, deliberately untouched by P4-8 and by P4-10, and pinned at the end of
-//   §5. What is written there is its DIRECTION, tested.
+//   ✅ **P4-10a, fixed 2026-09-30 — the walk's balance moves only in a month the Person is PAID,
+//   and a pension that starts tops a small balance up to $4,000.** The means test's own flag is
+//   still age alone (end of §5, and why that is right there); §7 is the walk's half.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -380,11 +380,11 @@ test('the walk CARRIES the Work Bonus balance across months — a full balance d
   assert.ok(pensionAt(sheltered, '2026-12') < WORKING_NOVEMBER, 'assessed on the same $1,200 §1 November was, on a bigger Offset, so a little lower again');
   assert.ok(pensionAt(sheltered, '2026-12') < pensionAt(sheltered, '2026-11'), 'the pension FALLS when the balance runs out, inside one rate period');
 
-  // ⚠️ **AND `applyWorkBonus`'s `eligible` flag is still gated on Age Pension age ALONE.** Its own
-  // doc says the register's condition is "of Age Pension age AND receiving a payment", that the
-  // second half is circular in a means test, and that the full condition is unverified as
-  // implemented. P4-8 did not widen it and must not be read as having done so: the substitution
-  // above changes WHICH income is assessed, never WHO is assessed on it.
+  // **The MEANS TEST's flag is Age Pension age alone, and that is right for the rate** (P4-10a):
+  // the balance only ever lowers assessed income, so it cannot create a rate that would not exist
+  // without it. The "and receiving" limb gates the walk's write-back instead — §7. P4-8 did not
+  // widen this and must not be read as having done so: the substitution above changes WHICH income
+  // is assessed, never WHO is assessed on it.
   const tooYoung = withBalances(
     { persons: [{ ...ray().persons[0], name: 'Kit', dateOfBirth: '1980-01-01' }], homeStatus: 'occupied' },
     [{ workBonusBalance: toCents(0), superInterestBalances: [toCents(0)], parcels: [] }],
@@ -445,14 +445,119 @@ test('the carried balance banks the accrual up to the $11,800 cap and NO further
   assert.equal(workBonusBalanceAfterMonth(working, true, 11), toCents(0));
 
   // **An INELIGIBLE Person's balance does not move at all** — neither drawn nor accrued. The gate
-  // is `applyWorkBonus`'s, age-only and unverified (§5), and the carrier adds no rule of its own.
+  // is the caller's (the walk passes age AND a rate above nil, §7), and the carrier adds no rule of its own.
   assert.equal(workBonusBalanceAfterMonth(idle, false, 1_000), toCents(0));
   assert.equal(workBonusBalanceAfterMonth(working, false, 1_000), WORK_BONUS_MAXIMUM_BALANCE);
 
-  // ⚠️ **The register's $4,000 starting balance for a new claimant has no consumer in `src/` and
-  // carrying does not give it one.** Every Household STATES its own `workBonusBalance`, and P4-10
-  // carries whatever was stated; nothing seeds a first claim at $4,000. Recorded, not fixed — it is
-  // a question about what a Household means by the figure it states, not about the carry.
+  // **The $4,000 is READ now (P4-10a), by the walk and not by this carrier**: a stated balance is
+  // the balance at month 0, and the top-up lands only when a pension STARTS inside the walk — §7.
   assert.equal(WORK_BONUS_STARTING_BALANCE, toCents(4_000));
-  assert.notEqual(WORK_BONUS_STARTING_BALANCE, ray().persons[0].workBonusBalance);
+  assert.equal(workBonusBalanceAfterMonth(idle, true, 1), toCents(300), 'the carrier itself adds no top-up');
 });
+
+// --- 7. P4-10a — "AND RECEIVING", and the $4,000 when a pension starts ---------------------------
+//
+// s 1073AA (DSS Guide 3.1.15.20): "where a person receives no pension payment in an instalment
+// period there can be no accrual or depletion". s 1073AAA (3.1.15.30): a Person who starts being
+// paid with less than $4,000 banked is topped up to $4,000, unless topped up in the last two years.
+// The walk tops up the CLOSING balance by ($4,000 − the opening one), so the start month itself is
+// assessed on what it opened with and the top-up shelters from the month after.
+
+const AT_MAXIMUM = MAXIMUM_DECEMBER; // $1,237.70/fn × 26 ÷ 12: nothing assessed but a little deeming
+const work = (id, date, daysPerWeek, annualSalary) =>
+  entry(id, 'WORK_PATTERN_CHANGE', date, annualSalary === undefined ? { daysPerWeek } : { daysPerWeek, annualSalary: toCents(annualSalary) }, 'personA');
+// $120,000 a year is $4,615.38 a fortnight: the income test takes the whole rate, so these are months
+// Ray is of Age Pension age (eligible) and paid NOTHING.
+const PRICED_OUT = (id, date) => work(id, date, 5, 120_000);
+// $52,000 a year is $2,000.00 a fortnight: $1,700 left after the $300, which a bank shelters.
+const MODEST = (id, date) => work(id, date, 3, 52_000);
+const pensions = (months, from, to) => months.filter((m) => m.month >= from && m.month <= to).map((m) => pensionAt(months, m.month) ?? 0);
+
+test('P4-10a: a month paid NO pension neither draws nor banks — an $11,800 bank waits out an assets-test nil', () => {
+  // Ray, working at $1,500, holds $11,800 and an $800,000 Offset: over the single homeowner assets
+  // cut-off, so the ASSETS test pays nil while the INCOME test alone would pay (deeming at nil here,
+  // so the income test sees only the $1,200 left after the $300). Six nil months, then a $700,000
+  // expense on 1 December brings the pension back from January.
+  const household = { ...ray({ workBonusBalance: WORK_BONUS_MAXIMUM_BALANCE }), openingOffsetBalance: toCents(800_000) };
+  const walked = project({ ...SETTINGS, deemingRates: { lower: 0, upper: 0 } }, household, [SPEND, entry('x', 'ONE_OFF_EXPENSE', '2026-12-01', { amount: toCents(700_000) })]);
+  assert.deepEqual(pensions(walked, '2026-07', '2026-12'), [0, 0, 0, 0, 0, 0], 'the assets test pays nil');
+  // **The whole $11,800 is still there in January**: 9.83 fortnights of $1,200, so January to May
+  // (2 + 2 + 2 + 2 + 2 fortnights, the fifth month opening on $2,200) are all paid the maximum, and
+  // June is the first month assessed on the wage. Had the six nil months drawn on it — as the
+  // age-only flag did — it would have been empty by November and January would be assessed too.
+  assert.deepEqual(pensions(walked, '2027-01', '2027-03'), [AT_MAXIMUM, AT_MAXIMUM, AT_MAXIMUM]);
+  // April and May are the 20 March 2027 maximum (the generated series), still nothing assessed.
+  assert.deepEqual(pensions(walked, '2027-04', '2027-06'), [toCents(2_712.32), toCents(2_712.32), toCents(1_657.15)]);
+});
+
+test('P4-10a: a pension that STARTS AGAIN tops a nil bank up to $4,000, from the month after', () => {
+  // Paid in July and August on $1,500 (nil bank: §1's figures), priced out September to November,
+  // back on $2,000 a fortnight from December. December is the start month and is assessed on the
+  // nil it OPENED with: the whole $1,700. The top-up lands on its closing balance, so January opens
+  // on $4,000 (nothing banked in December — the $300 is used every fortnight) and is sheltered
+  // whole; January draws 2 × $1,700, February opens on $600 and assesses $1,100; March is bare.
+  const months = project(SETTINGS, ray(), [SPEND, PRICED_OUT('w1', '2026-09-01'), MODEST('w2', '2026-12-01')]);
+  assert.deepEqual(pensions(months, '2026-07', '2026-08'), [toCents(1_546.78), toCents(1_544.88)], 'no top-up at month 0: the stated nil is the balance');
+  assert.deepEqual(pensions(months, '2026-09', '2026-11'), [0, 0, 0]);
+  assert.deepEqual(pensions(months, '2026-12', '2027-03'), [toCents(1_067.60), AT_MAXIMUM, toCents(1_712.23), toCents(1_059.67)]);
+
+  // **A top-up stated in the last two years blocks it** (`statedLastWorkBonusTopUp`): the same walk,
+  // topped up on 1 January 2026 — eleven months before December — gets none, and January is
+  // assessed on the whole $1,700 like December.
+  const recent = project(SETTINGS, ray({ statedLastWorkBonusTopUp: '2026-01-01' }), [SPEND, PRICED_OUT('w1', '2026-09-01'), MODEST('w2', '2026-12-01')]);
+  assert.deepEqual(pensions(recent, '2026-12', '2027-02'), [toCents(1_067.60), toCents(1_065.50), toCents(1_063.42)]);
+});
+
+test('P4-10a: the two years are counted in whole months, and a top-up exactly 24 months on is allowed', () => {
+  // The restart of the test above starts receiving in December 2026. A last top-up stated on
+  // 1 December 2024 is exactly 24 months before it: no longer "within the last 2 years", so December's
+  // closing balance is topped up and January is sheltered whole. One month later (1 January 2025, 23
+  // months) blocks it, and January is assessed on the whole $1,700 as in the "recent" walk above.
+  const entries = [SPEND, PRICED_OUT('w1', '2026-09-01'), MODEST('w2', '2026-12-01')];
+  const twoYears = project(SETTINGS, ray({ statedLastWorkBonusTopUp: '2024-12-01' }), entries);
+  assert.deepEqual(pensions(twoYears, '2026-12', '2027-01'), [toCents(1_067.60), AT_MAXIMUM]);
+  const twentyThree = project(SETTINGS, ray({ statedLastWorkBonusTopUp: '2025-01-01' }), entries);
+  assert.deepEqual(pensions(twentyThree, '2026-12', '2027-01'), [toCents(1_067.60), toCents(1_065.50)]);
+});
+
+test('P4-10a: the top-up is ADDED to what the start month banked, not a floor under it', () => {
+  // The same restart, but December is not worked: it banks 3 × $300 = $900 of its own and then takes
+  // the $4,000 − $0 top-up, so January opens on $4,900 (a floor of $4,000 would say $4,000). January
+  // banks $600 more → $5,500; February draws 2 × $1,700 → $2,100, which still shelters March's
+  // assessment whole; April is the first month assessed. Under a floor March would open on $1,200.
+  const months = project(SETTINGS, ray(), [SPEND, PRICED_OUT('w1', '2026-09-01'), work('w2', '2026-12-01', 0), MODEST('w3', '2027-02-01')]);
+  assert.deepEqual(pensions(months, '2026-12', '2027-04'), [AT_MAXIMUM, AT_MAXIMUM, AT_MAXIMUM, AT_MAXIMUM, toCents(1_091.41)]);
+});
+
+test('P4-10a: no second top-up within two years of the first', () => {
+  // Topped up on restarting in November 2026 (not working, so it banks too), worked down to nil on
+  // $2,000 a fortnight from January, priced out June to August 2027, restarted in September on the
+  // same $2,000 — ten months after the first top-up, so none. September and every month after it
+  // assess the whole $1,700: a second $4,000 would have paid October the maximum.
+  const months = project({ ...SETTINGS, planningHorizonAge: 73 }, ray(), [
+    SPEND,
+    PRICED_OUT('w1', '2026-09-01'),
+    work('w2', '2026-11-01', 0),
+    MODEST('w3', '2027-01-01'),
+    PRICED_OUT('w4', '2027-06-01'),
+    MODEST('w5', '2027-09-01'),
+  ]);
+  assert.deepEqual(pensions(months, '2026-11', '2027-02'), [AT_MAXIMUM, AT_MAXIMUM, AT_MAXIMUM, AT_MAXIMUM], 'the first restart is topped up');
+  assert.deepEqual(pensions(months, '2027-06', '2027-08'), [0, 0, 0]);
+  assert.deepEqual(pensions(months, '2027-09', '2027-10'), [toCents(1_075.32), toCents(1_104.11)]);
+});
+
+test('P4-10a: a younger partner banks nothing while the older one is paid, and is topped up on reaching 67', () => {
+  // Ray (70) and Kit (66, 67 on 15 September 2026), neither working, nil banks. The couple's rate
+  // is positive from month 0, but Kit is not of Age Pension age until October, so Kit's bank holds
+  // at nil — a flag read off the rate alone would bank $300 a fortnight for Kit from July. October
+  // is Kit's start month: $600 banked and $4,000 added → $4,600; November and December bank $1,500
+  // → $6,100 by January, when Kit starts on $2,000 a fortnight. January and February are sheltered
+  // ($6,100 − $3,400 = $2,700 opens February); March opens on nil and is assessed.
+  const kit = { ...ray().persons[0], name: 'Kit', dateOfBirth: '1959-09-15', employmentIncomePerFortnight: toCents(0) };
+  const household = { persons: [{ ...ray().persons[0], employmentIncomePerFortnight: toCents(0) }, kit], homeStatus: 'occupied' };
+  const months = project(SETTINGS, household, [SPEND, { ...MODEST('k', '2027-01-01'), owner: 'personB' }]);
+  assert.deepEqual(pensions(months, '2026-09', '2026-10'), [toCents(1_961.27), toCents(4_043.00)], 'Kit is paid from October');
+  assert.deepEqual(pensions(months, '2027-01', '2027-03'), [toCents(4_043.00), toCents(4_043.00), toCents(2_618.20)]);
+});
+

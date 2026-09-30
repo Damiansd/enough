@@ -35,7 +35,7 @@ export interface WorkBonusResult {
   readonly fromBalance: Cents;
   readonly assessedEmploymentIncome: Cents;
   readonly balanceAfter: Cents;
-  /** False for a Person below Age Pension age — see the note on the circularity below. */
+  /** The flag the caller passed: the walk passes Age Pension age AND a positive rate (P4-10a). */
   readonly eligible: boolean;
 }
 
@@ -48,11 +48,14 @@ export interface WorkBonusResult {
  * remainder of that fortnight's $300 is banked" means, and it is why the balance grows whether or
  * not the Person works.
  *
- * **`eligible` is gated on Age Pension age alone.** The register's condition is "of Age Pension
- * age **and receiving** Age Pension, Carer Payment or DSP", which is circular in a means test:
- * whether the Person receives Age Pension depends on the assessed income this function produces.
- * Age is the non-circular half and it is the half that binds for this Household. The full
- * condition is **unverified** as implemented and is recorded here rather than in the output.
+ * **`eligible` is the caller's, and there are two callers.** `agePensionEntitlement` passes Age
+ * Pension age alone, because it is working out the rate: the balance only ever LOWERS assessed
+ * income, so assessing every Person of age with it cannot create a rate that would not otherwise
+ * exist. The walk's write-back (`projection.ts`, P4-10a) passes Age Pension age AND this month's
+ * rate above nil — s 1073AA's "receiving" limb: "where a person receives no pension payment in an
+ * instalment period there can be no accrual or depletion" (DSS Guide 3.1.15.20). The same write-back
+ * adds `WORK_BONUS_STARTING_BALANCE`'s top-up when a pension starts (s 1073AAA). Carer Payment, DSP
+ * and the transitional rate are not modelled.
  */
 export const applyWorkBonus = (person: Person, eligible: boolean): WorkBonusResult => {
   const eligibleIncome = person.employmentIncomePerFortnight;

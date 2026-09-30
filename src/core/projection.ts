@@ -234,7 +234,7 @@ import { minimumDrawdown, pensionAccountBalance, pensionAccountBalanceObservedLa
 import type { MinimumDrawdown } from './minimumDrawdown.js';
 import { UnvaluedAssessableHomeError, agePensionEntitlement } from './agePension.js';
 import { BEREAVEMENT_DAYS_TO_PERIOD_END, bereavementLumpSum } from './bereavement.js';
-import { applyWorkBonus } from './workBonus.js';
+import { WORK_BONUS_MAXIMUM_BALANCE, WORK_BONUS_STARTING_BALANCE, applyWorkBonus } from './workBonus.js';
 import { AGE_PENSION, AGE_PENSION_PERIODS, STANDING_PARAMETERS_DIRECTION, agePensionPeriodsThrough, agePensionPeriodAt, defaultAgePensionSeries, maximumPaymentRate } from '../data/assumptions/agePension.js';
 import type { RateStatus } from '../data/assumptions/agePension.js';
 import { agedCareAccommodationPayment, agedCareFees, agedCareMeansAssessment, agedCareRadRetentionDeduction, startingNcccCapBalance } from './agedCare.js';
@@ -395,6 +395,9 @@ export const monthlyFromFortnightly = (perFortnight: Cents): Cents =>
 export const fortnightsInWalkMonth = (index: number): number =>
   Math.floor(((index + 1) * FORTNIGHTS_PER_YEAR) / 12) - Math.floor((index * FORTNIGHTS_PER_YEAR) / 12);
 
+/** s 1073AAA: no $4,000 top-up within two years of the last one. */
+const WORK_BONUS_TOP_UP_MONTHS = 24;
+
 /**
  * **One Person's Work Bonus balance at the END of a walk month — P4-10's write-back.**
  *
@@ -412,10 +415,9 @@ export const fortnightsInWalkMonth = (index: number): number =>
  * many fortnights are iterated; a second clamp written at this call site would be the same figure
  * enforced in two places, and the one that drifted would be the one nobody read.
  *
- * `eligible` is passed straight through and is NOT decided here — it is the flag
- * `agePensionEntitlement` already computed for this Person on this date, gated on Age Pension age
- * alone. An ineligible Person's balance comes back untouched, which is `applyWorkBonus`'s own
- * early return and not a rule added by the walk.
+ * `eligible` is passed straight through and is NOT decided here — the walk passes Age Pension age
+ * AND a positive rate this month (P4-10a; see the write-back). An ineligible Person's balance comes
+ * back untouched, which is `applyWorkBonus`'s own early return and not a rule added by the walk.
  */
 export const workBonusBalanceAfterMonth = (person: Person, eligible: boolean, fortnights: number): Cents => {
   let balance = person.workBonusBalance;
@@ -6177,6 +6179,15 @@ export const project = (
       workBonusBalance: person.workBonusBalance,
       superInterestBalances: person.superInterests.map((interest) => interest.balance),
     }));
+  // **P4-10a — per Person, whether they were paid Age Pension last month, and when their Work Bonus
+  // balance was last topped up to $4,000** (s 1073AAA, DSS Guide 3.1.15.30). `wasReceiving` starts
+  // TRUE so month 0 never tops up: the stated balance is the balance. With no stated top-up day, a
+  // stated balance above nil is taken as topped up on the plan's first day — which blocks a top-up
+  // for two years, the conservative reading — and a nil one as never topped up.
+  const workBonusTopUps: { wasReceiving: boolean; lastTopUp: string | undefined }[] = household.persons.map((person) => ({
+    wasReceiving: true,
+    lastTopUp: person.statedLastWorkBonusTopUp ?? (person.workBonusBalance > 0 ? settings.asAtDate : undefined),
+  }));
 
   // **Chunk 5b — the year's Sch 7 minimum, per Account-Based Pension interest, and what is LEFT of
   // it.** Same shape and same reason as `balances` above: a plain mutable local, so `project()` stays
@@ -8019,6 +8030,15 @@ export const project = (
     // accruing through it: `eligible` is the flag `agePensionEntitlement` computed, and where no
     // entitlement was computed there is no flag — inventing one would be this walk asserting an
     // accrual in a month it has just declined to model at all.
+    //
+    // **P4-10a — it moves only in a month the Person is PAID.** s 1073AA needs Age Pension age AND a
+    // pension being received: "where a person receives no pension payment in an instalment period
+    // there can be no accrual or depletion" (DSS Guide 3.1.15.20), so a nil-rate month holds the
+    // balance. `receiving` reads this month's rate, which the balance only ever lowered the income
+    // for — no circularity. And a Person who STARTS being paid with less than $4,000 banked is topped
+    // up by the difference (s 1073AAA), unless topped up in the last two years. The top-up lands on
+    // the CLOSING balance: the start month itself is assessed on its opening bank, an understatement
+    // of at most one month. Carer Payment, DSP and the transitional rate are not modelled.
     if (entitlement !== undefined) {
       const fortnights = fortnightsInWalkMonth(months.length);
       entitlement.workBonus.forEach((result, assessedIndex) => {
@@ -8026,8 +8046,23 @@ export const project = (
         const personIndex = deceasedNow === undefined ? assessedIndex : (death?.survivor ?? assessedIndex);
         const held = balances[personIndex];
         const assessed = householdThisMonth.persons[personIndex];
-        if (held === undefined || assessed === undefined) return;
-        held.workBonusBalance = workBonusBalanceAfterMonth(assessed, result.eligible, fortnights);
+        const topUps = workBonusTopUps[personIndex];
+        if (held === undefined || assessed === undefined || topUps === undefined) return;
+        const receiving = result.eligible && entitlement.perPersonRatePerFortnight > 0;
+        const closing = workBonusBalanceAfterMonth(assessed, receiving, fortnights);
+        const toppedUp =
+          !topUps.wasReceiving &&
+          receiving &&
+          assessed.workBonusBalance < WORK_BONUS_STARTING_BALANCE &&
+          (topUps.lastTopUp === undefined || monthsBetween(topUps.lastTopUp, month) >= WORK_BONUS_TOP_UP_MONTHS);
+        if (toppedUp) {
+          const raised = addCents(closing, subCents(WORK_BONUS_STARTING_BALANCE, assessed.workBonusBalance));
+          held.workBonusBalance = (raised > WORK_BONUS_MAXIMUM_BALANCE ? WORK_BONUS_MAXIMUM_BALANCE : raised) as Cents;
+          topUps.lastTopUp = month;
+        } else {
+          held.workBonusBalance = closing;
+        }
+        topUps.wasReceiving = receiving;
       });
     }
 

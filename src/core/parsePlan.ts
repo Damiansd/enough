@@ -933,6 +933,7 @@ const parsePerson = (value: unknown, path: string): Person => {
     'parcels',
     'employmentIncomePerFortnight',
     'workBonusBalance',
+    'statedLastWorkBonusTopUp',
     'statedPriorRetirementPhase',
     'statedUnusedConcessionalCap',
     'statedTotalSuperBalanceAt30June',
@@ -946,6 +947,8 @@ const parsePerson = (value: unknown, path: string): Person => {
       .map((parcel, index) => parseParcel(parcel, `${path}.parcels[${index}]`)),
     employmentIncomePerFortnight: cents(PlanFileHouseholdError, record['employmentIncomePerFortnight'], `${path}.employmentIncomePerFortnight`),
     workBonusBalance: cents(PlanFileHouseholdError, record['workBonusBalance'], `${path}.workBonusBalance`),
+    ...optionally('statedLastWorkBonusTopUp', optional(record, 'statedLastWorkBonusTopUp', (raw) =>
+      isoDate(PlanFileHouseholdError, raw, `${path}.statedLastWorkBonusTopUp`))),
     ...optionally('statedPriorRetirementPhase', optional(record, 'statedPriorRetirementPhase', (raw) =>
       member(PlanFileHouseholdError, raw, `${path}.statedPriorRetirementPhase`, PRIOR_RETIREMENT_PHASES))),
     ...optionally('statedUnusedConcessionalCap', optional(record, 'statedUnusedConcessionalCap', (raw) =>
@@ -986,6 +989,27 @@ const parseStatedUnusedConcessionalCap = (value: unknown, path: string): Readonl
  * year's derived from this plan's wage rate. A year before FY2026-27 has no cap in the register,
  * so its figure is taken as myGov states it.
  */
+const WORK_BONUS_TOP_UP_START: IsoDate = '2024-01-01';
+
+/**
+ * **P4-10a — a stated last Work Bonus top-up is a day in the past, and no earlier than the $4,000
+ * itself** (s 1073AAA, in force from 1 January 2024). A later day would be a top-up the forecast has
+ * not reached; an earlier one never happened.
+ */
+const checkStatedLastWorkBonusTopUps = (household: Household, settings: Settings): void => {
+  household.persons.forEach((person, personIndex) => {
+    const stated = person.statedLastWorkBonusTopUp;
+    if (stated === undefined) return;
+    const path = `household.persons[${personIndex}].statedLastWorkBonusTopUp`;
+    if (stated > settings.asAtDate) {
+      fail(PlanFileHouseholdError, path, `is ${stated}, after the plan's own date ${settings.asAtDate}. It is the last top-up that has already happened; the forecast works out any later one`);
+    }
+    if (stated < WORK_BONUS_TOP_UP_START) {
+      fail(PlanFileHouseholdError, path, `is ${stated}, before ${WORK_BONUS_TOP_UP_START}, when the $4,000 top-up began. Leave it out if the balance has never been topped up`);
+    }
+  });
+};
+
 const checkStatedUnusedConcessionalCaps = (household: Household, settings: Settings): void => {
   const firstYear = financialYearContaining(settings.asAtDate);
   const window = financialYearsBefore(firstYear, SUPERANNUATION.carryForward.lookBackYears.value);
@@ -2943,6 +2967,7 @@ export const parsePlan = (value: unknown): PlanFile => {
   checkInsuranceAges(household, settings);
   checkParcelValuesJustBefore1July2027(household, settings);
   checkStatedUnusedConcessionalCaps(household, settings);
+  checkStatedLastWorkBonusTopUps(household, settings);
   checkReleaseAuthorityDestinations(household);
   checkContributionTargets(entries, household);
   checkSpouseContributionTargets(entries, household);
