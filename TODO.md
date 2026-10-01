@@ -9222,7 +9222,7 @@ first, then the connector instead of the in-app chat, at the cost of the chip gu
   `fetch()` to `<endpoint>/v1/messages`, with no SDK. Usage is read from every response, and failures
   come back as plain English (unreachable, key refused, rate limit, overloaded, refused in the
   provider's own words). The only provider is Anthropic: stage 0 measured its CORS preflight from
-  `localhost:4173` as open, and found no Ollama installed (P15-3 stays open). The loop is
+  `localhost:4173` as open, and found no Ollama installed (P15-3 later removed from scope, 2026-10-01). The loop is
   `conversation.ts`: tool calls go through the figure store, at most 8 rounds a turn, then chips and
   the guard. The tool catalogue (`toolCatalogue.ts`) is now shared with the connector.
   - [x] **P15-1a** The local origin provider (P2-2a) is **not** an intermediary: the browser calls
@@ -9243,7 +9243,8 @@ first, then the connector instead of the in-app chat, at the cost of the chip gu
     three are asserted. The export is asserted on the Working File's own shape, because the Export
     verb itself is deferred (P8-3). Mutation-checked: the key written into the plan, or sent to the
     server in a header, turns a test red
-- [ ] **P15-3** Local-model option over `localhost` (Ollama or equivalent) — the posture-preserving path
+- [~] **P15-3** Local-model option over `localhost` (Ollama or equivalent) — the posture-preserving path
+  - **Removed from scope by the user 2026-10-01.** Anthropic stays the only provider. The notes below are kept for history.
   - **Confirmed still not built, 2026-09-26.** `chatSettings.ts:19`: "Ollama is not offered: not
     installed where stage 0 measured (2026-09-24)." `anthropic.ts` is the only provider adapter;
     `chatSettings.ts`'s `CHAT_PROVIDERS` names only `'anthropic'`. **Blocked on:** no local model was

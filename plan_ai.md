@@ -660,7 +660,7 @@ is no key yet.
 - **Stage 0, recorded.** From `Origin: http://localhost:4173`, Anthropic's CORS preflight answers
   `access-control-allow-origin: *` and allows `x-api-key`, `anthropic-version`, `content-type` and
   `anthropic-dangerous-direct-browser-access`. Ollama isn't installed here, so **the local path is
-  recorded as unavailable** and the only provider offered is `anthropic` (P15-3 stays open).
+  recorded as unavailable** and the only provider offered is `anthropic` (P15-3 was removed from scope 2026-10-01).
 - **One tool catalogue** (`toolCatalogue.ts`). The connector's tool names, descriptions, schemas and
   refusals moved out of `server/connector.mjs`, and both routes use them. The connector's `initialize`
   and `tools/list` output is byte-identical.
