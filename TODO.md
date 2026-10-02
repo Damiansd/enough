@@ -10030,9 +10030,9 @@ benefit pension, annuity or foreign pension; no funeral bond or prepaid funeral.
 - [ ] **CL-2** Other income streams (defined benefit, lifetime annuity — 60% income / 60%→30% assets,
   foreign pension, trust/business income). MOOT for this household (user: none). Build only on ask.
 - [ ] **CL-3** Funeral bonds ($15,750 each, 2025-26, CPI) and prepaid funerals exempt. MOOT (user: none).
-- [ ] **CL-4** Not yet asked: an expected inheritance (exempt only until receivable); a younger
-  partner's own payments (JobSeeker/Carer/DSP, unverified); overseas portability after 26 weeks
-  (secondary source only). CSHC: informational, no cash value.
+- [ ] **CL-4** An expected inheritance (exempt only until receivable); a younger partner's own
+  payments (JobSeeker/Carer/DSP); overseas portability after 26 weeks. MOOT (user 2026-10-02: no
+  inheritance expected, no partner payments, no long overseas stays). CSHC: informational, no cash value.
 
 ## Parked — not scoped
 
