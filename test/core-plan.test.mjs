@@ -248,6 +248,8 @@ const pinned: { [K in MonthKeys]-?: true } = {
   assessableAssets: true,
   // GIFT slice 1, 2026-10-02: the gifts' deprived amount the means tests counted — OMITTED where nil.
   deprivedAssets: true,
+  // Coverage gap 1, 2026-10-02: cars, contents and other things owned — OMITTED where none is stated.
+  personalAssets: true,
   accessibleAssets: true,
   assetsByPerson: true,
   // P3-4b, 2026-09-30: each Person's concessional cap headroom for the month's year — every month.

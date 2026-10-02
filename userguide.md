@@ -2800,6 +2800,35 @@ for your own guess about them in the **{{name|Forecast assumptions}}** part of *
 
 The house you live in is never counted in either test. Everything else you own is.
 
+### Cars, contents and other things you own {#personal-assets}
+
+The assets test doesn't only count money. It also counts the things you own: your cars, a caravan
+or a boat, your furniture and appliances, jewellery, a laptop, collections and so on. Centrelink
+values them at what they would **sell for** today, second-hand — not what you paid for them, and not
+what it would cost to replace them. If you still owe money on a loan the car secures, take what you
+owe off its value.
+
+Tell *enough* about them in **{{name|Household and settings}}**, as one figure for all of them
+together, in the box **{{name|Cars, contents and other things you own, today’s money (blank if none)}}**.
+A couple types one figure for the two of you: Centrelink counts half of it for each of you. After
+one of you dies, the one left keeps all of it.
+
+- **It can lower your Age Pension.** When the assets test is the one setting your pension, every
+  $1,000 here takes $3 a fortnight off it — for a couple, off the two of you together.
+- **It isn't money you can spend.** *enough* never sells these things or pays bills with them.
+  They aren't added to what you own on the wealth chart or in the totals, and they don't count as
+  money you could live on.
+- **It only counts in the assets test.** Centrelink doesn't assume your car earns anything, so it
+  isn't deemed and the income test doesn't see it.
+- **It rises with prices.** Type what they're worth today. *enough* raises the figure with
+  inflation each month, so it stays the same in today's money for the whole forecast. Real cars
+  lose value as they age, so in later years this can show a slightly lower pension than you'd
+  really get.
+
+Once you've typed a figure, **{{name|Years and months}}** shows it each month as
+**{{name|Cars, contents and other things you own}}**, beside what you own, and the wealth chart
+draws it as its own line. Leave the box blank and nothing is counted.
+
 ### Giving money away {#gifts}
 
 You can't give your money away to get a bigger pension. Centrelink lets you give away only so much
@@ -4252,6 +4281,7 @@ A dictionary for everyone. Each word has a short meaning and the chapter where y
 | **Nominal return** | How much your investments grow each year, before taking price rises away. The box is called "Growth of super and investments a year, before inflation". | [Chapter 15](#assumptions) |
 | **Offset account** | A savings account joined to your home loan. It makes the loan cost less. | [Chapter 13](#home-loan-and-offset) |
 | **PBLCI** | A measure of price rises for pensioners, used as one floor under how much the Age Pension's basic rate can rise. | [Chapter 15](#assumptions) |
+| **Personal assets** | Things you own that aren't money: cars, a caravan or boat, furniture, jewellery. Centrelink counts what they'd sell for in the assets test. They lower your pension but aren't money you can spend. | [Chapter 49](#personal-assets) |
 | **Planning horizon** | How far ahead *enough* looks: until the youngest person reaches this age. | [Chapter 15](#assumptions) |
 | **Premium** | What you pay for insurance. | [Chapter 11](#super-insurance) |
 | **Preservation age** | The youngest age you can take money out of super: 60. Turning 60 isn't enough by itself. You also have to stop working (or turn 65), or start a TTR pension. | [Chapter 25](#transition-to-retirement) |
@@ -4505,7 +4535,7 @@ Jump to a topic:
 | [Deeming](https://www.servicesaustralia.gov.au/deeming?context=22526) | Services Australia | Deeming: the thresholds and the assumed rates. | 29 Sep 2026 |
 | [Deeming (survivorship view)](https://www.servicesaustralia.gov.au/deeming?context=22526) | Services Australia | The same page, read for the single person's deeming threshold. | 29 Sep 2026 |
 | [How much Age Pension you can get (HEAS view)](https://www.servicesaustralia.gov.au/how-much-age-pension-you-can-get?context=22526) | Services Australia | The same page, read for the maximum Age Pension rate used in the Home Equity Access Scheme limits. | 29 Sep 2026 |
-| [Asset types](https://www.servicesaustralia.gov.au/asset-types?context=22526) | Services Australia | Which things you own count in the assets test, including super once you are over Age Pension age. | 29 Sep 2026 |
+| [Asset types](https://www.servicesaustralia.gov.au/asset-types?context=22526) | Services Australia | Which things you own count in the assets test, including super once you are over Age Pension age, and cars, caravans, boats and home contents at what they would sell for. | 29 Sep 2026 |
 | [Income streams](https://www.servicesaustralia.gov.au/income-streams?context=22526) | Services Australia | How a pension paid from super counts in the income and assets tests. | 29 Sep 2026 |
 | [Superannuation (Services Australia)](https://www.servicesaustralia.gov.au/superannuation?context=22526) | Services Australia | How super counts for the Age Pension. | 29 Sep 2026 |
 | [Residence rules for Age Pension](https://www.servicesaustralia.gov.au/residence-rules-for-age-pension) | Services Australia | How long you must have lived in Australia to get the Age Pension. | 29 Sep 2026 |

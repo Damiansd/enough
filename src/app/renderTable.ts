@@ -25,6 +25,8 @@ import {
   HOME_LOAN_OWING_LABEL,
   DEPRIVED_ASSETS_DETAIL,
   DEPRIVED_ASSETS_LABEL,
+  PERSONAL_ASSETS_DETAIL,
+  PERSONAL_ASSETS_LABEL,
   INCOME_FROM_SUPER_LABEL,
   INVESTMENTS_DETAIL,
   INVESTMENTS_LABEL,
@@ -290,6 +292,11 @@ const detail = (row: MonthRow): HTMLElement => {
     const gifts = el('div', 'deprived-assets');
     gifts.append(dl([[DEPRIVED_ASSETS_LABEL, row.deprivedAssets]]), infoButton('What this figure is', DEPRIVED_ASSETS_DETAIL, 'guide:gifts'));
     position.append(gifts);
+  }
+  if (row.personalAssets !== undefined) {
+    const owned = el('div', 'personal-assets');
+    owned.append(dl([[PERSONAL_ASSETS_LABEL, row.personalAssets]]), infoButton('What this figure is', PERSONAL_ASSETS_DETAIL, 'guide:personal-assets'));
+    position.append(owned);
   }
 
   const entries = el('section', 'axis entries');

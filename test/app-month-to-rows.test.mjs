@@ -57,6 +57,8 @@ import {
   HOME_LOAN_OWING_LABEL,
   DEPRIVED_ASSETS_DETAIL,
   DEPRIVED_ASSETS_LABEL,
+  PERSONAL_ASSETS_DETAIL,
+  PERSONAL_ASSETS_LABEL,
   HOUSEHOLD_ASSETS,
   NOTE_TEXT_LABELS,
   OFFSET_ATTRIBUTION,
@@ -1648,4 +1650,21 @@ test('a month carrying a deprived amount prints it, in whole dollars, as its own
   assert.equal(DEPRIVED_ASSETS_LABEL, 'Gifts still counted by Centrelink');
   plainly(DEPRIVED_ASSETS_LABEL, 'the gifts label');
   plainly(DEPRIVED_ASSETS_DETAIL, 'the gifts detail');
+});
+
+// --- Coverage gap 1: cars, contents and other things owned, beside the Position figures ------------
+
+test('a month carrying cars and contents prints them, in whole dollars, as their own line; a month without has no key', () => {
+  assert.ok(MONTHS.every((month) => !Object.hasOwn(monthToRow(month, FUTURE), 'personalAssets')), 'the demo states none');
+  const owned = Object.freeze({ ...MONTHS[30], personalAssets: 2_500_049 });
+  const row = monthToRow(owned, FUTURE);
+  assert.equal(row.personalAssets, '$25,000');
+  const today = { view: 'todaysDollars', asAtDate: DEMO_SETTINGS.asAtDate, cpi: DEMO_SETTINGS.economicSeries.cpi };
+  assert.equal(monthToRow(owned, today).personalAssets, formatDollars(moneyLens(today, owned.month)(owned.personalAssets)));
+  assert.equal(row.assessableAssets, monthToRow(MONTHS[30], FUTURE).assessableAssets, 'folded into what the Household holds');
+  const render = readFileSync(new URL('../src/app/renderTable.ts', import.meta.url), 'utf8');
+  assert.match(render, /if \(row\.personalAssets !== undefined\) \{[\s\S]{0,200}dl\(\[\[PERSONAL_ASSETS_LABEL, row\.personalAssets\]\]\), infoButton\('What this figure is', PERSONAL_ASSETS_DETAIL, 'guide:personal-assets'\)\);\s*position\.append\(owned\);/);
+  assert.equal(PERSONAL_ASSETS_LABEL, 'Cars, contents and other things you own');
+  plainly(PERSONAL_ASSETS_LABEL, 'the cars and contents label');
+  plainly(PERSONAL_ASSETS_DETAIL, 'the cars and contents detail');
 });

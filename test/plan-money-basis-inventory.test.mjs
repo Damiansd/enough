@@ -174,6 +174,8 @@ test('EXACTLY TEN figures/call sites in `src/core` raise a stated figure to a mo
   assert.match(projectionSource, /atTodaysMoney\(entry\.params\.fortnightlyAmount, month\)/, 'HEAS_DRAW\'s STATED fortnightlyAmount no longer goes through atTodaysMoney');
   assert.match(projectionSource, /atTodaysMoney\(advance\.amount, advance\.date\)/, 'HEAS_DRAW\'s advance amounts no longer go through atTodaysMoney');
   assert.match(projectionSource, /atTodaysMoney\(entry\.params\.amount, entry\.date\)/, 'DOWNSIZER_CONTRIBUTION\'s amount no longer goes through atTodaysMoney');
+  // Coverage gap 1: cars and contents are an estimate of what they would sell for NOW, raised every month.
+  assert.match(projectionSource, /atTodaysMoney\(household\.personalAssets, month\)/, 'Household.personalAssets no longer goes through atTodaysMoney');
   // The two of them go through ONE expression, which is the rule P4-14 wrote and this change has now
   // paid for a third time: a `cpi` raised to a power appears in `priceLevel.ts` and nowhere else in
   // `src/`. Other exponentiations are legitimate and are not swept — `(1 + nominalReturn) ** (1/12)`

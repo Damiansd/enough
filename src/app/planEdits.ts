@@ -1659,6 +1659,8 @@ export interface StatedPositionFormValues {
    * refuses it by name.
    */
   readonly offsetSharePercent: string;
+  /** DOLLARS in today's money, as typed. **Blank omits the KEY**: `Household.personalAssets` is optional and absent is nil. */
+  readonly personalAssets: string;
   /**
    * **THE HOME LOAN, AS THREE BOXES (P3-16 slice 1) — and they stand or fall TOGETHER.**
    *
@@ -2285,6 +2287,7 @@ export const planWithStatedPosition = (plan: PlanFile, values: StatedPositionFor
     homeStatus: values.homeStatus,
     ...(values.openingOffsetBalance.trim() === '' ? {} : { openingOffsetBalance: dollarsToCents(values.openingOffsetBalance) }),
     ...statedOffsetShares(plan, values),
+    ...(values.personalAssets.trim() === '' ? {} : { personalAssets: dollarsToCents(values.personalAssets) }),
     // **The three loan boxes, written as ONE key or not at all** — see `mortgageBalance` on
     // `StatedPositionFormValues` for why they cannot be omitted one at a time. Nothing is judged
     // here: a blank box among filled ones converts to `NaN`, the key is written anyway, and
@@ -2387,6 +2390,7 @@ export const positionFormValues = (plan: PlanFile): StatedPositionFormValues => 
     plan.household.openingOffsetBalance === undefined ? '' : centsToDollars(plan.household.openingOffsetBalance),
   offsetSharePercent:
     plan.household.persons.length !== 2 ? '' : fractionAsPercent(plan.household.offsetShares?.[0] ?? 0.5),
+  personalAssets: plan.household.personalAssets === undefined ? '' : centsToDollars(plan.household.personalAssets),
   // **An absent loan is THREE empty boxes, never three zeros** — `feeBox`'s rule, and what makes
   // the round trip byte-identical for the households that have no mortgage, which is most of them.
   mortgageBalance: feeBox(plan.household.mortgage?.openingBalance, centsToDollars),
@@ -2563,6 +2567,7 @@ export const walkthroughPlan = (person: { readonly name: string; readonly dateOf
     homeStatus: 'noHome',
     openingOffsetBalance: '',
     offsetSharePercent: '',
+    personalAssets: '',
     // The walkthrough does not ask about a home loan (P3-16 slice 1 asks for it on the settings
     // panel and nowhere else), and three empty boxes are how a plan states it has none.
     mortgageBalance: '',

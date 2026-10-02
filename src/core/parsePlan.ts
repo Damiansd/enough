@@ -1081,7 +1081,7 @@ const parseMortgage = (value: unknown, path: string): Mortgage => {
 };
 
 const parseHousehold = (value: unknown, path: string): Household => {
-  const record = object(PlanFileHouseholdError, value, path, ['persons', 'homeStatus', 'openingOffsetBalance', 'offsetShares', 'mortgage']);
+  const record = object(PlanFileHouseholdError, value, path, ['persons', 'homeStatus', 'openingOffsetBalance', 'offsetShares', 'mortgage', 'personalAssets']);
   const persons = array(PlanFileHouseholdError, record['persons'], `${path}.persons`)
     .map((person, index) => parsePerson(person, `${path}.persons[${index}]`));
   // One or two. `Household.persons` is a tuple type, and a third Person has no meaning anywhere in
@@ -1092,6 +1092,9 @@ const parseHousehold = (value: unknown, path: string): Household => {
   }
   const openingOffsetBalance = optional(record, 'openingOffsetBalance', (raw) => cents(PlanFileHouseholdError, raw, `${path}.openingOffsetBalance`));
   const mortgage = optional(record, 'mortgage', (raw) => parseMortgage(raw, `${path}.mortgage`));
+  // Cars, contents and other things owned, in today's money. Nil is legal (it counts nothing).
+  const personalAssets = optional(record, 'personalAssets', (raw) => nonNegativeCents(raw, `${path}.personalAssets`,
+    'cars, contents and other things owned are worth what they would sell for, and that is never less than nothing'));
   // **Point 3 of `parseMortgage`: the first month, walked here, against this file's own offset.**
   // One expression, two readers — the door and the walk both ask `mortgageMonth`, so a loan the
   // door lets through is a loan month 1 of the walk can price. The refusal is re-thrown under the
@@ -1113,6 +1116,7 @@ const parseHousehold = (value: unknown, path: string): Household => {
     ...optionally('openingOffsetBalance', openingOffsetBalance),
     ...optionally('offsetShares', offsetShares),
     ...optionally('mortgage', mortgage),
+    ...optionally('personalAssets', personalAssets),
   };
   // **The ownership shares, judged by the walk's own reader** — `mortgageMonth`'s idiom above: one
   // expression at the door and in the walk, re-thrown here with the path on it.

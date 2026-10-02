@@ -1386,3 +1386,24 @@ test('a gift still counted is its own line, drawn only where there is one, and t
   assert.equal(series.aboveCutOff?.[index], true, 'the shading ignored the gift the assets test counted');
   assert.equal(plain.aboveCutOff?.[index] ?? false, false);
 });
+
+// Coverage gap 1: cars and contents are counted by the assets test but are not money, so they are in
+// neither band — their own line, drawn only where stated, and the cut-off shading counts them.
+test('cars and contents are their own line, drawn only where stated, and the cut-off shading counts them', () => {
+  const plain = monthsToSeries(MONTHS, DEMO_HOUSEHOLD, FLOOR_100K, DEMO_AGE_PENSION_SERIES);
+  assert.ok(!plain.overlays.some((o) => o.key === 'personalAssets'), 'a cars line on a plan with none');
+  const index = MONTHS.findIndex((m) => m.assetsTestThresholds !== undefined && m.assessableAssets <= m.assetsTestThresholds.noPensionAbove);
+  assert.ok(index >= 0, 'the fixture needs a month under the cut-off');
+  const month = MONTHS[index];
+  const over = month.assetsTestThresholds.noPensionAbove - month.assessableAssets + 100;
+  const owned = MONTHS.map((m, i) => (i === index ? Object.freeze({ ...m, personalAssets: over }) : m));
+  const series = monthsToSeries(owned, DEMO_HOUSEHOLD, FLOOR_100K, DEMO_AGE_PENSION_SERIES);
+  const line = series.overlays.find((o) => o.key === 'personalAssets');
+  assert.ok(line, 'cars and contents are not drawn');
+  assert.equal(line.label, OVERLAY_LABELS.personalAssets);
+  assert.match(line.label, /^Cars, contents and other things you own/);
+  assert.equal(line.values[index], over);
+  assert.deepEqual(monthsToSeries(owned, DEMO_HOUSEHOLD, undefined, DEMO_AGE_PENSION_SERIES).overlays.find((o) => o.key === 'personalAssets')?.values, line.values);
+  assert.deepEqual(series.bands, plain.bands);
+  assert.equal(series.aboveCutOff?.[index], true, 'the shading ignored what the assets test counted');
+});

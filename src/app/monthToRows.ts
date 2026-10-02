@@ -925,6 +925,13 @@ export const DEPRIVED_ASSETS_DETAIL =
   ' and as deemed income, for five years from the gift. It is not in the figures above, which are only what you' +
   ' still own.';
 
+/** `Month.personalAssets` on screen: counted by the assets test, and not money anyone can spend. */
+export const PERSONAL_ASSETS_LABEL = 'Cars, contents and other things you own';
+
+export const PERSONAL_ASSETS_DETAIL =
+  'What you said your cars, caravan, boat and belongings would sell for, risen with prices. Centrelink counts it in' +
+  ' the assets test. It is not in the figures above, because it is not money you can spend.';
+
 export interface MonthRow {
   readonly month: string;
   readonly openingBalance: string;
@@ -970,6 +977,8 @@ export interface MonthRow {
    * the `Month`, so a plan with no gift over the limits has rows byte-identical to before.
    */
   readonly deprivedAssets?: string;
+  /** `Month.personalAssets`, formatted — ABSENT where the plan states none, `deprivedAssets`' rule. */
+  readonly personalAssets?: string;
   /** `Month.superBalance`, formatted: every interest of every Person at the close. `$0.00` with none. */
   readonly superBalance: string;
   /**
@@ -1066,6 +1075,7 @@ export const monthToRow = (
     // in today's money is the mixed-basis row this function's header exists to prevent.
     homeLoanOwing: month.mortgageBalance === undefined ? null : formatDollars(money(month.mortgageBalance)),
     ...(month.deprivedAssets === undefined ? {} : { deprivedAssets: formatDollars(money(month.deprivedAssets)) }),
+    ...(month.personalAssets === undefined ? {} : { personalAssets: formatDollars(money(month.personalAssets)) }),
     superBalance: formatDollars(money(month.superBalance)),
     investments: formatDollars(money(month.closingNonSuperPortfolio)),
     // P14-16 — `month.radHeld` (a refundable RAD, net of retention) is ABSENT for every walk with no

@@ -2736,6 +2736,16 @@ export interface Month {
    */
   readonly deprivedAssets?: Cents;
   /**
+   * **Cars, contents and other things the Household owns this month (`Household.personalAssets`,
+   * raised from today's money on CPI)** — what the Age Pension and aged care assets tests counted on
+   * top of `assessableAssets`, never deemed. It is not money the Household can spend, so it is NOT
+   * in `assessableAssets` or any wealth figure: what the assets test saw is
+   * `assessableAssets + (deprivedAssets ?? 0) + (personalAssets ?? 0)`.
+   *
+   * **OPTIONAL, and ABSENT where none is stated**, so a plan without it is byte-identical.
+   */
+  readonly personalAssets?: Cents;
+  /**
    * **P4-6 — the money the Household could actually SPEND on a late-life cost, at this month's
    * CLOSING position.** The Offset Account (`closingBalance`), plus the Non-Super Portfolio, plus
    * any superannuation a Condition of Release has reached. Preserved super is NOT in it.

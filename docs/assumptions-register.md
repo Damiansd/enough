@@ -3753,6 +3753,16 @@ couple combined total rate ✔.
 assets — it is netted only against the asset it secures, which is itself exempt. That asymmetry is
 correct and load-bearing.
 
+**Cars, contents and other personal assets (coverage review gap 1, 2026-10-02).** Read live on
+2026-10-02: Services Australia, [Asset types (Age Pension)](https://www.servicesaustralia.gov.au/asset-types?context=22526)
+(page last updated 16 July 2026). Stored as the optional `Household.personalAssets`, read by `splitAssets`.
+
+| Name | Rule | Kind | Source | Confidence |
+|---|---|---|---|---|
+| Personal assets | Home contents (furniture, appliances), personal effects (jewellery, laptops), motor vehicles, boats and caravans are assets; *"The value of your assets is what you'd get if you sold them at market value."* Assessable, and **not deemed** — not financial assets. One stated figure in **today's money**, raised on CPI each month (O92's footing); a Household figure, so a couple carries half each and a survivor all of it. Aged care counts it through the same assessable figure. Never spendable: not drawn, not in reported `assessableAssets` or wealth (`Month.personalAssets`) | constant | Services Australia, Asset types | primary-verified |
+| Secured debt | *"We'll deduct any debt you owe that your asset is security for, from its market value."* Not a separate input: the user types the figure net of a car loan (the guide says so) | constant | Services Australia, Asset types | primary-verified |
+| **Not modelled** | a falling car value: the figure keeps its value in today's money, so later years can show a lower pension than the rules give (the conservative direction); the loan itself running down | — | — | — |
+
 Entitlement = the **lesser** of the income-test and assets-test results, computed on **combined**
 Household means then halved. Per-Person calculation is the classic couple bug. Entitlement is an
 output, never an assumption (ADR-0003).
@@ -5029,6 +5039,7 @@ The test this table pins to is `test/plan-money-basis-inventory.test.mjs` §1 (c
 | `MORTGAGE_REFINANCE` | `openingBalance`, `monthlyRepayment` | nominal / contracted (a debt) | unchanged — the boundary this ruling restates, never crosses |
 | `SuperInterest` | `statedAdministrationFeePerYear` | today's money (O87) | unchanged |
 | `Settings` | `contingencyFloor` | today's money (P4-14) | unchanged |
+| `Household` | `personalAssets` (2026-10-02, coverage gap 1) | — | today's money, raised EVERY MONTH (`atTodaysMoney(household.personalAssets, month)`) |
 | **`ENTER_CARE`** | `homeValue` | **nominal at the entry's date** | **today's money, raised to the entry's own day; the P14-5a vacated-home carry now inflates from `asAtDate`, not the entry's day** |
 | **`ENTER_CARE`** | `radPrice` | **nominal at the entry's date** | **today's money, raised to the entry's own day, held there for the life of the stay** |
 | **`ENTER_CARE`** | `radPaidAsLumpSum` | **nominal at the entry's date** | **today's money, raised to the entry's own day** |

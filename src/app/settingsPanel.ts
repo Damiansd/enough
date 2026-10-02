@@ -373,6 +373,15 @@ export const OFFSET_NOTICE =
   ' the share box says how much of it the first of you owns, which decides only whose income its interest is,' +
   ' for tax.';
 
+/** Cars, contents and other things owned — `household.ts` on `personalAssets`. */
+export const PERSONAL_ASSETS_SUMMARY =
+  'What your cars, caravan, boat, furniture and other belongings would sell for, in today’s money.';
+
+export const PERSONAL_ASSETS_NOTICE =
+  'Centrelink counts these in the assets test, so a figure here can lower your Age Pension. It is not money you' +
+  ' can spend: the forecast never sells them or draws on them, and they are not added to your wealth. The figure' +
+  ' rises with prices each month. Blank counts nothing.';
+
 /**
  * **The home loan — P3-16 slice 1, and the ruling of 2026-09-21 is the thing this text exists to
  * carry.** ⚠️ **Amended by slice 2**: the last sentence used to end *"There is no way yet to say
@@ -1106,6 +1115,7 @@ const renderPosition = (
   const mortgageBalance = input('text', 'mortgageBalance', values.mortgageBalance);
   const mortgageInterestRate = input('text', 'mortgageInterestRate', values.mortgageInterestRate);
   const mortgageRepayment = input('text', 'mortgageRepayment', values.mortgageRepayment);
+  const personalAssets = input('text', 'personalAssets', values.personalAssets);
 
   const people: HTMLElement[] = [];
   const read = (): StatedPositionFormValues => ({
@@ -1116,6 +1126,7 @@ const renderPosition = (
     mortgageBalance: mortgageBalance.value,
     mortgageInterestRate: mortgageInterestRate.value,
     mortgageRepayment: mortgageRepayment.value,
+    personalAssets: personalAssets.value,
     persons: people.map((block) => {
       const field = (name: string): string => block.querySelector<HTMLInputElement | HTMLSelectElement>(`[name="${name}"]`)?.value ?? '';
       const count = (prefix: string): number => block.querySelectorAll(`[name^="${prefix}-"]`).length;
@@ -1242,6 +1253,8 @@ const renderPosition = (
     label('Amount still owed ', mortgageBalance),
     label('Interest rate a year (0.061 is 6.1%) ', mortgageInterestRate),
     label('Repayment each month ', mortgageRepayment),
+    label('Cars, contents and other things you own, today’s money (blank if none) ', personalAssets),
+    infoButton(PERSONAL_ASSETS_SUMMARY, PERSONAL_ASSETS_NOTICE, 'guide:personal-assets'),
     ...people,
   );
   // A household is one person or two — `parsePlan` owns that rule and refuses a third, so the

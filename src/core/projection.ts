@@ -8009,6 +8009,9 @@ export const project = (
     // survivor gave, alone or jointly, still counts — and then in full (s 1126AC(4)-(5)).
     const deprivedThisMonth = deprivedAmountOn(gifts, date, deceasedNow === undefined ? undefined : (death?.survivor as 0 | 1));
     const deprivedAssets = deprivedThisMonth === 0 ? undefined : deprivedThisMonth;
+    // Cars, contents and other things owned: stated in today's money, raised to this month on CPI. A
+    // Household figure, so the survivor carries all of it after a death.
+    const personalAssets = household.personalAssets === undefined || household.personalAssets === 0 ? undefined : atTodaysMoney(household.personalAssets, month);
     const agePensionComputable = agePensionParametersCover(date);
     if (!agePensionComputable) notes.push(PARAMETER_WINDOW_NOTES['Age Pension']);
     const entitlement = agePensionComputable
@@ -8022,6 +8025,7 @@ export const project = (
           ...(activeRentOutHome === undefined ? {} : { otherAssessableIncomePerFortnight: rentPerFortnightForAgePension }),
           ...(saleProceedsSetAsideThisMonth === undefined ? {} : { saleProceedsSetAside: saleProceedsSetAsideThisMonth }),
           ...(deprivedAssets === undefined ? {} : { deprivedAssets }),
+          ...(personalAssets === undefined ? {} : { personalAssets }),
         })
       : undefined;
 
@@ -8042,8 +8046,8 @@ export const project = (
     // the deceased holds nothing (the ADR-0005 assertion below checks exactly that).
     const assets: AssetSplit =
       deceasedNow === undefined
-        ? (entitlement?.assets ?? splitAssets(householdThisMonth, date, careVacatedHomeAssessment, undefined, deprivedAssets))
-        : splitAssets(householdThisMonth, date, careVacatedHomeAssessment, undefined, deprivedAssets);
+        ? (entitlement?.assets ?? splitAssets(householdThisMonth, date, careVacatedHomeAssessment, undefined, deprivedAssets, personalAssets))
+        : splitAssets(householdThisMonth, date, careVacatedHomeAssessment, undefined, deprivedAssets, personalAssets);
     if (entitlement === undefined && assets.homeIsAssessableButUnvalued) {
       throw new UnvaluedAssessableHomeError();
     }
@@ -8141,6 +8145,7 @@ export const project = (
         deemingRates: settings.deemingRates,
         indexationSeries,
         ...(coupleDeprived === 0 ? {} : { deprivedAssets: coupleDeprived }),
+        ...(personalAssets === undefined ? {} : { personalAssets }),
       });
       const bothPensioners = couple.eligiblePersons.length === 2 && couple.perPersonRatePerFortnight > 0;
       const amount = bothPensioners
@@ -12308,9 +12313,11 @@ export const project = (
         ),
         // **The deprived amount is taken back OUT (ruling J7):** it is money the Household gave away,
         // and `protectedAssets + assessableAssets` is read as total wealth. It is reported beside, in
-        // `deprivedAssets`, for a reader who wants what the assets test saw.
-        assessableAssets: assets.deprivedAssets === undefined ? assets.assessableAssets : subCents(assets.assessableAssets, assets.deprivedAssets),
+        // `deprivedAssets`, for a reader who wants what the assets test saw. Cars and contents come
+        // out on the same ground — not spendable money — and are reported in `personalAssets`.
+        assessableAssets: subCents(subCents(assets.assessableAssets, assets.deprivedAssets ?? toCents(0)), assets.personalAssets ?? toCents(0)),
         ...(assets.deprivedAssets === undefined ? {} : { deprivedAssets: assets.deprivedAssets }),
+        ...(assets.personalAssets === undefined ? {} : { personalAssets: assets.personalAssets }),
         // **P4-11: the THIRD reader of the one cessation expression** (2026-09-19). Handed the
         // same `gainfulEmploymentAsAt` the entry path and limb 5 read, so this figure cannot
         // report money unreachable while the Waterfall above it spends that very balance.

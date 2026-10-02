@@ -156,6 +156,7 @@ const OVERLAY_COLOURS: Readonly<Record<OverlayKey, string>> = Object.freeze({
   floor: '#a4501f',
   heasDebt: '#8a6d00',
   deprivedAssets: '#6b4f8a',
+  personalAssets: '#4f7a5a',
 });
 
 export const THRESHOLD_COLOURS: Readonly<Record<ThresholdKey, string>> = Object.freeze({
@@ -169,6 +170,7 @@ const OVERLAY_DASH: Readonly<Record<OverlayKey, readonly number[]>> = Object.fre
   floor: Object.freeze([2, 4]),
   heasDebt: Object.freeze([4, 2]),
   deprivedAssets: Object.freeze([1, 3]),
+  personalAssets: Object.freeze([8, 2, 1, 2]),
 });
 
 export type BandDataset = {
@@ -417,6 +419,8 @@ const OVERLAY_LENS: Readonly<Record<OverlayKey, typeof moneyLens>> = Object.free
   heasDebt: moneyLens,
   // `Month.deprivedAssets` is held flat in nominal cents (ruling J5), read straight off.
   deprivedAssets: moneyLens,
+  // `Month.personalAssets` is already raised to each month's prices, read straight off.
+  personalAssets: moneyLens,
 });
 
 const overlayDataset = (overlay: SeriesOverlay, months: readonly string[], basis: MoneyBasis): OverlayDataset =>

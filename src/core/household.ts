@@ -884,6 +884,16 @@ export interface Household {
    * never the month's own.
    */
   readonly mortgage?: Mortgage;
+  /**
+   * **Cars, caravans, boats, household contents and other things the Household owns — one figure,
+   * IN TODAY'S MONEY, OPTIONAL (coverage review gap 1, register §4.4).** Services Australia counts
+   * home contents, personal effects, vehicles, boats and caravans in the assets test at what they
+   * would sell for. `project()` raises it to each month's price level on `economicSeries.cpi` and
+   * hands it to `splitAssets` as its `personalAssets` parameter: assessable, NOT deemed (not a
+   * financial asset), never drawn and never part of reported wealth. A Household fact, pooled, so a
+   * couple carries half each and a survivor all of it. Absent is nil, and nothing moves.
+   */
+  readonly personalAssets?: Cents;
 }
 
 /**
@@ -1248,6 +1258,13 @@ export interface AssetSplit {
    * `assessableAssets` (`Month.deprivedAssets`).
    */
   readonly deprivedAssets?: Cents;
+  /**
+   * **Cars, contents and other things owned (`Household.personalAssets`), at the caller's figure for
+   * `date`.** Present only where `splitAssets`'s `personalAssets` parameter is greater than nil. IN
+   * `assessableAssets`, NOT in `deemedFinancialAssets`, in no Person's `byPerson` figure — and not
+   * money anyone can spend, so a caller reporting WEALTH takes it back out (`Month.personalAssets`).
+   */
+  readonly personalAssets?: Cents;
   readonly lines: readonly AssetLine[];
   /**
    * **The same two figures, per Person, positionally (P7-6).** `byPerson[i]` belongs to
@@ -1319,6 +1336,7 @@ export const splitAssets = (
   careVacatedHomeAssessment?: Cents,
   saleProceedsSetAside?: Cents,
   deprivedAssets?: Cents,
+  personalAssets?: Cents,
 ): AssetSplit => {
   assertIsoDate(date);
   const home = homeTreatment(household.homeStatus);
@@ -1449,6 +1467,22 @@ export const splitAssets = (
     });
   }
 
+  // **Cars, contents and other things owned, at the caller's figure for `date`.** A HOUSEHOLD line,
+  // the deprived amount's footing. Assessable at market value and NOT deemed: personal-use assets are
+  // not financial assets.
+  const personal = personalAssets ?? toCents(0);
+  if (personal !== 0) {
+    sharedLines.push({
+      owner: household.persons.map((person) => person.name).join(' and '),
+      description: 'Cars, contents and other things you own',
+      amount: personal,
+      treatment: 'assessable',
+      deemed: false,
+      reason:
+        'Services Australia, Asset types: home contents, personal effects, motor vehicles, boats and caravans are assets, valued at what they would sell for — assessable, and not financial assets, so not deemed.',
+    });
+  }
+
   // Every Person's lines in the Household's order, then the shared Offset and (P14-5a) home lines —
   // which is the order the single `lines` array was pushed in before P7-6, so no line moves.
   const lines: AssetLine[] = [...ownLines.flat(), ...sharedLines];
@@ -1478,6 +1512,7 @@ export const splitAssets = (
       careVacatedHomeAssessment === undefined,
     ...(protectedSetAside === 0 ? {} : { saleProceedsSetAside: protectedSetAside }),
     ...(deprived === 0 ? {} : { deprivedAssets: deprived }),
+    ...(personal === 0 ? {} : { personalAssets: personal }),
     lines: Object.freeze(lines),
     byPerson: Object.freeze(
       ownLines.map((own) =>

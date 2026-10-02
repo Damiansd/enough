@@ -2237,6 +2237,8 @@ const ROUND_TRIPS = {
   asAtDate: { form: 'position', value: '2026-10-01' },
   homeStatus: { form: 'position', value: otherThan(HOME_STATUS_OPTIONS, POSITION.homeStatus) },
   openingOffsetBalance: { form: 'position', value: '31415.92' },
+  // Coverage gap 1: cars, contents and other things owned, in today's money.
+  personalAssets: { form: 'position', value: '27182.81' },
   // **Interest on cash (2026-09-23).** The first Person's share; the second owns the rest.
   offsetSharePercent: { form: 'position', value: '30' },
   mortgageBalance: { form: 'position', value: '250000.00', also: { mortgageInterestRate: '0.0575', mortgageRepayment: '1800.00' } },
@@ -3241,8 +3243,9 @@ test('P17-3 — every ⓘ box on the panel names a guide page, and no box restat
   // 29 with the employer-pays-into select (register O82). 35 with the rules-in-force fold (2026-09-30):
   // one for the fold and one per area, each pointing at the area's sources in Chapter 85. 36 with the
   // unused concessional cap group (P3-4b slice 2), pointing at the catch-up section. 37 with the Work
-  // Bonus last top-up box (P4-10a), pointing at the Work Bonus section.
-  assert.equal(calls.length, 37, 'the panel no longer has the 37 ⓘ boxes this pass covered');
+  // Bonus last top-up box (P4-10a), pointing at the Work Bonus section. 38 with the cars, contents and
+  // other things box (coverage gap 1), pointing at its section in Chapter 49.
+  assert.equal(calls.length, 38, 'the panel no longer has the 38 ⓘ boxes this pass covered');
   assert.equal([...PANEL_RAW.matchAll(/infoButton\(/g)].length, calls.length, 'an ⓘ box is built some other way');
   for (const [, summary, notice, guide] of calls) {
     assert.ok(guide !== undefined, `${summary} links to no page of the guide`);

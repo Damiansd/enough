@@ -10017,6 +10017,23 @@ Australia and SSA ss 1126AA-AD, 1127; Aged Care Act 2024 s 330 imports it). Regi
   over-stated the pension — caught in review). The deceased's own inclusions are not subtracted (the
   reading that cannot over-state). Guide paragraph and register row updated.
 
+## Centrelink coverage review (2026-10-02)
+
+Review: `docs/research/centrelink-coverage-review-2026-10-02.md` — what Centrelink counts that the model
+did not. Household facts from the user 2026-10-02: about $100,000 of cars and contents; no defined
+benefit pension, annuity or foreign pension; no funeral bond or prepaid funeral.
+
+- [x] **CL-1** Cars, caravans, boats and contents — `Household.personalAssets`, today's money,
+  CPI-raised; assets test only (never deemed), aged care too, survivor carries all; never spendable,
+  kept out of reported assessable assets and wealth. $100,000 = $300/fortnight off a couple's pension
+  where the assets test binds. Mutations: DEV's 6 + mine (line made protected → 6 fail).
+- [ ] **CL-2** Other income streams (defined benefit, lifetime annuity — 60% income / 60%→30% assets,
+  foreign pension, trust/business income). MOOT for this household (user: none). Build only on ask.
+- [ ] **CL-3** Funeral bonds ($15,750 each, 2025-26, CPI) and prepaid funerals exempt. MOOT (user: none).
+- [ ] **CL-4** Not yet asked: an expected inheritance (exempt only until receivable); a younger
+  partner's own payments (JobSeeker/Carer/DSP, unverified); overseas portability after 26 weeks
+  (secondary source only). CSHC: informational, no cash value.
+
 ## Parked — not scoped
 
 - [~] Monte Carlo and sequencing risk — excluded on merit; deterministic answers the actual
