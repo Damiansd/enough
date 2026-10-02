@@ -333,7 +333,8 @@ export const comparisonSeries = (
       name: scenario.name,
       // The partition's own total — see the header on why this sum is the licensed one.
       values: Object.freeze(walk.map((month) => (month.protectedAssets as number) + (month.assessableAssets as number))),
-      assessableValues: Object.freeze(walk.map((month) => month.assessableAssets as number)),
+      // Plus a gift still counted (register §4.12): it is what the assets test saw. Absent, nothing moves.
+      assessableValues: Object.freeze(walk.map((month) => (month.assessableAssets as number) + (month.deprivedAssets ?? 0))),
       thresholds: Object.freeze({
         fullPensionUpTo: Object.freeze(walk.map((month) => (month.assetsTestThresholds?.fullPensionUpTo ?? null) as number | null)),
         noPensionAbove: Object.freeze(walk.map((month) => (month.assetsTestThresholds?.noPensionAbove ?? null) as number | null)),

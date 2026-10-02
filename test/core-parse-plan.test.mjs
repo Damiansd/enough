@@ -159,13 +159,16 @@ test('the unspecified set is exactly the four, and it is derived rather than cop
   // **FIVE → FOUR the same day (P9-1, slice 1): `HEAS_DRAW` is specified** (`plan.ts`'s
   // `HeasDrawParams`), so it leaves this list too — engine-only, `ENTRY_TYPES_NOT_YET_WALKED`
   // holds it back from the form, not from `parsePlan`.
+  // **THREE → FOUR on 2026-10-02 (GIFT slice 1): `GIFT` is named, typed and walked by the engine,
+  // and has no params parser until slice 2** — so the door refuses a file holding one.
+  // **FOUR → THREE the same day (GIFT slice 2): `GIFT` gains its parser and leaves the list.**
   assert.deepEqual([...UNSPECIFIED_ENTRY_TYPES].sort(), [
     'CONTRIBUTION_SPLIT',
     'DOWNSIZE',
     'VACATE_HOME',
   ]);
   assert.equal(UNSPECIFIED_ENTRY_TYPES.length, 3);
-  assert.equal(ENTRY_TYPES.length, 27);
+  assert.equal(ENTRY_TYPES.length, 28);
   // 19 named, 11 refused, 8 honoured. A type that gains params must leave this list in the same
   // change — `LUMP_SUM_FROM_SUPER` left it on 2026-09-19 and the three figures moved together,
   // 19/14/5 → 19/13/6, `SUPER_CONTRIBUTION` left it the same day, 19/13/6 → 19/12/7, and
@@ -202,7 +205,8 @@ test('the unspecified set is exactly the four, and it is derived rather than cop
   // **25/3/22 the same day (P9-5): `DOWNSIZER_CONTRIBUTION` leaves the list.**
   // **26/3/23 the same day (P3-17a slice 3): `INSURANCE_COVER_CHANGE`, the SEVENTH added, specified on arrival.**
   // **27/3/24 on 2026-09-29 (retire flow S4): `TTR_START`, the EIGHTH added, specified on arrival.**
-  assert.equal(ENTRY_TYPES.length - UNSPECIFIED_ENTRY_TYPES.length, 24);
+  // **28/3/25 on 2026-10-02 (GIFT slice 2): `GIFT`, the NINTH added, specified a slice after arrival.**
+  assert.equal(ENTRY_TYPES.length - UNSPECIFIED_ENTRY_TYPES.length, 25);
   // And the seven that moved are now on the other side of the line: they are REFUSED nowhere.
   assert.ok(!UNSPECIFIED_ENTRY_TYPES.includes('LUMP_SUM_FROM_SUPER'));
   assert.ok(!UNSPECIFIED_ENTRY_TYPES.includes('SUPER_CONTRIBUTION'));
@@ -2151,4 +2155,41 @@ test('TTR_RATE_CHANGE: a household owner and an index naming no account are refu
   const dangling = withDanaInTris((file) => { file.entries.push({ ...TTR_RATE, params: { interestIndex: 1, drawdownRate: 0.07 } }); });
   assert.throws(() => parsePlan(dangling), PlanFileEntryError);
   assert.match(thrown(() => parsePlan(dangling)).message, /has 1 super account/);
+});
+
+// --- GIFT slice 2 (register §4.12): the door --------------------------------------------------------
+
+const GIFT = { id: 'gift-1', date: '2028-07-01', owner: 'personA', type: 'GIFT', params: { amount: 2_500_000 }, enabled: true, createdAt: '2026-10-02' };
+
+test('GIFT: a positive whole-cent amount from a Person or the household is read back exactly', () => {
+  for (const owner of ['personA', 'personB', 'household']) {
+    const parsed = parsePlan(mutated((file) => { file.entries.push({ ...GIFT, owner }); }));
+    assert.deepEqual(parsed.entries.at(-1), { ...GIFT, owner });
+  }
+  // A pre-plan gift is a real date too: it still counts against the pension (s 1127).
+  assert.ok(parsePlan(mutated((file) => { file.entries.push({ ...GIFT, date: '2024-03-01' }); })));
+});
+
+test('GIFT: a nil or negative amount is refused by name, and a fraction of a cent as money', () => {
+  for (const amount of [0, -100]) {
+    const file = mutated((file) => { file.entries.push({ ...GIFT, params: { amount } }); });
+    assert.throws(() => parsePlan(file), PlanFileEntryError, `amount ${amount} was accepted`);
+    assert.match(thrown(() => parsePlan(file)).message, /a gift is more than nothing/);
+  }
+  assert.throws(() => parsePlan(mutated((file) => { file.entries.push({ ...GIFT, params: { amount: 100.5 } }); })), PlanFileAmountError);
+  assert.throws(() => parsePlan(mutated((file) => { file.entries.push({ ...GIFT, params: {} }); })), PlanFileEntryError);
+  assert.throws(() => parsePlan(mutated((file) => { file.entries.push({ ...GIFT, params: { amount: 100, to: 'Sam' } }); })), PlanFileEntryError);
+});
+
+test('GIFT: a giver who is not in the file is refused; the household always is', () => {
+  const single = (owner) => mutated((file) => {
+    file.household.persons = file.household.persons.slice(0, 1);
+    file.entries = file.entries.filter((entry) => entry.owner !== 'personB');
+    file.scenarios = file.scenarios.map((scenario) => ({ ...scenario, entryIds: scenario.entryIds.filter((id) => file.entries.some((entry) => entry.id === id)) }));
+    file.entries.push({ ...GIFT, owner });
+  });
+  assert.ok(parsePlan(single('household')));
+  assert.ok(parsePlan(single('personA')));
+  assert.throws(() => parsePlan(single('personB')), PlanFileEntryError);
+  assert.match(thrown(() => parsePlan(single('personB'))).message, /names a giver who is not in the file/);
 });

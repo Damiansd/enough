@@ -190,7 +190,7 @@ import type { Entry, Month } from '../core/plan.js';
 export type WealthBandKey = 'protected' | 'assessable';
 
 /** The figures drawn OVER the stack. None is a share of it, and none may be added to it. */
-export type OverlayKey = 'accessible' | 'floor' | 'heasDebt';
+export type OverlayKey = 'accessible' | 'floor' | 'heasDebt' | 'deprivedAssets';
 
 /**
  * The assets test's two thresholds, drawn as stepped lines over the stack and never in it. Read off
@@ -231,6 +231,9 @@ export const OVERLAY_LABELS: Readonly<Record<OverlayKey, string>> = Object.freez
   // `assessableAssets` (T38, `plan.ts`'s own doc on `Month.heasDebt`), so the stack above does not
   // fall as the debt grows — this line is the only place on the chart the debt is drawn at all.
   heasDebt: 'Home loan from HEAS (debt) — owed against the home, not part of either band',
+  // `Month.deprivedAssets` (register §4.12): money already given away, so in neither band — and
+  // counted by the assets test on top of the "Counted for the Age Pension" band.
+  deprivedAssets: 'Gifts still counted by Centrelink — already given away, not part of either band',
 });
 
 export const THRESHOLD_LABELS: Readonly<Record<ThresholdKey, string>> = Object.freeze({
@@ -626,12 +629,17 @@ export const monthsToSeries = (
   }
   notes.push(...agePensionAge.notes);
   const aboveCutOff = months.map(
-    (month) => month.assetsTestThresholds !== undefined && month.assessableAssets > month.assetsTestThresholds.noPensionAbove,
+    // What the assets test SAW: the band plus any gift still counted (register §4.12).
+    (month) => month.assetsTestThresholds !== undefined && month.assessableAssets + (month.deprivedAssets ?? 0) > month.assetsTestThresholds.noPensionAbove,
   );
   // Drawn only where a HEAS debt is owed: a plan with no HEAS loan gets no loan line and no legend entry,
   // the same rule the home loan follows (app-mortgage-headline's absence test).
   const heasOverlay = months.some((month) => (month.heasDebt ?? 0) > 0)
     ? [overlay('heasDebt', months.map((month) => (month.heasDebt ?? 0) as number))]
+    : [];
+  // Drawn only where a gift is still counted, on the HEAS line's own rule.
+  const deprivedOverlay = months.some((month) => month.deprivedAssets !== undefined)
+    ? [overlay('deprivedAssets', months.map((month) => (month.deprivedAssets ?? 0) as number))]
     : [];
   return Object.freeze({
     months: Object.freeze(months.map((month) => month.month as string)),
@@ -642,13 +650,14 @@ export const monthsToSeries = (
     ]) as readonly [WealthBand, WealthBand],
     overlays: Object.freeze(
       floor === undefined
-        ? [overlay('accessible', months.map((month) => month.accessibleAssets as number)), ...heasOverlay]
+        ? [overlay('accessible', months.map((month) => month.accessibleAssets as number)), ...heasOverlay, ...deprivedOverlay]
         : [
             overlay('accessible', months.map((month) => month.accessibleAssets as number)),
             // Flat, and IN TODAY'S MONEY — `chartConfig.ts`'s `OVERLAY_LENS` is what puts it on the
             // month's own price level, and `belowFloor` below compares against exactly that curve.
             overlay('floor', months.map(() => floor.todaysMoney as number)),
             ...heasOverlay,
+            ...deprivedOverlay,
           ],
     ),
     thresholds: Object.freeze(

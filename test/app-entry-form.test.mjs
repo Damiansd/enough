@@ -377,7 +377,8 @@ test('the writer is where the id and the timestamp are made, and EVERY builder i
     // TWENTY-THREE from 2026-09-29 (retire flow S1): `retireEntry` leaves — the Retire answer is
     // built in `retireChoice.ts`, whose `retireChoiceEntries` is handed a fresh id per entry below.
     // TWENTY-FOUR again on 2026-09-29 (retire flow S4): `ttrStartEntry`, `ttrRateChangeEntry`'s shape.
-    ['buyHomeEntry', 'deathEntry', 'downsizerContributionEntry', 'enterCareEntry', 'heasDrawEntry', 'illnessSeparationEntry', 'insuranceCoverChangeEntry', 'lumpSumFromSuperEntry', 'mortgagePayoffEntry', 'mortgageRefinanceEntry', 'mortgageTargetEntry', 'nonSuperInvestmentBuyEntry', 'nonSuperInvestmentSellEntry', 'oneOffExpenseEntry', 'rentOutHomeEntry', 'returnChangeEntry', 'sellHomeEntry', 'spendChangeEntry', 'spouseContributionEntry', 'superContributionEntry', 'superContributionStopEntry', 'ttrRateChangeEntry', 'ttrStartEntry', 'workPatternChangeEntry'],
+    // TWENTY-FIVE on 2026-10-02 (GIFT slice 2): `giftEntry`, `oneOffExpenseEntry`'s shape.
+    ['buyHomeEntry', 'deathEntry', 'downsizerContributionEntry', 'enterCareEntry', 'giftEntry', 'heasDrawEntry', 'illnessSeparationEntry', 'insuranceCoverChangeEntry', 'lumpSumFromSuperEntry', 'mortgagePayoffEntry', 'mortgageRefinanceEntry', 'mortgageTargetEntry', 'nonSuperInvestmentBuyEntry', 'nonSuperInvestmentSellEntry', 'oneOffExpenseEntry', 'rentOutHomeEntry', 'returnChangeEntry', 'sellHomeEntry', 'spendChangeEntry', 'spouseContributionEntry', 'superContributionEntry', 'superContributionStopEntry', 'ttrRateChangeEntry', 'ttrStartEntry', 'workPatternChangeEntry'],
     'a builder is called with something other than the injected id and createdAt',
   );
   // … and `id` and `createdAt` are the two impure facts, made at the one submit site — `createdAt`
@@ -444,7 +445,7 @@ test('the form offers exactly the types parsePlan can read AND the walk acts on'
   // decides WHICH entries are written, so it has no single-entry builder here.
   assert.match(FORM, /if \(type\.value === ""\) \{\s*const plan = host\.currentPlan\(\);\s*const chosen = retireChoiceEntries\(/, 'the Retire branch is gone from the submit handler');
   assert.deepEqual([...keys, 'RETIRE'].sort(), [...OFFERED_ENTRY_TYPES].sort());
-  assert.deepEqual([...OFFERED_ENTRY_TYPES].sort(), ['BUY_HOME', 'DEATH', 'DOWNSIZER_CONTRIBUTION', 'ENTER_CARE', 'HEAS_DRAW', 'ILLNESS_SEPARATION', 'INSURANCE_COVER_CHANGE', 'LUMP_SUM_FROM_SUPER', 'MORTGAGE_PAYOFF', 'MORTGAGE_REFINANCE', 'MORTGAGE_TARGET', 'NON_SUPER_INVESTMENT', 'ONE_OFF_EXPENSE', 'RENT_OUT_HOME', 'RETIRE', 'RETURN_CHANGE', 'SELL_HOME', 'SPEND_CHANGE', 'SPOUSE_CONTRIBUTION', 'SUPER_CONTRIBUTION', 'TTR_RATE_CHANGE', 'TTR_START', 'WORK_PATTERN_CHANGE'], 'the control: the offered list is the twenty-three, so the comparison above is not two empty arrays');
+  assert.deepEqual([...OFFERED_ENTRY_TYPES].sort(), ['BUY_HOME', 'DEATH', 'DOWNSIZER_CONTRIBUTION', 'ENTER_CARE', 'GIFT', 'HEAS_DRAW', 'ILLNESS_SEPARATION', 'INSURANCE_COVER_CHANGE', 'LUMP_SUM_FROM_SUPER', 'MORTGAGE_PAYOFF', 'MORTGAGE_REFINANCE', 'MORTGAGE_TARGET', 'NON_SUPER_INVESTMENT', 'ONE_OFF_EXPENSE', 'RENT_OUT_HOME', 'RETIRE', 'RETURN_CHANGE', 'SELL_HOME', 'SPEND_CHANGE', 'SPOUSE_CONTRIBUTION', 'SUPER_CONTRIBUTION', 'TTR_RATE_CHANGE', 'TTR_START', 'WORK_PATTERN_CHANGE'], 'the control: the offered list is the twenty-four, so the comparison above is not two empty arrays');
   // ⚠️ ~~**The set that moved 6 → 7 is CONSTRUCTIBLE, and the offered set did NOT move with it**
   // (P6-8 brief 1, 2026-09-19).~~ **THE TWO SETS ARE THE SAME SET AGAIN FROM 2026-09-20 (P6-8
   // brief 2, chunk 5), AND THIS TEST WENT RED SAYING SO.** `SUPER_CONTRIBUTION` is walked whole and
@@ -510,8 +511,11 @@ test('the form offers exactly the types parsePlan can read AND the walk acts on'
   // **21 → 22 / 20 → 21 the same day (P9-5): `DOWNSIZER_CONTRIBUTION`, shipped whole the same way.**
   // **22 → 23 / 21 → 22 the same day (P3-17a slice 3): `INSURANCE_COVER_CHANGE`, shipped whole the same way.**
   // **23 → 24 / 22 → 23 on 2026-09-29 (retire flow S4): `TTR_START`, shipped whole the same way.**
-  assert.equal(CONSTRUCTIBLE_ENTRY_TYPES.length, 24);
-  assert.equal(OFFERED_ENTRY_TYPES.length, 23);
+  // **24 → 25 / 23 → 24 on 2026-10-02 (GIFT slice 2): `GIFT`, shipped whole the same way** — its walk
+  // branch landed a slice earlier, while the door still refused it, so it was never constructible
+  // and never held back.
+  assert.equal(CONSTRUCTIBLE_ENTRY_TYPES.length, 25);
+  assert.equal(OFFERED_ENTRY_TYPES.length, 24);
   assert.deepEqual([...ENTRY_TYPES_NOT_YET_WALKED], ['TRIS_EARLY_CONVERSION']);
   // The loop below is what the blanket equality above used to be while the list was empty: the
   // list is the one place the door/walk gap can be held open, and it is not empty any more.
@@ -1037,7 +1041,8 @@ test('P17-3 — every entry’s ⓘ box names a guide page, and no box restates 
   const calls = [...FORM_RAW.matchAll(/infoButton\(([A-Z_]+|'[^']*'), ([A-Z_]+)(?:, '(guide:[a-z0-9-]+)')?\)/g)];
   // 15 → 17 on 2026-09-29 (retire flow S1): one box behind each Retire answer, their words in `retireChoice.ts`.
   // 17 → 18 the same day (retire flow S4): `TTR_START`'s own box.
-  assert.equal(calls.length, 18, 'the form no longer has the 18 ⓘ boxes this pass covered');
+  // 18 → 19 on 2026-10-02 (GIFT slice 2): `GIFT`'s own box, to the guide's gifts page.
+  assert.equal(calls.length, 19, 'the form no longer has the 19 ⓘ boxes this pass covered');
   // P17-6: plus the switch at retirement, whose line and detail are built per plan by
   // `retirementWarning.ts` (pinned in core-retirement-pension-switch.test.mjs), not constants.
   assert.match(FORM_RAW, /infoButton\(line\.summary, line\.detail, 'guide:becomes-a-pension'\)/);

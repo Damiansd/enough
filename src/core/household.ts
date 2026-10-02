@@ -1239,6 +1239,15 @@ export interface AssetSplit {
    * `AgePensionEntitlement.saleProceedsSetAsideDeemedPerFortnight`.
    */
   readonly saleProceedsSetAside?: Cents;
+  /**
+   * **Gifts over the gifting free areas — a deprived asset (SS Act ss 1126AA-1126AD, register
+   * §4.12).** Present only where `splitAssets`'s `deprivedAssets` parameter is supplied and greater
+   * than nil, `saleProceedsSetAside`'s idiom. It is IN `assessableAssets` and `deemedFinancialAssets`
+   * (s 9(1)(b): a deprived asset is a financial asset), and in no Person's `byPerson` figure. It is
+   * money the Household no longer has: a caller reporting WEALTH takes it back out of
+   * `assessableAssets` (`Month.deprivedAssets`).
+   */
+  readonly deprivedAssets?: Cents;
   readonly lines: readonly AssetLine[];
   /**
    * **The same two figures, per Person, positionally (P7-6).** `byPerson[i]` belongs to
@@ -1304,7 +1313,13 @@ const superInterestTreatment = (
  * Offset Account line rather than adding a second claim on the same cash — see the Offset Account
  * block below.
  */
-export const splitAssets = (household: Household, date: IsoDate, careVacatedHomeAssessment?: Cents, saleProceedsSetAside?: Cents): AssetSplit => {
+export const splitAssets = (
+  household: Household,
+  date: IsoDate,
+  careVacatedHomeAssessment?: Cents,
+  saleProceedsSetAside?: Cents,
+  deprivedAssets?: Cents,
+): AssetSplit => {
   assertIsoDate(date);
   const home = homeTreatment(household.homeStatus);
   // **The lines are collected per Person and flattened, rather than tagged and filtered (P7-6).**
@@ -1418,6 +1433,22 @@ export const splitAssets = (household: Household, date: IsoDate, careVacatedHome
     });
   }
 
+  // **The deprived amount of the Household's gifts, at the caller's figure (`deprivedAssets.ts`).** A
+  // HOUSEHOLD line, the Offset's own footing: the couple carries one pooled amount, half each
+  // (s 1126AC), and the means test reads the pooled scalars. Assessable AND deemed — s 9(1)(b).
+  const deprived = deprivedAssets ?? toCents(0);
+  if (deprived !== 0) {
+    sharedLines.push({
+      owner: household.persons.map((person) => person.name).join(' and '),
+      description: 'Deprived assets (gifts)',
+      amount: deprived,
+      treatment: 'assessable',
+      deemed: true,
+      reason:
+        'SS Act ss 1126AA-1126AD: a gift above $10,000 in a financial year or $30,000 over five financial years is counted as a financial asset (s 9(1)(b)) for 5 years from the gift — assessable, and deemed for the income test.',
+    });
+  }
+
   // Every Person's lines in the Household's order, then the shared Offset and (P14-5a) home lines —
   // which is the order the single `lines` array was pushed in before P7-6, so no line moves.
   const lines: AssetLine[] = [...ownLines.flat(), ...sharedLines];
@@ -1446,6 +1477,7 @@ export const splitAssets = (household: Household, date: IsoDate, careVacatedHome
       (household.homeStatus === 'vacatedBeyondTwoYearExemption' || household.homeStatus === 'rentedOut') &&
       careVacatedHomeAssessment === undefined,
     ...(protectedSetAside === 0 ? {} : { saleProceedsSetAside: protectedSetAside }),
+    ...(deprived === 0 ? {} : { deprivedAssets: deprived }),
     lines: Object.freeze(lines),
     byPerson: Object.freeze(
       ownLines.map((own) =>

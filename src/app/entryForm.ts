@@ -66,6 +66,8 @@ import {
   BUY_HOME_ENTRY_SUMMARY,
   DOWNSIZER_CONTRIBUTION_ENTRY_NOTICE,
   DOWNSIZER_CONTRIBUTION_ENTRY_SUMMARY,
+  GIFT_ENTRY_NOTICE,
+  GIFT_ENTRY_SUMMARY,
   fractionAsPercent,
   superContributionStopEntry,
   lumpSumFromSuperEntry,
@@ -80,6 +82,7 @@ import {
   rentOutHomeEntry,
   buyHomeEntry,
   downsizerContributionEntry,
+  giftEntry,
   nonSuperInvestmentBuyEntry,
   nonSuperInvestmentSellEntry,
   oneOffExpenseEntry,
@@ -275,6 +278,8 @@ const buildForm = (host: EntryEditorHost): { readonly form: HTMLFormElement; rea
   const annualSalary = input('text', 'annualSalary', 'what those days pay a year — type 0 at 0 days');
   const daysPerWeekNotice = infoButton(DAYS_PER_WEEK_ENTRY_SUMMARY, DAYS_PER_WEEK_ENTRY_NOTICE, 'guide:part-time-work');
   const amount = input('text', 'amount', 'e.g. 38,000');
+  // `GIFT`'s own box, not the one-off's: a figure typed for one must not ride along on the other.
+  const giftAmount = input('text', 'giftAmount', 'e.g. 20,000');
   const lumpSumAmount = input('text', 'lumpSumAmount', 'e.g. 120,000');
   const interestIndex = input('text', 'interestIndex', 'which one — 1 is the first');
   const lumpSumNotice = infoButton(LUMP_SUM_ENTRY_SUMMARY, LUMP_SUM_ENTRY_NOTICE, 'guide:super-lump-sum');
@@ -488,6 +493,8 @@ const buildForm = (host: EntryEditorHost): { readonly form: HTMLFormElement; rea
     // register O86): the cents typed here are the cents charged, in the entry's own month, with no
     // rise for prices. Said on the label because the spending box above says the opposite.
     ONE_OFF_EXPENSE: group(label('Amount, as it will cost on the day $', amount)),
+    // `ONE_OFF_EXPENSE`'s money (register O86): the dollars on the day, never raised for prices.
+    GIFT: group(label('Amount given, as it will be on the day $', giftAmount), infoButton(GIFT_ENTRY_SUMMARY, GIFT_ENTRY_NOTICE, 'guide:gifts')),
     LUMP_SUM_FROM_SUPER: group(label('Amount $', lumpSumAmount), label('Super account ', interestIndex), lumpSumNotice),
     // Its own two boxes, not the withdrawal's: a shared amount box would carry a figure typed for
     // one entry into the other, and the two indexes mean different things — the account money comes
@@ -641,6 +648,8 @@ const buildForm = (host: EntryEditorHost): { readonly form: HTMLFormElement; rea
       workPatternChangeEntry({ date: date.value, owner: owner.value, note: note.value, daysPerWeek: daysPerWeek.value, annualSalary: annualSalary.value }, id, createdAt),
     ONE_OFF_EXPENSE: (id, createdAt) =>
       oneOffExpenseEntry({ date: date.value, owner: owner.value, note: note.value, amount: amount.value }, id, createdAt),
+    GIFT: (id, createdAt) =>
+      giftEntry({ date: date.value, owner: owner.value, note: note.value, amount: giftAmount.value }, id, createdAt),
     LUMP_SUM_FROM_SUPER: (id, createdAt) =>
       lumpSumFromSuperEntry(
         { date: date.value, owner: owner.value, note: note.value, amount: lumpSumAmount.value, interestIndex: interestIndex.value },
@@ -966,6 +975,8 @@ const describeParams = (entry: Entry): string => {
       return ` — ${entry.params.daysPerWeek} days a week at ${formatDollars(entry.params.annualSalary)} a year`;
     case 'ONE_OFF_EXPENSE':
       return ` — ${formatDollars(entry.params.amount)}`;
+    case 'GIFT':
+      return ` — ${formatDollars(entry.params.amount)} given away`;
     // The row states the money AND which account it comes out of, because a Person may hold more
     // than one interest and two withdrawals of the same size from different ones are different
     // facts — the phase of the target decides whether the engine can honour the entry at all.

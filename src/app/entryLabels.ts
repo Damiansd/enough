@@ -49,6 +49,7 @@ export const ENTRY_TYPE_LABELS = {
   RETURN_CHANGE: 'Change expected investment returns',
   SPEND_CHANGE: 'Spending change',
   ONE_OFF_EXPENSE: 'One-off expense',
+  GIFT: 'Give money away',
   CONTRIBUTION_SPLIT: 'Move super contributions to your partner',
   SPOUSE_CONTRIBUTION: "Put money into your partner's super",
   DOWNSIZE: 'Move to a cheaper home',

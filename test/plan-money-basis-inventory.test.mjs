@@ -294,6 +294,29 @@ test('THE HOME LOAN’S REPAYMENT IS FLAT NOMINAL, and that is the CONTRACT rath
   assert.ok(spending.at(-1) > spending[0]);
 });
 
+test('A GIFT IS NOMINAL ON THE DAY, `ONE_OFF_EXPENSE`’s family (O86), and so are the free areas it is measured against', () => {
+  // The user's test, applied: a gift is an amount of money handed over on a day, priced for that
+  // day — the box says "as it will be on the day". And the $10,000 / $30,000 it is measured against
+  // are literals in the Act, never indexed (register §4.12), so the deprived amount is the stated
+  // excess to the cent, held flat for its five years. Nothing on either side follows the price level.
+  const giver = {
+    persons: [person('Kit', '1955-02-02')],
+    homeStatus: 'occupied',
+    openingOffsetBalance: toCents(400_000),
+  };
+  const months = project({ ...SETTINGS, planningHorizonAge: 85 }, giver, [
+    entry('sc', 'SPEND_CHANGE', '2026-07-01', { annualSpend: toCents(30_000) }),
+    entry('g', 'GIFT', '2034-03-15', { amount: toCents(25_000) }, 'personA'),
+  ]);
+  const gifted = months.filter((month) => amountOf(month, 'Gift') > 0);
+  assert.deepEqual(gifted.map((month) => [month.month, amountOf(month, 'Gift')]), [['2034-03', toCents(25_000)]], 'the gift was raised, or charged in another month');
+  const deprived = months.filter((month) => month.deprivedAssets !== undefined);
+  assert.equal(deprived.length, 60, 'five years of months carry it');
+  assert.deepEqual([...new Set(deprived.map((month) => month.deprivedAssets))], [toCents(15_000)], 'the excess moved — neither the gift nor the free area follows prices');
+  // The control: the spending on the same walk does rise, eight years on.
+  assert.ok(amountOf(gifted[0], 'Household spending') > toCents(2_500));
+});
+
 // --- 4. THE ONE REMAINING GAP, and the one that CLOSED, now asserted as a RULE -------------------
 
 test('✅ O87 — A FUND’S DOLLAR ADMINISTRATION FEE IS REAL, and a month’s fee DEFLATES to the figure typed', () => {

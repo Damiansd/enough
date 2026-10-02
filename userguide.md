@@ -2800,6 +2800,45 @@ for your own guess about them in the **{{name|Forecast assumptions}}** part of *
 
 The house you live in is never counted in either test. Everything else you own is.
 
+### Giving money away {#gifts}
+
+You can't give your money away to get a bigger pension. Centrelink lets you give away only so much
+each year without it counting:
+
+- **Up to $10,000 in one financial year** (1 July to 30 June), and
+- **up to $30,000 over five financial years** — the year of the gift and the four before it.
+
+A couple gets **one** set of limits between the two of you, not one each. Gifts from either of you,
+or from both together, all add up against the same $10,000 and $30,000.
+
+Whatever you give **above** those limits still counts as yours, for **five years from the day of
+the gift**. It counts twice over: in the **assets test**, as if it were still in the bank, and in
+the **income test**, because it is deemed to earn the same assumed rate as your savings. After five
+years it stops counting. The limits are fixed amounts in the law and don't rise with prices.
+
+To tell *enough* about a gift, add a **{{name|Give money away}}** entry:
+
+- **{{name|From}}** — the day of the gift.
+- **{{name|Owner}}** — who gave it: one of you, or **{{name|Household}}** if you gave it together.
+- **{{name|Amount given, as it will be on the day $}}** — like a one-off expense, the actual dollars
+  on the day, not today's money.
+
+The money leaves your cash in that month. From the next month, any part over the limits shows up
+in **{{name|Years and months}}** as **{{name|Gifts still counted by Centrelink}}**, beside what you own, and
+as its own line on the wealth chart. It's not added to what you own — you really did give it away —
+but the Age Pension is worked out as if you still had it.
+
+**Gifts you've already made count too.** If you gave money away in the five years before your
+plan's "as at" date, add each gift with its real, earlier date. The money is already gone from the
+balances you entered, so *enough* won't take it out again — but the part over the limits still
+counts against your pension until its five years are up.
+
+**What *enough* doesn't do here.** Centrelink has some exceptions where a gift doesn't count — for
+example paying for a *granny flat* right to live in someone else's home, money put into a special
+disability trust for a family member, or a gift given back to you. *enough* doesn't know about any
+of these: it counts every gift. If one of them applies to you, your real pension could be higher than
+the forecast shows.
+
 ### Pip and Jo
 
 - **In {{fig age-pension-first-month month|January 2038}}**, when Pip's Age Pension starts, the **assets test** is the one holding it

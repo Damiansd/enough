@@ -55,6 +55,8 @@ import {
   EFFECT_LABELS,
   HOME_LOAN_OWING_DETAIL,
   HOME_LOAN_OWING_LABEL,
+  DEPRIVED_ASSETS_DETAIL,
+  DEPRIVED_ASSETS_LABEL,
   HOUSEHOLD_ASSETS,
   NOTE_TEXT_LABELS,
   OFFSET_ATTRIBUTION,
@@ -1624,4 +1626,26 @@ test('the new Month field is ADDED and moves nothing: without it the demo digest
   assert.equal(abpProvenance, 273_691);
   assert.equal(JSON.stringify(MONTHS).length, 3_623_969 + 11 * 377 + renamed * 4 + 200_812 - 90 + abpProvenance);
   assert.equal(JSON.stringify(MONTHS).replaceAll('baseRebateAmount.coupleEach is stamped', 'baseRebateAmount.couple is stamped').length, 3_623_969 + 11 * 377 + 200_812 - 90 + abpProvenance);
+});
+
+// --- GIFT slice 2 (register §4.12): a gift still counted, beside the Position figures ---------------
+
+test('a month carrying a deprived amount prints it, in whole dollars, as its own line; a month without has no key', () => {
+  const plain = monthToRow(MONTHS[30], FUTURE);
+  assert.equal(Object.hasOwn(plain, 'deprivedAssets'), false, 'a month with no gift still counted grew a key');
+  assert.ok(MONTHS.every((month) => !Object.hasOwn(monthToRow(month, FUTURE), 'deprivedAssets')), 'the demo holds no gift');
+  const gifted = Object.freeze({ ...MONTHS[30], deprivedAssets: 4_000_040 });
+  const row = monthToRow(gifted, FUTURE);
+  assert.equal(row.deprivedAssets, '$40,000');
+  // Through the row's own lens, like every other figure on it.
+  const today = { view: 'todaysDollars', asAtDate: DEMO_SETTINGS.asAtDate, cpi: DEMO_SETTINGS.economicSeries.cpi };
+  assert.equal(monthToRow(gifted, today).deprivedAssets, formatDollars(moneyLens(today, gifted.month)(gifted.deprivedAssets)));
+  // And it is not folded into the figure beside it: that stays what the Household holds.
+  assert.equal(row.assessableAssets, monthToRow(MONTHS[30], FUTURE).assessableAssets);
+  // The page prints it, beside the Position figures, with the explanation folded and the guide linked.
+  const render = readFileSync(new URL('../src/app/renderTable.ts', import.meta.url), 'utf8');
+  assert.match(render, /if \(row\.deprivedAssets !== undefined\) \{[\s\S]{0,200}dl\(\[\[DEPRIVED_ASSETS_LABEL, row\.deprivedAssets\]\]\), infoButton\('What this figure is', DEPRIVED_ASSETS_DETAIL, 'guide:gifts'\)\);\s*position\.append\(gifts\);/);
+  assert.equal(DEPRIVED_ASSETS_LABEL, 'Gifts still counted by Centrelink');
+  plainly(DEPRIVED_ASSETS_LABEL, 'the gifts label');
+  plainly(DEPRIVED_ASSETS_DETAIL, 'the gifts detail');
 });

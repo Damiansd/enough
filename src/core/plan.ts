@@ -344,6 +344,7 @@ export const ENTRY_TYPES = [
   'RETURN_CHANGE',
   'SPEND_CHANGE',
   'ONE_OFF_EXPENSE',
+  'GIFT',
   'CONTRIBUTION_SPLIT',
   'SPOUSE_CONTRIBUTION',
   'DOWNSIZE',
@@ -490,6 +491,12 @@ export const ENTRY_KIND = {
   SPEND_CHANGE: 'level',
   /** EVENT. "car, travel, roof" — a single outflow, in its own month. The user's own worked example. */
   ONE_OFF_EXPENSE: 'event',
+  /**
+   * EVENT, `ONE_OFF_EXPENSE`'s reason: the money left on the day and a pre-dated gift is already out
+   * of the stated balances. Its means-test consequence is NOT replayed through this — the deprived
+   * amount is read from every enabled `GIFT` in the plan, pre-dated or not (`deprivedAssets.ts`).
+   */
+  GIFT: 'event',
   /**
    * EVENT. A split is an application made in respect of one past financial year's contributions; it
    * has already moved the money between the two members' balances, and those balances are stated as
@@ -1092,6 +1099,17 @@ export interface OneOffExpenseParams {
 }
 
 /**
+ * `GIFT` — money given away in this entry's month (SS Act ss 1123, 1126AA-1126AD). The cash leaves
+ * as a one-off outflow; any amount above the gifting free areas ($10,000 a financial year, $30,000
+ * over five) is a DEPRIVED ASSET, counted in the assets test and deemed, for five years.
+ * `owner` is the giver; a `household` gift is given by both.
+ */
+export interface GiftParams {
+  /** Given once, in the month of the entry's date. NOMINAL, `OneOffExpenseParams.amount`'s ruling. */
+  readonly amount: Cents;
+}
+
+/**
  * `NON_SUPER_INVESTMENT` — **a BUY into the Non-Super Portfolio or a SELL out of it** (P3-20c,
  * P3-21f chunks 3 and 4). concept.md's row is "buy into **or draw from** the Non-Super Portfolio; a
  * draw realises CGT", and from chunk 4 both halves are specified.
@@ -1646,6 +1664,7 @@ export type Entry =
   | EntryBase<'WORK_PATTERN_CHANGE', WorkPatternChangeParams>
   | EntryBase<'SPEND_CHANGE', SpendChangeParams>
   | EntryBase<'ONE_OFF_EXPENSE', OneOffExpenseParams>
+  | EntryBase<'GIFT', GiftParams>
   | EntryBase<'NON_SUPER_INVESTMENT', NonSuperInvestmentParams>
   | EntryBase<'LUMP_SUM_FROM_SUPER', LumpSumFromSuperParams>
   | EntryBase<'TTR_START', TtrStartParams>
@@ -2705,6 +2724,17 @@ export interface Month {
    * means test is computed from and what a user has to be able to audit.
    */
   readonly assessableAssets: Cents;
+  /**
+   * **The deprived amount of the Household's gifts this month (SS Act ss 1126AA-1126AD, register
+   * §4.12)** — what the Age Pension and aged care means tests counted as a financial asset on top of
+   * `assessableAssets`, assessed AND deemed. It is money already given away, so it is NOT in
+   * `assessableAssets`, which stays real wealth (ruling J7): what the assets test saw is
+   * `assessableAssets + (deprivedAssets ?? 0)`.
+   *
+   * **OPTIONAL, and ABSENT is "nothing deprived this month"** — a plan with no `GIFT`, or whose gifts
+   * sat inside the free areas or have run out their five years, is byte-identical.
+   */
+  readonly deprivedAssets?: Cents;
   /**
    * **P4-6 — the money the Household could actually SPEND on a late-life cost, at this month's
    * CLOSING position.** The Offset Account (`closingBalance`), plus the Non-Super Portfolio, plus

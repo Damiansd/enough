@@ -23,6 +23,8 @@ import {
   DETERMINATION_DISCLOSURE,
   HOME_LOAN_OWING_DETAIL,
   HOME_LOAN_OWING_LABEL,
+  DEPRIVED_ASSETS_DETAIL,
+  DEPRIVED_ASSETS_LABEL,
   INCOME_FROM_SUPER_LABEL,
   INVESTMENTS_DETAIL,
   INVESTMENTS_LABEL,
@@ -281,6 +283,13 @@ const detail = (row: MonthRow): HTMLElement => {
     const loan = el('div', 'home-loan');
     loan.append(dl([[HOME_LOAN_OWING_LABEL, row.homeLoanOwing]]), infoButton('What this figure is', HOME_LOAN_OWING_DETAIL, 'guide:home-loan'));
     position.append(loan);
+  }
+  // A gift's deprived amount (register §4.12): counted by the means tests, held by nobody — so
+  // beside the Position figures, in both views, and only in a month that has one.
+  if (row.deprivedAssets !== undefined) {
+    const gifts = el('div', 'deprived-assets');
+    gifts.append(dl([[DEPRIVED_ASSETS_LABEL, row.deprivedAssets]]), infoButton('What this figure is', DEPRIVED_ASSETS_DETAIL, 'guide:gifts'));
+    position.append(gifts);
   }
 
   const entries = el('section', 'axis entries');

@@ -9988,6 +9988,25 @@ engine code and no second way of stating changes, and "save" means giving it a n
     unchanged, and Discard simply drops the candidate.
   - **Placement and guide text:** left to the build, under the screen-text rule.
 
+## Gifting and Centrelink deprivation (user-requested 2026-10-02, SHIPPED 2026-10-02)
+
+Gate GO: `docs/research/gift-deprivation-gate-2026-10-02.md` (rule sourced live from Services
+Australia and SSA ss 1126AA-AD, 1127; Aged Care Act 2024 s 330 imports it). Register §4.12.
+
+- [x] **GIFT-1** Engine: `src/core/deprivedAssets.ts`; the excess over $10,000 in a financial year /
+  $30,000 over five (one set of limits for a couple) is counted as an asset AND deemed, from the month
+  after the gift to the 5-year anniversary, through `splitAssets` (so aged care sees it too). Pre-plan
+  gifts inside the 5 years count. Reported `assessableAssets` stays real wealth; the phantom sits in
+  `Month.deprivedAssets`. Rulings J1-J7 (mine, from the statute and RAD/ONE_OFF_EXPENSE precedent) are
+  in the gate doc. Mutations: 7 by DEV + my FY-boundary mutation, all caught.
+- [x] **GIFT-2** Door, form ("Give money away"), chat catalogue, "Gifts still counted by Centrelink"
+  row + dotted chart line, guide section `{#gifts}`. Seen rendered on a copy of the real plan with a
+  $100,000 gift in 2040-07: 59 rows, $90,000 nominal.
+- [ ] **GIFT-3** Known limits, conservative (understate the pension), not built: after a death the
+  survivor's gifts share one free-area count with the dead partner's; no exception is modelled
+  (unforeseen circumstances, granny flat, Special Disability Trust, give-back). The guide's
+  dictionary has no gift / deprived-asset entry.
+
 ## Parked — not scoped
 
 - [~] Monte Carlo and sequencing risk — excluded on merit; deterministic answers the actual

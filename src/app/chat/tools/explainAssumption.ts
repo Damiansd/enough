@@ -72,6 +72,8 @@ export const MONEY_LOCATIONS = [
   'agePension.workBonus.startingBalance#value',
   'agePension.workBonus.fortnightlyAccrual#value',
   'agePension.workBonus.maximumBalance#value',
+  'agePension.gifting.annualFreeArea#value',
+  'agePension.gifting.rollingFreeArea#value',
   'agePension.paymentRates.*#value.maximumBasicRate.single',
   'agePension.paymentRates.*#value.maximumBasicRate.coupleEach',
   'agePension.paymentRates.*#value.maximumBasicRate.coupleCombined',

@@ -9,9 +9,12 @@ app renders them from a `plan.json` on disk — an auditable, expandable month t
 Protected-versus-Assessable wealth chart with a Date/Age toggle and a Household-versus-per-Person
 split toggle (P7-2, P7-6, P7-9), and N scenarios compared as total-wealth lines on one chart
 (P7-1). Scenarios can be created, cloned, renamed and deleted, and inherit from one another by
-reference rather than by copying entries. The entry editor is in (P6-6): the twenty-three entry types this
+reference rather than by copying entries. The entry editor is in (P6-6): the twenty-four entry types this
 build can honour — `RETIRE`, `WORK_PATTERN_CHANGE`, `SUPER_CONTRIBUTION`, `LUMP_SUM_FROM_SUPER`,
-`NON_SUPER_INVESTMENT` (buy or sell), `SPEND_CHANGE`, `ONE_OFF_EXPENSE`, `MORTGAGE_REFINANCE`
+`NON_SUPER_INVESTMENT` (buy or sell), `SPEND_CHANGE`, `ONE_OFF_EXPENSE`, `GIFT` (money given away, nominal on
+the day; the part over $10,000 in a financial year or $30,000 over five, one set of limits for a couple,
+is counted as an asset and deemed for 5 years from the gift, gifts from before the plan included; no
+exception is modelled), `MORTGAGE_REFINANCE`
 (which sets a home loan's terms from a date, and can start one where there was none),
 `MORTGAGE_TARGET` (a payoff or offset date to check against retirement, changing no figure),
 `MORTGAGE_PAYOFF` (pay the home loan off in full in one month, out of cash),

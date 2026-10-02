@@ -47,6 +47,7 @@ import {
   MORTGAGE_INTEREST_LINE,
   MORTGAGE_PRINCIPAL_LINE,
   ONE_OFF_EXPENSE_LINE,
+  GIFT_LINE,
   PENSION_MINIMUM_LINE,
   PORTFOLIO_BROKERAGE_LINE,
   PORTFOLIO_PURCHASE_LINE,
@@ -132,6 +133,7 @@ test('every FIXED (no-suffix) cash line classifies to the documented group, exac
     [HOME_PURCHASE_COSTS_LINE, 'homePurchase'],
     [HOUSEHOLD_SPENDING_LINE, 'spending'],
     [ONE_OFF_EXPENSE_LINE, 'spending'],
+    [GIFT_LINE, 'spending'],
     [MORTGAGE_INTEREST_LINE, 'mortgage'],
     [MORTGAGE_PRINCIPAL_LINE, 'mortgage'],
     [RENT_OUT_HOME_RENT_LINE, 'rentalIncome'],
@@ -213,7 +215,7 @@ const WEALTH_ONLY_LINES = [
   'LOW_INCOME_SUPER_TAX_OFFSET_LINE',
 ];
 
-// The 43 cash-effect line constants, each with a sample description this file can build and expect
+// The 44 cash-effect line constants (43 → 44: `GIFT_LINE`, 2026-10-02), each with a sample description this file can build and expect
 // `classifyCashLine` to accept without throwing — bare where the constant is the whole description,
 // or through the SAME builder function projection.ts itself exports for a suffixed one.
 const CASH_LINE_SAMPLES = (() => {
@@ -246,6 +248,7 @@ const CASH_LINE_SAMPLES = (() => {
     MORTGAGE_INTEREST_LINE,
     MORTGAGE_PRINCIPAL_LINE,
     ONE_OFF_EXPENSE_LINE,
+    GIFT_LINE,
     PENSION_MINIMUM_LINE: superPaymentDescription(PENSION_MINIMUM_LINE, robin),
     PORTFOLIO_BROKERAGE_LINE: portfolioBrokerageDescription(robin.name),
     PORTFOLIO_PURCHASE_LINE: portfolioPurchaseDescription(robin.name),
@@ -265,8 +268,8 @@ const CASH_LINE_SAMPLES = (() => {
   };
 })();
 
-test('CASH_LINE_SAMPLES actually names all 43 non-wealth *_LINE constants, and none of the 12 wealth-only ones', () => {
-  assert.equal(Object.keys(CASH_LINE_SAMPLES).length, 43);
+test('CASH_LINE_SAMPLES actually names all 44 non-wealth *_LINE constants, and none of the 12 wealth-only ones', () => {
+  assert.equal(Object.keys(CASH_LINE_SAMPLES).length, 44);
   for (const name of WEALTH_ONLY_LINES) assert.equal(name in CASH_LINE_SAMPLES, false, name);
 });
 

@@ -237,6 +237,7 @@ See [ADR-0002](./docs/adr/0002-journal-entries-as-overlay.md) for the reasoning.
 | `RETURN_CHANGE` | person — a new investment return assumption from a date; a user-stated entry, not synthesised — see §5.13 |
 | `SPEND_CHANGE` | household — phasing, seeded by optional go-go/slow-go/no-go presets |
 | `ONE_OFF_EXPENSE` | household — car, travel, roof |
+| `GIFT` | person/household — money given away; any amount over the gifting free areas ($10,000 a financial year, $30,000 over five) counts in the Age Pension and aged care means tests, assets and deeming, for five years |
 | `CONTRIBUTION_SPLIT` | person → person |
 | `SPOUSE_CONTRIBUTION` | person → person |
 | `DOWNSIZE` | household — sell and rebuy cheaper; releases equity, starts the 24-month proceeds window |

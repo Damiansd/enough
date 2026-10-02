@@ -37,7 +37,7 @@ const flat = README.replace(/\s+/g, ' ');
 const WORDS = [
   'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
   'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen',
-  'nineteen', 'twenty', 'twenty-one', 'twenty-two', 'twenty-three',
+  'nineteen', 'twenty', 'twenty-one', 'twenty-two', 'twenty-three', 'twenty-four', 'twenty-five',
 ];
 const inWords = (n) => {
   assert.ok(n < WORDS.length, `no word for ${n} — extend WORDS`);

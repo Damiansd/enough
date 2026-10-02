@@ -1361,3 +1361,28 @@ test('the HEAS debt note shows where a HEAS debt is owed, and nowhere else', asy
   assert.ok(!plain.overlays.some((o) => o.key === 'heasDebt'), 'a HEAS line on a plan with no HEAS loan');
   assert.deepEqual(withDebt.overlays.find((o) => o.key === 'heasDebt')?.values.at(-1), 250_000);
 });
+
+// GIFT slice 2 (register §4.12): money given away is in neither band, so a gift still counted is its
+// own line — drawn only where there is one — and the cut-off shading reads what the assets test saw.
+test('a gift still counted is its own line, drawn only where there is one, and the cut-off shading counts it', () => {
+  const plain = monthsToSeries(MONTHS, DEMO_HOUSEHOLD, FLOOR_100K, DEMO_AGE_PENSION_SERIES);
+  assert.ok(!plain.overlays.some((o) => o.key === 'deprivedAssets'), 'a gifts line on a plan with no gift');
+  const index = MONTHS.findIndex((m) => m.assetsTestThresholds !== undefined && m.assessableAssets <= m.assetsTestThresholds.noPensionAbove);
+  assert.ok(index >= 0, 'the fixture needs a month under the cut-off');
+  const month = MONTHS[index];
+  const over = month.assetsTestThresholds.noPensionAbove - month.assessableAssets + 100;
+  const gifted = MONTHS.map((m, i) => (i === index ? Object.freeze({ ...m, deprivedAssets: over }) : m));
+  const series = monthsToSeries(gifted, DEMO_HOUSEHOLD, FLOOR_100K, DEMO_AGE_PENSION_SERIES);
+  const line = series.overlays.find((o) => o.key === 'deprivedAssets');
+  assert.ok(line, 'the gift is not drawn');
+  assert.equal(line.label, OVERLAY_LABELS.deprivedAssets);
+  assert.match(line.label, /^Gifts still counted by Centrelink/);
+  assert.equal(line.values[index], over);
+  assert.equal(line.values.filter((v) => v !== 0).length, 1);
+  // Drawn with or without a stated floor — the two overlay lists are built apart.
+  assert.deepEqual(monthsToSeries(gifted, DEMO_HOUSEHOLD, undefined, DEMO_AGE_PENSION_SERIES).overlays.find((o) => o.key === 'deprivedAssets')?.values, line.values);
+  // The bands still partition what the Household HOLDS.
+  assert.deepEqual(series.bands, plain.bands);
+  assert.equal(series.aboveCutOff?.[index], true, 'the shading ignored the gift the assets test counted');
+  assert.equal(plain.aboveCutOff?.[index] ?? false, false);
+});

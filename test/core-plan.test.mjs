@@ -75,8 +75,9 @@ test('CANARY — the table is 27 rows, and the count is derived from the table',
   // 2026-09-25 (P14-13): `SELL_HOME`, the fourth. 23 → 24 the same day: `RENT_OUT_HOME`, the fifth.
   // 24 → 25 on 2026-09-25 (P14-19): `BUY_HOME`, the sixth. 25 → 26 the same day (P3-17a slice 3):
   // `INSURANCE_COVER_CHANGE`, the seventh. 26 → 27 on 2026-09-29 (retire flow S4): `TTR_START`, the eighth.
+  // 27 → 28 on 2026-10-02: `GIFT`, the ninth.
   const inProse = entryTypesInConcept();
-  assert.equal(inProse.length, 27);
+  assert.equal(inProse.length, 28);
   assert.equal(ENTRY_TYPES.length, inProse.length);
   assert.equal(new Set(ENTRY_TYPES).size, ENTRY_TYPES.length, 'an entry type is declared twice');
 });
@@ -245,6 +246,8 @@ const pinned: { [K in MonthKeys]-?: true } = {
   appliedEntryIds: true,
   protectedAssets: true,
   assessableAssets: true,
+  // GIFT slice 1, 2026-10-02: the gifts' deprived amount the means tests counted — OMITTED where nil.
+  deprivedAssets: true,
   accessibleAssets: true,
   assetsByPerson: true,
   // P3-4b, 2026-09-30: each Person's concessional cap headroom for the month's year — every month.

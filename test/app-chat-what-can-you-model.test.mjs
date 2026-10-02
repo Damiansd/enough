@@ -34,6 +34,9 @@ test('the refused entry types are the live UNSPECIFIED_ENTRY_TYPES, each with it
   // `HEAS_DRAW` leaves it too, on the identical ground — specified and walked, held back from
   // `canModel` by the same list, engine-only by explicit instruction.
   // P9-5, 2026-09-25: `DOWNSIZER_CONTRIBUTION` leaves it — specified, walked and offered.
+  // 2026-10-02 (GIFT slice 1): `GIFT` joins it — walked by the engine, and the door has no params
+  // parser for it until slice 2, so a plan file holding one is refused rather than mis-read.
+  // The same day (GIFT slice 2): `GIFT` leaves it — the door reads it and the form offers it.
   assert.deepEqual([...UNSPECIFIED_ENTRY_TYPES], ['CONTRIBUTION_SPLIT', 'DOWNSIZE', 'VACATE_HOME']);
 });
 

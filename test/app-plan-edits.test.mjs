@@ -64,6 +64,7 @@ import {
   nonSuperInvestmentBuyEntry,
   nonSuperInvestmentSellEntry,
   oneOffExpenseEntry,
+  giftEntry,
   planWithEntry,
   planWithEntryOverride,
   retireEntry,
@@ -427,6 +428,7 @@ test('a plan with no SPEND_CHANGE spends NOTHING — no line, no zero, and no er
 const RETIRE_FORM = { date: '2028-01-01', owner: 'personA', note: 'Dana stops earlier' };
 const WORK_FORM = { date: '2028-01-01', owner: 'personA', daysPerWeek: '0', annualSalary: '0', note: 'down tools' };
 const ONE_OFF_FORM = { date: '2029-03-01', owner: 'household', amount: '50,000', note: 'the car' };
+const GIFT_FORM = { date: '2029-03-01', owner: 'personB', amount: '25,000.50', note: 'for the grandkids' };
 const BUY_FORM = { date: '2028-06-01', owner: 'personA', amount: '40,000', incidentalCostsOfAcquisition: '500', note: 'ETF' };
 const SELL_FORM = { date: '2028-06-01', owner: 'personA', amount: '20,000', parcelSelection: '', note: 'raise cash' };
 // Dana is 64 here and retired in 2031-05 at 63 — past the tax-free age AND past a Condition of
@@ -512,9 +514,11 @@ test('the twenty-three constructible types are DERIVED from parsePlan’s parser
   // **NINETEEN → TWENTY the same day (P14-13): `RENT_OUT_HOME` gained a parser, a walk branch and a
   // form control in one change, `SELL_HOME`'s own precedent — it never passes through
   // `ENTRY_TYPES_NOT_YET_WALKED` at all.**
+  // **TWENTY-FOUR → TWENTY-FIVE on 2026-10-02 (GIFT slice 2): `GIFT` gained its parser and its form
+  // control together, its walk branch already in (slice 1) — shipped whole, never held back.**
   assert.deepEqual(
     [...CONSTRUCTIBLE_ENTRY_TYPES].sort(),
-    ['BUY_HOME', 'DEATH', 'DOWNSIZER_CONTRIBUTION', 'ENTER_CARE', 'HEAS_DRAW', 'ILLNESS_SEPARATION', 'INSURANCE_COVER_CHANGE', 'LUMP_SUM_FROM_SUPER', 'MORTGAGE_PAYOFF', 'MORTGAGE_REFINANCE', 'MORTGAGE_TARGET', 'NON_SUPER_INVESTMENT', 'ONE_OFF_EXPENSE', 'RENT_OUT_HOME', 'RETIRE', 'RETURN_CHANGE', 'SELL_HOME', 'SPEND_CHANGE', 'SPOUSE_CONTRIBUTION', 'SUPER_CONTRIBUTION', 'TRIS_EARLY_CONVERSION', 'TTR_RATE_CHANGE', 'TTR_START', 'WORK_PATTERN_CHANGE'],
+    ['BUY_HOME', 'DEATH', 'DOWNSIZER_CONTRIBUTION', 'ENTER_CARE', 'GIFT', 'HEAS_DRAW', 'ILLNESS_SEPARATION', 'INSURANCE_COVER_CHANGE', 'LUMP_SUM_FROM_SUPER', 'MORTGAGE_PAYOFF', 'MORTGAGE_REFINANCE', 'MORTGAGE_TARGET', 'NON_SUPER_INVESTMENT', 'ONE_OFF_EXPENSE', 'RENT_OUT_HOME', 'RETIRE', 'RETURN_CHANGE', 'SELL_HOME', 'SPEND_CHANGE', 'SPOUSE_CONTRIBUTION', 'SUPER_CONTRIBUTION', 'TRIS_EARLY_CONVERSION', 'TTR_RATE_CHANGE', 'TTR_START', 'WORK_PATTERN_CHANGE'],
   );
   // **ELEVEN AND NINE FROM 2026-09-22 (P2-11 microtask 2).** `RETURN_CHANGE` gained a parser and was
   // held back by `ENTRY_TYPES_NOT_YET_WALKED` because `projection.ts` had no branch for it yet —
@@ -561,7 +565,8 @@ test('the twenty-three constructible types are DERIVED from parsePlan’s parser
   // **NINETEEN AND TWENTY-ONE/TWENTY THE SAME DAY (P14-19): `BUY_HOME`, shipped whole the same way.**
   // P9-5, the same day: `DOWNSIZER_CONTRIBUTION`, shipped whole the same way.
   // P3-17a slice 3 (2026-09-25): `INSURANCE_COVER_CHANGE`, shipped whole.
-  assert.deepEqual([...OFFERED_ENTRY_TYPES].sort(), ['BUY_HOME', 'DEATH', 'DOWNSIZER_CONTRIBUTION', 'ENTER_CARE', 'HEAS_DRAW', 'ILLNESS_SEPARATION', 'INSURANCE_COVER_CHANGE', 'LUMP_SUM_FROM_SUPER', 'MORTGAGE_PAYOFF', 'MORTGAGE_REFINANCE', 'MORTGAGE_TARGET', 'NON_SUPER_INVESTMENT', 'ONE_OFF_EXPENSE', 'RENT_OUT_HOME', 'RETIRE', 'RETURN_CHANGE', 'SELL_HOME', 'SPEND_CHANGE', 'SPOUSE_CONTRIBUTION', 'SUPER_CONTRIBUTION', 'TTR_RATE_CHANGE', 'TTR_START', 'WORK_PATTERN_CHANGE']);
+  // GIFT slice 2 (2026-10-02): `GIFT`, shipped whole.
+  assert.deepEqual([...OFFERED_ENTRY_TYPES].sort(), ['BUY_HOME', 'DEATH', 'DOWNSIZER_CONTRIBUTION', 'ENTER_CARE', 'GIFT', 'HEAS_DRAW', 'ILLNESS_SEPARATION', 'INSURANCE_COVER_CHANGE', 'LUMP_SUM_FROM_SUPER', 'MORTGAGE_PAYOFF', 'MORTGAGE_REFINANCE', 'MORTGAGE_TARGET', 'NON_SUPER_INVESTMENT', 'ONE_OFF_EXPENSE', 'RENT_OUT_HOME', 'RETIRE', 'RETURN_CHANGE', 'SELL_HOME', 'SPEND_CHANGE', 'SPOUSE_CONTRIBUTION', 'SUPER_CONTRIBUTION', 'TTR_RATE_CHANGE', 'TTR_START', 'WORK_PATTERN_CHANGE']);
   // And it really is the complement: no type is in both lists, and together they are every type.
   for (const type of CONSTRUCTIBLE_ENTRY_TYPES) {
     assert.ok(!UNSPECIFIED_ENTRY_TYPES.includes(type), `${type} is offered by the form AND refused by the door`);
@@ -615,6 +620,7 @@ test('every builder takes its id and its createdAt as ARGUMENTS — no clock and
     [downsizerContributionEntry, DOWNSIZER_FORM],
     [insuranceCoverChangeEntry, INSURANCE_COVER_CHANGE_FORM],
     [ttrStartEntry, TTR_START_FORM],
+    [giftEntry, GIFT_FORM],
   ];
   assert.equal(cases.length, OFFERED_ENTRY_TYPES.length + 1, 'a builder is missing from this table — the sell is the extra one');
   for (const [build, values] of cases) {
@@ -1520,4 +1526,16 @@ test('P3-4b — a catch-up is refused by name, and nothing is written, where the
   planWithCatchUp(plan, { person: 0, financialYear: '2027-28', amount: 100_000 }, ['a', 'b'], '2027-07-01');
   checkedCatchUp(plan, walkedPlan(plan).months, 0, '2027-28', ['a', 'b'], '2027-07-01');
   assert.equal(writes, 0);
+});
+
+test('giftEntry builds an entry parsePlan accepts, whole and unchanged — the giver and the cents survive', () => {
+  for (const owner of ['personA', 'personB', 'household']) {
+    const built = giftEntry({ ...GIFT_FORM, owner }, 'g', CREATED);
+    assert.deepEqual(built, { id: 'g', date: '2029-03-01', owner, type: 'GIFT', params: { amount: 2_500_050 }, enabled: true, createdAt: CREATED, note: 'for the grandkids' });
+    const parsed = parsePlan({ ...PLAN, entries: [...PLAN.entries, built] });
+    assert.deepEqual(parsed.entries.at(-1), built);
+  }
+  // Blank is not zero: it reaches the door as NaN and is refused there, by name.
+  assert.throws(() => parsePlan({ ...PLAN, entries: [...PLAN.entries, giftEntry({ ...GIFT_FORM, amount: '' }, 'g', CREATED)] }));
+  assert.throws(() => parsePlan({ ...PLAN, entries: [...PLAN.entries, giftEntry({ ...GIFT_FORM, amount: '0' }, 'g', CREATED)] }), PlanFileEntryError);
 });

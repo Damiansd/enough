@@ -91,6 +91,7 @@ import {
   MORTGAGE_INTEREST_LINE,
   MORTGAGE_PRINCIPAL_LINE,
   ONE_OFF_EXPENSE_LINE,
+  GIFT_LINE,
   PENSION_MINIMUM_LINE,
   RENT_OUT_HOME_AGENT_FEES_LINE,
   RENT_OUT_HOME_INSURANCE_LINE,
@@ -260,6 +261,7 @@ const FIXED_LINES: Readonly<Record<string, FlowGroupKey | 'shortfall'>> = Object
   [RENT_OUT_HOME_REPAIRS_LINE]: 'rentalIncome',
   [HOUSEHOLD_SPENDING_LINE]: 'spending',
   [ONE_OFF_EXPENSE_LINE]: 'spending',
+  [GIFT_LINE]: 'spending',
   [MORTGAGE_INTEREST_LINE]: 'mortgage',
   [MORTGAGE_PRINCIPAL_LINE]: 'mortgage',
   [SHORTFALL_LINE]: 'shortfall',
@@ -479,6 +481,7 @@ export const flowSeries = (months: readonly Month[], household: Household, basis
 // | DIVISION_293_RELEASE_REFUND_LINE      | division293ReleaseRefundDescription     | tax                | outflow*|
 // | HOUSEHOLD_SPENDING_LINE               | bare                                     | spending           | outflow |
 // | ONE_OFF_EXPENSE_LINE                  | bare                                     | spending           | outflow |
+// | GIFT_LINE                             | bare                                     | spending           | outflow |
 // | MORTGAGE_INTEREST_LINE                | bare                                     | mortgage           | outflow |
 // | MORTGAGE_PRINCIPAL_LINE               | bare                                     | mortgage           | outflow |
 // | INCOME_TAX_LINE                       | incomeTaxDescription(name)              | tax                | outflow |

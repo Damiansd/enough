@@ -155,6 +155,7 @@ const OVERLAY_COLOURS: Readonly<Record<OverlayKey, string>> = Object.freeze({
   accessible: '#1b5fa8',
   floor: '#a4501f',
   heasDebt: '#8a6d00',
+  deprivedAssets: '#6b4f8a',
 });
 
 export const THRESHOLD_COLOURS: Readonly<Record<ThresholdKey, string>> = Object.freeze({
@@ -167,6 +168,7 @@ const OVERLAY_DASH: Readonly<Record<OverlayKey, readonly number[]>> = Object.fre
   accessible: Object.freeze([6, 3]),
   floor: Object.freeze([2, 4]),
   heasDebt: Object.freeze([4, 2]),
+  deprivedAssets: Object.freeze([1, 3]),
 });
 
 export type BandDataset = {
@@ -413,6 +415,8 @@ const OVERLAY_LENS: Readonly<Record<OverlayKey, typeof moneyLens>> = Object.free
   floor: statedInTodaysMoneyLens,
   // `Month.heasDebt`, read straight off with no filtering — `accessible`'s own footing exactly.
   heasDebt: moneyLens,
+  // `Month.deprivedAssets` is held flat in nominal cents (ruling J5), read straight off.
+  deprivedAssets: moneyLens,
 });
 
 const overlayDataset = (overlay: SeriesOverlay, months: readonly string[], basis: MoneyBasis): OverlayDataset =>

@@ -913,6 +913,18 @@ export const HOME_LOAN_OWING_DETAIL =
   ' net of it: this forecast puts no value on the home itself, so there is nothing here to set the loan against.' +
   ' A figure of $0 means the loan is paid off.';
 
+/**
+ * **What a gift's deprived amount is CALLED on screen (register §4.12).** `Month.deprivedAssets`:
+ * money already given away that the Age Pension still counts. Shown beside the Position figures and
+ * never inside them, because `assessableAssets` stays what the Household really holds.
+ */
+export const DEPRIVED_ASSETS_LABEL = 'Gifts still counted by Centrelink';
+
+export const DEPRIVED_ASSETS_DETAIL =
+  'Money given away above the gifting limits. Centrelink counts it as if you still had it, in the assets test' +
+  ' and as deemed income, for five years from the gift. It is not in the figures above, which are only what you' +
+  ' still own.';
+
 export interface MonthRow {
   readonly month: string;
   readonly openingBalance: string;
@@ -953,6 +965,11 @@ export interface MonthRow {
    * money as the balances it sits beside.
    */
   readonly homeLoanOwing: string | null;
+  /**
+   * `Month.deprivedAssets`, formatted — **the key is ABSENT where the month has none**, as it is on
+   * the `Month`, so a plan with no gift over the limits has rows byte-identical to before.
+   */
+  readonly deprivedAssets?: string;
   /** `Month.superBalance`, formatted: every interest of every Person at the close. `$0.00` with none. */
   readonly superBalance: string;
   /**
@@ -1048,6 +1065,7 @@ export const monthToRow = (
     // Through the SAME lens as the balances above — a debt shown in future dollars beside a balance
     // in today's money is the mixed-basis row this function's header exists to prevent.
     homeLoanOwing: month.mortgageBalance === undefined ? null : formatDollars(money(month.mortgageBalance)),
+    ...(month.deprivedAssets === undefined ? {} : { deprivedAssets: formatDollars(money(month.deprivedAssets)) }),
     superBalance: formatDollars(money(month.superBalance)),
     investments: formatDollars(money(month.closingNonSuperPortfolio)),
     // P14-16 — `month.radHeld` (a refundable RAD, net of retention) is ABSENT for every walk with no

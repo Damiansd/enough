@@ -209,3 +209,16 @@ test('TOTAL WEALTH VIEW (the default) — no threshold line, total-wealth values
     assert.ok(!text.includes(ASSETS_TEST_ONLY_NOTE));
   }
 });
+
+// GIFT slice 2 (register §4.12): a gift still counted is part of what Centrelink counts.
+test('CENTRELINK VIEW — a gift over the free areas is on the line for its five years, and only there', () => {
+  const GIFTED = { id: 'gifted', date: '2030-03-10', owner: 'household', type: 'GIFT', params: { amount: 50_000_00 }, enabled: true, createdAt: '2026-10-02' };
+  const { series, walks } = setUp(planOf(GIFTED));
+  const fork = series.lines.find((line) => line.scenarioId === 'fork');
+  const walk = walks.byScenarioId.get('fork');
+  const counted = walk.filter((month) => month.deprivedAssets !== undefined);
+  assert.equal(counted.length, 60, 'the fixture must carry a deprived amount for five years');
+  walk.forEach((month, index) => assert.equal(fork.assessableValues[index], month.assessableAssets + (month.deprivedAssets ?? 0), month.month));
+  // Total wealth stays real: the gift is gone from it.
+  walk.forEach((month, index) => assert.equal(fork.values[index], month.protectedAssets + month.assessableAssets, month.month));
+});

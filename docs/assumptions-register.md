@@ -4079,6 +4079,25 @@ Read from the Internet Archive (the Guide's origin refuses curl) on 2026-09-24. 
 | **NDEP — a DECLARED BOUND, not a source** | **1**, its least value. NDEP depends on which fortnight Services Australia pays on, and a monthly walk has no payday calendar. The definition allows 1 to 14, so the payment is **never overstated**, and is understated by at most 13/14 of one fortnight's gap | — | `core/bereavement.ts` `BEREAVEMENT_DAYS_TO_PERIOD_END` | — |
 | Illness-separated couples | the Guide gives a different formula, working the payment out as if they lived together and subtracting what the separated rates overpaid. **Not built: a death while an `ILLNESS_SEPARATION` is in force is refused by name** | — | SS Guide 3.1.5.70 | primary-via-archive |
 
+
+### 4.12 Gifting — deprived assets (GIFT slice 1, 2026-10-02)
+
+Read live on 2026-10-02: Services Australia "How much you can gift" and "How gifting can affect your
+payment" (both last updated 3 Feb 2025); SSA 1991 ss 9(1), 9(4), 1126AA-1126AD, 1127 (compilation
+233, C2026C00427); Aged Care Act 2024 s 330(1), (4)(b), (10). Full notes:
+`docs/research/gift-deprivation-gate-2026-10-02.md`. Stored as `AGE_PENSION.gifting`, read by
+`core/deprivedAssets.ts`.
+
+| Name | Rule | Kind | Source | Confidence |
+|---|---|---|---|---|
+| Annual free area | **$10,000** of gifts in a financial year; the excess (at most the gift) is included. Singles and couples alike, and a couple shares ONE limit, each partner carrying half | constant, **not indexed** | s 1126AA(2) · s 1126AC(2) · Services Australia | primary-verified |
+| Five-year free area | **$30,000** over the financial year of the gift and the 4 before it, after taking off the amounts already included under ss 1126AA-1126AD in that period; the excess (at most the gift) is included on top of the annual one. Services Australia's example: $11,000 on 1 May 2022 → **$6,000** until 30 April 2027 | constant, **not indexed** | s 1126AB(2), (4) · s 1126AD(2), (6) · Services Australia | primary-verified |
+| How long | **5 years** from the day of the gift. The walk counts it from the first month-start AFTER the gift's month to the last month-start before the fifth anniversary (ruling J1) | constant | s 1126AA(2) | primary-verified |
+| How it is assessed | a financial asset: in the assets test AND deemed, held flat (nominal) for its 5 years (ruling J5). Aged care counts it too, through the same assessable figure | constant | s 9(1)(b) · Aged Care Act 2024 s 330(4)(b) | primary-verified |
+| Couples and death | each partner carries half, so the household carries the whole; a `household` gift is given by both. After a death the survivor carries in full a gift they gave alone or jointly, and nothing of a gift the deceased gave alone (ruling J2). The household amount is taken off once in the five-year test (ruling J3) | — | s 1126AC(4)-(5) | primary-verified |
+| Pre-plan gifts | a gift dated before the plan starts still counts for what is left of its 5 years | — | s 1127 · Services Australia | primary-verified |
+| **Exceptions — NOT modelled** | every gift counts. s 1127(b) unforeseen circumstances, granny flat interests, s 1126E give-backs, Special Disability Trusts and sales for inadequate consideration are not modelled (ruling J4). The direction is conservative: the pension shown is never higher than the rules allow | — | Services Australia "When gifting exceptions apply" | — |
+
 ---
 
 ## 5. Home Equity Access Scheme

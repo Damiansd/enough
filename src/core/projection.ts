@@ -257,6 +257,7 @@ import type { CarryForwardHeadroom, ConcessionalCap, ConcessionalYearHistory, In
 import { CGT_REFORM_START, INDEXATION_FACTOR_DECIMAL_PLACES, PRE_CGT_CUTOFF, standardDeductionAmountFor, taxYearAvailable } from '../data/assumptions/tax.js';
 import { SUPERANNUATION, lowIncomeSuperTaxOffset } from '../data/assumptions/super.js';
 import type { Cents } from './money.js';
+import { deprivedAmountOn, deprivedGifts } from './deprivedAssets.js';
 import type { AssetSplit, Household, HomeStatus, Mortgage, MortgageMonth, Parcel, Person, PersonAssetSplit, SuperInterest } from './household.js';
 import type { QualifyingEarnings } from './superContributions.js';
 import type { ConcessionalContributionComponents, ContributionsTax } from './superConcessional.js';
@@ -2119,6 +2120,8 @@ export const incomeTaxDescription = (name: string): string => `${INCOME_TAX_LINE
 export const capitalGainsTaxDescription = (name: string): string => `${CAPITAL_GAINS_TAX_LINE}, ${name}`;
 export const taxTrueUpDescription = (name: string, fy: FinancialYear): string => `${TAX_TRUE_UP_LINE}, ${name}, ${fy}`;
 export const ONE_OFF_EXPENSE_LINE = 'One-off expense';
+/** `GIFT`'s cash: money given away, charged in its own month exactly as a one-off expense is. */
+export const GIFT_LINE = 'Gift';
 
 /**
  * **THE SECOND 15% — P6-9 chunk 3, and it is NOT an income-tax line.**
@@ -4782,6 +4785,7 @@ export const UNLEGISLATED = Object.freeze({
   growth: Object.freeze({ basis: 'none', note: 'A Setting-supplied return applied to a stated balance; no register figure stands behind it.' } as const),
   spending: Object.freeze({ basis: 'none', note: 'A spending level stated by the Scenario; no register figure stands behind it.' } as const),
   oneOff: Object.freeze({ basis: 'none', note: 'A one-off amount stated by the Scenario; no register figure stands behind it.' } as const),
+  gift: Object.freeze({ basis: 'none', note: 'A gift amount stated by the Scenario; no register figure stands behind the cash. What it does to the means test carries the Age Pension register.' } as const),
   shortfall: Object.freeze({ basis: 'none', note: 'An accounting residual — what the Waterfall could not fund; no register figure stands behind it.' } as const),
   portfolioSale: Object.freeze({ basis: 'none', note: 'A disposal of stated parcels at stated values; the tax on the gain is its own line and carries the register.' } as const),
   portfolioPurchase: Object.freeze({ basis: 'none', note: 'A purchase amount stated by the Scenario; no register figure stands behind it.' } as const),
@@ -4994,6 +4998,14 @@ const agePensionProvenance = (fy: FinancialYear, entitlement: AgePensionEntitlem
   }
   if (rates !== undefined) consumed.push([`agePension.paymentRates.${entitlement.ratesEffective}`, rates]);
   if (meansTest !== undefined) consumed.push([`agePension.meansTest.${entitlement.meansTestEffective}`, meansTest]);
+  // A month carrying a gift's deprived amount consumed the gifting free areas too (register §4.12).
+  if (entitlement.assets.deprivedAssets !== undefined) {
+    consumed.push(
+      ['agePension.gifting.annualFreeArea', AGE_PENSION.gifting.annualFreeArea],
+      ['agePension.gifting.rollingFreeArea', AGE_PENSION.gifting.rollingFreeArea],
+      ['agePension.gifting.deprivationYears', AGE_PENSION.gifting.deprivationYears],
+    );
+  }
   const own = provenanceOf(fy, consumed);
   // **THE CARRIED-FORWARD CAVEAT (P4-1e).** `rates effective 2026-09-20` is true of a month in 2045
   // and says nothing about the distance, because the carried set IS the published one — so without
@@ -5611,7 +5623,7 @@ interface Death {
  * Persons (`personsReachedBy`), and one of them has died.
  */
 const HOUSEHOLD_FACTS: ReadonlySet<Entry['type']> = new Set([
-  'SPEND_CHANGE', 'ONE_OFF_EXPENSE', 'MORTGAGE_REFINANCE', 'MORTGAGE_TARGET', 'MORTGAGE_PAYOFF',
+  'SPEND_CHANGE', 'ONE_OFF_EXPENSE', 'GIFT', 'MORTGAGE_REFINANCE', 'MORTGAGE_TARGET', 'MORTGAGE_PAYOFF',
   // **P14-13 — selling the home is the household's own fact, not the deceased's**: a survivor can
   // still sell the family home after the other partner has died, exactly as they can still refinance
   // or pay off the loan on it.
@@ -5961,6 +5973,10 @@ export const project = (
   // entries are switched on.** `undefined` for every Household that states none, and then nothing
   // below reads it: each site it reaches is a branch on `deceasedNow`, which is `undefined` too.
   const death = deathOf(entries, household, first);
+  // **Every enabled `GIFT`'s deprived amount, from ALL of them, pre-dated ones included** — not from
+  // `applied`, where a pre-dated gift (an `event`) never arrives (`deprivedAssets.ts`). Empty for a
+  // plan with no gift, and then every month below passes nothing and reports nothing new.
+  const gifts = deprivedGifts(entries);
   // Two standing facts per Person, carried ACROSS months because both arrive as levels: a level
   // applies from its month until something supersedes it, and a `Map` keyed by month cannot say so.
   // Whether a Person is stopped (retired) in a month is NOT carried here: `workSpells` answers it,
@@ -7989,6 +8005,10 @@ export const project = (
     // it is widened, the slot is `Month.notes`, and that sentence is superseded there rather than
     // deleted. The note is emitted from the SAME boolean the entitlement is decided by, so a month
     // cannot be silently uncomputed and unannotated.
+    // The Household's deprived amount this month (register §4.12): after a death, only what the
+    // survivor gave, alone or jointly, still counts — and then in full (s 1126AC(4)-(5)).
+    const deprivedThisMonth = deprivedAmountOn(gifts, date, deceasedNow === undefined ? undefined : (death?.survivor as 0 | 1));
+    const deprivedAssets = deprivedThisMonth === 0 ? undefined : deprivedThisMonth;
     const agePensionComputable = agePensionParametersCover(date);
     if (!agePensionComputable) notes.push(PARAMETER_WINDOW_NOTES['Age Pension']);
     const entitlement = agePensionComputable
@@ -8001,6 +8021,7 @@ export const project = (
           ...(careVacatedHomeAssessment === undefined ? {} : { careVacatedHomeAssessment }),
           ...(activeRentOutHome === undefined ? {} : { otherAssessableIncomePerFortnight: rentPerFortnightForAgePension }),
           ...(saleProceedsSetAsideThisMonth === undefined ? {} : { saleProceedsSetAside: saleProceedsSetAsideThisMonth }),
+          ...(deprivedAssets === undefined ? {} : { deprivedAssets }),
         })
       : undefined;
 
@@ -8021,8 +8042,8 @@ export const project = (
     // the deceased holds nothing (the ADR-0005 assertion below checks exactly that).
     const assets: AssetSplit =
       deceasedNow === undefined
-        ? (entitlement?.assets ?? splitAssets(householdThisMonth, date, careVacatedHomeAssessment))
-        : splitAssets(householdThisMonth, date, careVacatedHomeAssessment);
+        ? (entitlement?.assets ?? splitAssets(householdThisMonth, date, careVacatedHomeAssessment, undefined, deprivedAssets))
+        : splitAssets(householdThisMonth, date, careVacatedHomeAssessment, undefined, deprivedAssets);
     if (entitlement === undefined && assets.homeIsAssessableButUnvalued) {
       throw new UnvaluedAssessableHomeError();
     }
@@ -8112,11 +8133,14 @@ export const project = (
     // the same way, and income tax treats it the same way (the Age Pension is not in taxable income,
     // `project()`'s doc and register §8).
     if (coupleHadTheyLived !== undefined && entitlement !== undefined && death !== undefined) {
+      // Had they lived, the couple would still carry every gift either of them made.
+      const coupleDeprived = deprivedAmountOn(gifts, date);
       const couple = agePensionEntitlement({
         household: coupleHadTheyLived,
         date,
         deemingRates: settings.deemingRates,
         indexationSeries,
+        ...(coupleDeprived === 0 ? {} : { deprivedAssets: coupleDeprived }),
       });
       const bothPensioners = couple.eligiblePersons.length === 2 && couple.perPersonRatePerFortnight > 0;
       const amount = bothPensioners
@@ -9898,6 +9922,10 @@ export const project = (
         : monthlySpendFromAnnual(inflateStated(spendingLevel.annualSpend, settings.economicSeries.cpi, settings.asAtDate, month));
     const oneOffs = entriesThisMonth.filter((entry) => entry.type === 'ONE_OFF_EXPENSE');
     const oneOffTotal = oneOffs.reduce<number>((total, entry) => total + entry.params.amount, 0) as Cents;
+    // **A `GIFT` is charged in the same target, nominal, on `ONE_OFF_EXPENSE`'s footing (rulings J5,
+    // J6)** — a gift larger than the money available takes the same `Unfunded shortfall` path.
+    const giftsThisMonth = entriesThisMonth.filter((entry) => entry.type === 'GIFT');
+    const giftTotal = giftsThisMonth.reduce<number>((total, entry) => total + entry.params.amount, 0) as Cents;
     // **`undefined` where there is no loan to pay, and it is a THIRD state rather than a nil one.**
     // A Household that states no mortgage and a loan that has amortised to nil both land here, and
     // neither emits a line, a note or a cent — which is what keeps every walk written before this
@@ -9981,7 +10009,7 @@ export const project = (
         : toCents(0);
     const paidFromSetAside = Math.max(0, Math.min(homePurchaseThisMonth + downsizerThisMonth, setAsideAtPurchase, openingBalance)) as Cents;
     if (downsizerThisMonth > 0) setAsideSpentByDownsizer = addCents(setAsideSpentByDownsizer, paidFromSetAside);
-    const target = (monthlySpend + oneOffTotal + (mortgageThisMonth?.payment ?? 0) + radPaidThisMonth + homePurchaseThisMonth + downsizerThisMonth - paidFromSetAside) as Cents;
+    const target = (monthlySpend + oneOffTotal + giftTotal + (mortgageThisMonth?.payment ?? 0) + radPaidThisMonth + homePurchaseThisMonth + downsizerThisMonth - paidFromSetAside) as Cents;
 
     // --- Chunk 5b: LIMB 2, the Account-Based Pension minimum -------------------------------------
     //
@@ -11129,6 +11157,13 @@ export const project = (
         );
       }
     }
+    for (const entry of giftsThisMonth) {
+      if (entry.params.amount > 0) {
+        lines.push(
+          Object.freeze({ direction: 'outflow', effect: 'cash', description: GIFT_LINE, amount: entry.params.amount, provenance: UNLEGISLATED.gift, attribution: statedBy(entry.id) }),
+        );
+      }
+    }
     if (result.shortfall > 0) {
       lines.push(
         Object.freeze({ direction: 'inflow', effect: 'cash', description: SHORTFALL_LINE, amount: result.shortfall, provenance: UNLEGISLATED.shortfall, attribution: NO_STATING_ENTRY.shortfall }),
@@ -12271,7 +12306,11 @@ export const project = (
           assets.protectedAssets,
           radHeldOpening.reduce<Cents>((total, held) => addCents(total, held), toCents(0)),
         ),
-        assessableAssets: assets.assessableAssets,
+        // **The deprived amount is taken back OUT (ruling J7):** it is money the Household gave away,
+        // and `protectedAssets + assessableAssets` is read as total wealth. It is reported beside, in
+        // `deprivedAssets`, for a reader who wants what the assets test saw.
+        assessableAssets: assets.deprivedAssets === undefined ? assets.assessableAssets : subCents(assets.assessableAssets, assets.deprivedAssets),
+        ...(assets.deprivedAssets === undefined ? {} : { deprivedAssets: assets.deprivedAssets }),
         // **P4-11: the THIRD reader of the one cessation expression** (2026-09-19). Handed the
         // same `gainfulEmploymentAsAt` the entry path and limb 5 read, so this figure cannot
         // report money unreachable while the Waterfall above it spends that very balance.

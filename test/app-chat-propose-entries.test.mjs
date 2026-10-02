@@ -80,6 +80,8 @@ const CASES = {
   RETIRE: [DEMO_PLAN, [draft('RETIRE', 'personB', {})]],
   WORK_PATTERN_CHANGE: [DEMO_PLAN, [draft('WORK_PATTERN_CHANGE', 'personA', { daysPerWeek: 3, annualSalary: toCents(60_000) })]],
   ONE_OFF_EXPENSE: [DEMO_PLAN, [draft('ONE_OFF_EXPENSE', 'household', { amount: toCents(38_000) })]],
+  // GIFT slice 2: a giver who is one Person, so the round trip proves the owner survives too.
+  GIFT: [DEMO_PLAN, [draft('GIFT', 'personB', { amount: toCents(25_000) })]],
   LUMP_SUM_FROM_SUPER: [DEMO_PLAN, [draft('LUMP_SUM_FROM_SUPER', 'personB', { amount: toCents(10_000), interestIndex: 1 })]],
   SUPER_CONTRIBUTION: [DEMO_PLAN, [draft('SUPER_CONTRIBUTION', 'personA', { kind: 'salarySacrificed', annualAmount: toCents(5_000), interestIndex: 1 }), draft('SUPER_CONTRIBUTION', 'personA', { kind: 'stopped' }, '2029-07-01')]],
   MORTGAGE_REFINANCE: [DEMO_PLAN, [draft('MORTGAGE_REFINANCE', 'household', { openingBalance: toCents(100_000), annualInterestRate: 0.061, monthlyRepayment: toCents(2_000) })]],
@@ -124,6 +126,7 @@ const FIELD_OF_BOX = {
   [FORM_BOXES.daysPerWeek]: 'daysPerWeek',
   [FORM_BOXES.annualSalary]: 'annualSalary',
   [FORM_BOXES.oneOffAmount]: 'amount',
+  [FORM_BOXES.giftAmount]: 'amount',
   [FORM_BOXES.amount]: 'amount',
   [FORM_BOXES.sacrificeAmount]: 'annualAmount',
   [FORM_BOXES.loanBalance]: 'openingBalance',
@@ -213,7 +216,7 @@ const typedBack = (entryDraft, boxes) => {
     }[chosen] ?? '' }, 'x', 'y');
   }
   const builder = {
-    SPEND_CHANGE: edits.spendChangeEntry, RETIRE: edits.retireEntry, WORK_PATTERN_CHANGE: edits.workPatternChangeEntry, ONE_OFF_EXPENSE: edits.oneOffExpenseEntry,
+    SPEND_CHANGE: edits.spendChangeEntry, RETIRE: edits.retireEntry, WORK_PATTERN_CHANGE: edits.workPatternChangeEntry, ONE_OFF_EXPENSE: edits.oneOffExpenseEntry, GIFT: edits.giftEntry,
     LUMP_SUM_FROM_SUPER: edits.lumpSumFromSuperEntry, MORTGAGE_REFINANCE: edits.mortgageRefinanceEntry, MORTGAGE_TARGET: edits.mortgageTargetEntry,
     MORTGAGE_PAYOFF: edits.mortgagePayoffEntry, ILLNESS_SEPARATION: edits.illnessSeparationEntry, DEATH: edits.deathEntry, RETURN_CHANGE: edits.returnChangeEntry,
     TTR_START: edits.ttrStartEntry, TTR_RATE_CHANGE: edits.ttrRateChangeEntry, SPOUSE_CONTRIBUTION: edits.spouseContributionEntry, ENTER_CARE: edits.enterCareEntry,
@@ -325,7 +328,7 @@ test('every money box, every offered type, both bases: the value is bare and the
       });
     }
   }
-  assert.equal(money, 2 * 30, 'the money boxes the cases hold'); // + TTR_START's one (RF-3, its amount) + DOWNSIZER_CONTRIBUTION's three (its sale's salePrice and sellingCosts, then amount); 13 + ENTER_CARE's three (homeValue, radPrice, radPaidAsLumpSum) + HEAS_DRAW's one ("maximum" carries no second money box, securityValue's own doc) + SELL_HOME's two (salePrice, sellingCosts) + RENT_OUT_HOME's two (weeklyRent, annualRates) + BUY_HOME's five (its sale's salePrice, sellingCosts and newHomeAmount, then purchasePrice, purchaseCosts)
+  assert.equal(money, 2 * 31, 'the money boxes the cases hold'); // + GIFT's one (its amount, 2026-10-02) + TTR_START's one (RF-3, its amount) + DOWNSIZER_CONTRIBUTION's three (its sale's salePrice and sellingCosts, then amount); 13 + ENTER_CARE's three (homeValue, radPrice, radPaidAsLumpSum) + HEAS_DRAW's one ("maximum" carries no second money box, securityValue's own doc) + SELL_HOME's two (salePrice, sellingCosts) + RENT_OUT_HOME's two (weeklyRent, annualRates) + BUY_HOME's five (its sale's salePrice, sellingCosts and newHomeAmount, then purchasePrice, purchaseCosts)
   // The three kinds of stated money, each on its own label.
   const [spend, salary, lump] = [
     ['SPEND_CHANGE', 'household', { annualSpend: toCents(72_000) }],

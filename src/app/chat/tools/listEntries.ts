@@ -45,6 +45,7 @@ const statedFigures = (entry: Entry): readonly Stated[] => {
     case 'WORK_PATTERN_CHANGE':
       return [[entry.params.annualSalary, 'todaysWages']];
     case 'ONE_OFF_EXPENSE':
+    case 'GIFT':
     case 'LUMP_SUM_FROM_SUPER':
     case 'SPOUSE_CONTRIBUTION':
       return [[entry.params.amount, 'nominal']];

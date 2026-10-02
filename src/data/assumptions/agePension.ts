@@ -120,6 +120,14 @@ const DSS_GUIDE_SALE_PROCEEDS = {
   registerSection: '§4.4.1',
 } as const;
 
+const GIFTING = {
+  source:
+    'Services Australia — "How much you can gift" and "How gifting can affect your payment" (both last updated 3 February 2025) · SSA 1991 ss 9(1), 9(4), 1126AA-1126AD, 1127, compilation 233 (C2026C00427, registered 19 September 2026)',
+  retrieved: '2026-10-02',
+  confidence: 'primary-verified',
+  registerSection: '§4.12',
+} as const;
+
 const WORK_BONUS = {
   source: 'Services Australia — Work Bonus balance · how the Work Bonus works · Work Bonus and your partner income',
   retrieved: '2026-09-03',
@@ -1165,6 +1173,32 @@ export const AGE_PENSION = deepFreeze({
       everyYear: true,
       value: true,
     } satisfies Constant<boolean>,
+  },
+
+  // **Gifting — the deprived-asset free areas (register §4.12).** Read by `core/deprivedAssets.ts`.
+  // Literals in the Act, and absent from the Part 3.16 indexation table: NOT indexed.
+  gifting: {
+    annualFreeArea: {
+      ...GIFTING,
+      kind: 'constant',
+      everyYear: true,
+      value: toCents(10_000),
+      note: 'Services Australia: "The value of the gifting free areas are the same if you\'re a single person or a couple. They are both: $10,000 in one financial year; $30,000 over 5 financial years - this can\'t include more than $10,000 in a single financial year." s 1126AA(2) / s 1126AC(2): "exceeds $10,000". A couple shares ONE limit (s 1126AC(2) sums the disposals of "the person, the person\'s partner, or the person and the person\'s partner"), each partner carrying half the excess. Not indexed.',
+    } satisfies Constant<Cents>,
+    rollingFreeArea: {
+      ...GIFTING,
+      kind: 'constant',
+      everyYear: true,
+      value: toCents(30_000),
+      note: 's 1126AB(2) / s 1126AD(2): the disposal plus every disposal in the rolling period (the income year of the disposal and the 4 previous income years, s 1126AB(4) / s 1126AD(6)), less the amounts already included under ss 1126AA-1126AD in that period, "exceeds $30,000" — the lesser of that excess and the disposal is included. Services Australia\'s worked example (1 May 2022, $11,000 → $6,000) adds the two excesses. Not indexed.',
+    } satisfies Constant<Cents>,
+    deprivationYears: {
+      ...GIFTING,
+      kind: 'constant',
+      everyYear: true,
+      value: 5,
+      note: 's 1126AA(2): included "for the period of 5 years starting on the day on which the relevant disposal took place". Services Australia: "This applies for 5 years from the date you make the gift" — the excess is in the assets test AND deemed (s 9(1)(b), a deprived asset is a financial asset). The same 5 also sets the rolling period\'s length (the income year and the 4 before it).',
+    } satisfies Constant<number>,
   },
 
   // **P12-1 — when one of a couple dies (register §4.11).** Read by `core/bereavement.ts` and by

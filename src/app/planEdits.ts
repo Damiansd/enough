@@ -498,6 +498,12 @@ export interface OneOffExpenseFormValues extends EntryFormValues {
   readonly amount: string;
 }
 
+/** `GIFT` (register §4.12). The owner is the giver; `household` is a gift both gave. */
+export interface GiftFormValues extends EntryFormValues {
+  /** What is given, in DOLLARS on the day, as typed — `ONE_OFF_EXPENSE`'s money (register O86). */
+  readonly amount: string;
+}
+
 /**
  * `NON_SUPER_INVESTMENT` with `direction: 'buy'`. Carries `incidentalCostsOfAcquisition`, which is
  * REQUIRED on a buy (`plan.ts`: *"state `toCents(0)` where there were none"*) and which the sell
@@ -1251,6 +1257,17 @@ export const INSURANCE_COVER_CHANGE_ENTRY_NOTICE =
 /** A candidate `ONE_OFF_EXPENSE` — one outflow, in this entry's own month. */
 export const oneOffExpenseEntry = (values: OneOffExpenseFormValues, id: string, createdAt: string): unknown =>
   candidateEntry(values, 'ONE_OFF_EXPENSE', { amount: dollarsToCents(values.amount) }, id, createdAt);
+
+/** A candidate `GIFT` — one outflow in its own month; `parsePlan` refuses a nil amount and a giver not in the file. */
+export const giftEntry = (values: GiftFormValues, id: string, createdAt: string): unknown =>
+  candidateEntry(values, 'GIFT', { amount: dollarsToCents(values.amount) }, id, createdAt);
+
+export const GIFT_ENTRY_SUMMARY =
+  'A gift over the gifting limits still counts against the Age Pension for five years.';
+
+export const GIFT_ENTRY_NOTICE =
+  'Enter the amount as it will be on the day. A couple shares one set of limits. Gifts from the five years' +
+  ' before this plan starts count too: enter them with their real date.';
 
 /**
  * A candidate `NON_SUPER_INVESTMENT` **buy**. `direction: 'buy'` is written here, not read off the

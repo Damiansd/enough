@@ -1253,6 +1253,17 @@ const PARAMS_PARSERS = {
     const record = object(PlanFileEntryError, value, path, ['amount']);
     return { amount: cents(PlanFileEntryError, record['amount'], `${path}.amount`) };
   },
+  // `GIFT` (register §4.12). The amount, nominal on the day (`GiftParams`), is more than nothing on
+  // `LUMP_SUM_FROM_SUPER.amount`'s ground: a nil gift disposes of nothing, and a negative one is
+  // money RECEIVED, which no means-test rule here reads. The giver is `checkGiftGivers`'.
+  GIFT: (value: unknown, path: string): Entry['params'] => {
+    const record = object(PlanFileEntryError, value, path, ['amount']);
+    const amount = cents(PlanFileEntryError, record['amount'], `${path}.amount`);
+    if (amount <= 0) {
+      fail(PlanFileEntryError, `${path}.amount`, `is ${amount} cents, and a gift is more than nothing — money received is not a gift this model reads`);
+    }
+    return { amount };
+  },
   LUMP_SUM_FROM_SUPER: (value: unknown, path: string): Entry['params'] => {
     const record = object(PlanFileEntryError, value, path, ['amount', 'interestIndex']);
     const amount = cents(PlanFileEntryError, record['amount'], `${path}.amount`);
@@ -2440,6 +2451,20 @@ const downsizerNominal = (settings: Settings, stated: Cents, date: IsoDate): Cen
   inflateStated(stated, settings.economicSeries.cpi, settings.asAtDate, date);
 
 /**
+ * **`GIFT`, the giver (register §4.12):** a Person in the file, or `household` for a gift both gave.
+ * The giver decides who carries the deprived amount after a death (`deprivedAssets.ts`), so a
+ * `personB` gift in a Household of one names nobody and is refused rather than counted.
+ */
+const checkGiftGivers = (entries: readonly Entry[], household: Household): void => {
+  for (const [index, entry] of entries.entries()) {
+    if (entry.type !== 'GIFT' || entry.owner === 'household') continue;
+    if (household.persons[entry.owner === 'personA' ? 0 : 1] === undefined) {
+      fail(PlanFileEntryError, `entries[${index}].owner`, `is "${entry.owner}", and this Household has ${household.persons.length} Person — the gift names a giver who is not in the file`);
+    }
+  }
+};
+
+/**
  * **`DOWNSIZER_CONTRIBUTION`, the facts about the owner (P9-5):** a Person who exists, an
  * accumulation interest of their own, 55 or older on the date, and at most $300,000 once the
  * today's-money amount is raised to that date. Every entry, on or off — none of these needs the sale.
@@ -2972,6 +2997,7 @@ export const parsePlan = (value: unknown): PlanFile => {
   checkContributionTargets(entries, household);
   checkSpouseContributionTargets(entries, household);
   checkDownsizerContributionTargets(entries, household, settings);
+  checkGiftGivers(entries, household);
   checkIllnessSeparations(entries, household);
   checkDeaths(entries, household);
   checkHeasDraws(entries, household, settings);

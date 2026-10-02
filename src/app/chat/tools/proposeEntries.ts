@@ -46,6 +46,7 @@ import {
   nonSuperInvestmentBuyEntry,
   nonSuperInvestmentSellEntry,
   oneOffExpenseEntry,
+  giftEntry,
   retireEntry,
   returnChangeEntry,
   sellHomeEntry,
@@ -82,6 +83,7 @@ export const FORM_BOXES = Object.freeze({
   daysPerWeek: 'Days a week',
   annualSalary: 'Salary a year, in today’s money $',
   oneOffAmount: 'Amount, as it will cost on the day $',
+  giftAmount: 'Amount given, as it will be on the day $',
   amount: 'Amount $',
   superAccount: 'Super account',
   sacrificeKind: 'What this entry does',
@@ -182,6 +184,10 @@ const typedOnTheForm = (entry: Entry, ID = TRIAL_ID, CREATED_AT = TRIAL_CREATED_
     case 'ONE_OFF_EXPENSE': {
       const amount = centsToDollars(entry.params.amount);
       return { boxes: boxes([FORM_BOXES.oneOffAmount, amount, entry.params.amount]), built: oneOffExpenseEntry({ ...common, amount }, ID, CREATED_AT) };
+    }
+    case 'GIFT': {
+      const amount = centsToDollars(entry.params.amount);
+      return { boxes: boxes([FORM_BOXES.giftAmount, amount, entry.params.amount]), built: giftEntry({ ...common, amount }, ID, CREATED_AT) };
     }
     case 'LUMP_SUM_FROM_SUPER': {
       const amount = centsToDollars(entry.params.amount);

@@ -170,6 +170,11 @@ export const RULE_CLASSIFICATION: Readonly<Record<string, RuleClassification>> =
   ]),
   ...hidden('a time limit that applies only on the way into aged care; the aged care chapter gives it', ['agePension.assetsTest.careVacatedHomeExemptionMonths']),
   ...hidden('a time limit on one event, a home sale; the home-sale chapter gives it', ['agePension.assetsTest.saleProceedsExemptionMonths']),
+  ...hidden('limits on one event, a gift; they apply only to a plan that gives money away', [
+    'agePension.gifting.annualFreeArea',
+    'agePension.gifting.rollingFreeArea',
+    'agePension.gifting.deprivationYears',
+  ]),
   ...hidden(FORMULA, [
     'agePension.assetsTest.cutOff',
     'agePension.incomeTest.cutOff',

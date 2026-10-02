@@ -88,9 +88,9 @@ test('each described { ... } names exactly the params type\'s keys, ? for option
     assert.deepEqual(sortedShapes(described), sortedShapes(plan.get(type)), `${type}: the catalogue's params disagree with plan.ts`);
     keysCompared += described.flat().length;
   }
-  // Non-vacuity: 23 types, 52 keys across them (TTR_START added two, 2026-09-29; RF-3 its `amount?`, 2026-09-30); a parse that read nothing would pass the loop.
-  assert.equal(OFFERED_ENTRY_TYPES.length, 23);
-  assert.equal(keysCompared, 52);
+  // Non-vacuity: 24 types, 53 keys across them (TTR_START added two, 2026-09-29; RF-3 its `amount?`, 2026-09-30; GIFT its `amount`, 2026-10-02); a parse that read nothing would pass the loop.
+  assert.equal(OFFERED_ENTRY_TYPES.length, 24);
+  assert.equal(keysCompared, 53);
   assert.ok([...plan.values()].flat(2).some((key) => key.endsWith('?')), 'no optional key was read from plan.ts');
 });
 

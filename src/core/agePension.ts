@@ -120,6 +120,12 @@ export interface AgePensionInput {
    * changes: every Household that has never sold its home reads exactly as it always has.
    */
   readonly saleProceedsSetAside?: Cents;
+  /**
+   * **Gifts over the gifting free areas (register §4.12)** — the Household's deprived amount on
+   * `date`, worked out by `deprivedAssets.ts` and forwarded, untouched, to `splitAssets`'s fifth
+   * parameter, which counts it in both the assets test and deeming. Absent for a plan with no gift.
+   */
+  readonly deprivedAssets?: Cents;
 }
 
 export interface MeansTestResult {
@@ -358,7 +364,7 @@ export const agePensionEntitlement = (input: AgePensionInput): AgePensionEntitle
     throw new RangeError('an illness separation needs a couple: this Household has one Person, and a separation takes two');
   }
 
-  const assets = splitAssets(household, date, input.careVacatedHomeAssessment, input.saleProceedsSetAside);
+  const assets = splitAssets(household, date, input.careVacatedHomeAssessment, input.saleProceedsSetAside, input.deprivedAssets);
   if (assets.homeIsAssessableButUnvalued) throw new UnvaluedAssessableHomeError();
 
   // Couple thresholds apply even where only one Person is of Age Pension age (§4.8). An
