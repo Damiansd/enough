@@ -5976,7 +5976,7 @@ export const project = (
   // **Every enabled `GIFT`'s deprived amount, from ALL of them, pre-dated ones included** — not from
   // `applied`, where a pre-dated gift (an `event`) never arrives (`deprivedAssets.ts`). Empty for a
   // plan with no gift, and then every month below passes nothing and reports nothing new.
-  const gifts = deprivedGifts(entries);
+  const gifts = deprivedGifts(entries, death);
   // Two standing facts per Person, carried ACROSS months because both arrive as levels: a level
   // applies from its month until something supersedes it, and a `Map` keyed by month cannot say so.
   // Whether a Person is stopped (retired) in a month is NOT carried here: `workSpells` answers it,

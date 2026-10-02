@@ -10010,6 +10010,12 @@ Australia and SSA ss 1126AA-AD, 1127; Aged Care Act 2024 s 330 imports it). Regi
   exception is modelled — unforeseen circumstances is discretionary, granny flat / Special Disability
   Trust / give-back each need inputs the plan doesn't hold; every gift counts, again the lower
   pension. Both are told to the user in Chapter 49. Re-open only on a user ask.
+  **(a) re-opened and built 2026-10-02:** a gift after the death month is tested as a single
+  person's (s 1126AA/AB, quoted in the gate doc addendum): only the survivor's and `household` gifts
+  count — the survivor's own in full, a joint gift at one-half (s 1126AA(3)/AB(3)); the five-year
+  subtraction takes the survivor's HALF of a pre-death inclusion (DEV first took the whole, which
+  over-stated the pension — caught in review). The deceased's own inclusions are not subtracted (the
+  reading that cannot over-state). Guide paragraph and register row updated.
 
 ## Parked — not scoped
 

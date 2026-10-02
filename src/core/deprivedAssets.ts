@@ -14,6 +14,15 @@
 // household figure. After a death the survivor carries a gift they gave (or gave jointly, a
 // `household` gift) in full, and nothing of a gift the deceased gave alone (s 1126AC(4)-(5)).
 //
+// **A gift after the death month is a single person's (s 1126AA, s 1126AB).** Its free areas count
+// the survivor's own earlier gifts in full and a joint (`household`) gift at one-half (s 1126AA(3)/
+// AB(3)); the deceased's own no longer use them up. The s 1126AB(2)(b) subtraction takes what those
+// same gifts put in the SURVIVOR's assets: one-half of a pre-death gift's included amount (a couple
+// carries it one-half each), all of a post-death one. The deceased's own past inclusions are left
+// out of that subtraction — the text could be read to take the survivor's half of them too, and
+// leaving them out is the reading that cannot over-state the pension. Odd cents: a counted disposal
+// halves UP, a subtracted inclusion halves DOWN — both to a lower pension.
+//
 // **Every gift counts (ruling J4).** None of the exceptions — s 1127(b) unforeseen circumstances,
 // granny flat interests, s 1126E give-backs, Special Disability Trusts, inadequate consideration —
 // is modelled: the direction is conservative, a lower pension.
@@ -22,7 +31,7 @@
 // (`ENTRY_KIND`), so one dated before `asAtDate` never reaches a month — but its deprived amount still
 // runs out the rest of its five years (s 1127 drops only a disposal made more than five years before).
 
-import { addCents, subCents, toCents } from './money.js'; // `.js` is correct in a `.ts` file — see tsconfig.json
+import { addCents, mulCents, subCents, toCents } from './money.js'; // `.js` is correct in a `.ts` file — see tsconfig.json
 import type { Cents } from './money.js';
 import { monthOf } from './forecastWindow.js';
 import type { Entry, EntryOwner, IsoMonth } from './plan.js';
@@ -66,7 +75,10 @@ const sum = (amounts: readonly Cents[]): Cents => amounts.reduce<Cents>((total, 
  * Every enabled `GIFT` in `entries`, with its included amount, in the order the gifts were made —
  * by date, then by the Scenario's own order for gifts on one day.
  */
-export const deprivedGifts = (entries: readonly Entry[]): readonly DeprivedGift[] => {
+export const deprivedGifts = (
+  entries: readonly Entry[],
+  death?: { readonly month: IsoMonth; readonly survivor: 0 | 1 },
+): readonly DeprivedGift[] => {
   const annualFreeArea = AGE_PENSION.gifting.annualFreeArea.value;
   const rollingFreeArea = AGE_PENSION.gifting.rollingFreeArea.value;
   const years = AGE_PENSION.gifting.deprivationYears.value;
@@ -79,9 +91,23 @@ export const deprivedGifts = (entries: readonly Entry[]): readonly DeprivedGift[
   for (const entry of gifts) {
     const amount = entry.params.amount;
     const year = financialYearEnd(entry.date);
-    const inYear = made.filter((gift) => financialYearEnd(gift.date) === year);
+    const survivor = death === undefined || monthOf(entry.date) <= death.month ? undefined : death.survivor === 0 ? 'personA' : 'personB';
+    // Each earlier gift as it counts for THIS gift's test: its disposal and its included amount.
+    const halfUp = (cents: Cents): Cents => mulCents(cents, 0.5);
+    const halfDown = (cents: Cents): Cents => subCents(cents, halfUp(cents));
+    const counted = made.flatMap((gift) => {
+      if (survivor === undefined) return [{ date: gift.date, amount: gift.amount, deprived: gift.deprived }];
+      if (gift.giver !== survivor && gift.giver !== 'household') return [];
+      const preDeath = monthOf(gift.date) <= (death as { readonly month: IsoMonth }).month;
+      return [{
+        date: gift.date,
+        amount: gift.giver === 'household' ? halfUp(gift.amount) : gift.amount,
+        deprived: preDeath ? halfDown(gift.deprived) : gift.deprived,
+      }];
+    });
+    const inYear = counted.filter((gift) => financialYearEnd(gift.date) === year);
     // s 1126AB(4) / s 1126AD(6): the income year of the gift and the four before it.
-    const inRollingPeriod = made.filter((gift) => financialYearEnd(gift.date) > year - years);
+    const inRollingPeriod = counted.filter((gift) => financialYearEnd(gift.date) > year - years);
     const annual = lesser(amount, excessOver(addCents(sum(inYear.map((gift) => gift.amount)), amount), annualFreeArea));
     // s 1126AB(2)(b) / s 1126AD(2)(b): less every amount already included in the period, this gift's
     // annual amount among them, so a dollar is never included twice.

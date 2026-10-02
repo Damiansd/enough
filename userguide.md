@@ -2843,9 +2843,10 @@ the forecast shows.
 your daughter for $1, say — Centrelink treats the difference as a gift. Add a
 **{{name|Give money away}}** entry for the difference, on the day of the sale.
 
-**After one of you dies.** *enough* keeps counting both of your earlier gifts against the survivor's
-limits. Centrelink would count only the survivor's own gifts, so a survivor who gives money away soon
-after may get a little more pension than the forecast shows.
+**After one of you dies.** Gifts the person who died made on their own stop counting. Gifts the
+survivor made, alone or with them, keep counting in full until their five years are up. A gift the survivor makes after the month of the death is tested against
+the limits as a single person's: only the survivor's own earlier gifts, and the ones you gave
+together, count against them — a gift you gave together counts at half, as Centrelink counts it.
 
 ### Pip and Jo
 

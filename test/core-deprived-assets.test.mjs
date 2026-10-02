@@ -119,6 +119,60 @@ test('after a death: the survivor carries their own and joint gifts in full, and
   assert.equal(deprivedAmountOn(made, '2026-09-01', 1), toCents(5_000), 'personB survives: the joint gift only');
 });
 
+// GIFT-3 (a): a gift after the death month is a single person's (s 1126AA, s 1126AB) — only the
+// survivor's own and joint gifts use up its free areas. Alex (personA) dies in March 2026; Blair survives.
+const ALEX_DIES = { month: '2026-03', survivor: 1 };
+
+test('after the death month the survivor\'s gift is tested alone: the deceased\'s gifts no longer use the free area', () => {
+  const gifts = [gift('a', '2025-08-01', 10_000, 'personA'), gift('b', '2026-05-01', 10_000, 'personB')];
+  assert.deepEqual(deprivedGifts(gifts).map((g) => g.deprived), [0, toCents(10_000)], 'no death: one shared $10,000');
+  assert.deepEqual(deprivedGifts(gifts, ALEX_DIES).map((g) => g.deprived), [0, 0]);
+});
+
+test('after the death month the survivor\'s own earlier gifts count in full and a joint one at one-half (s 1126AA(3))', () => {
+  const own = [gift('b1', '2025-08-01', 6_000, 'personB'), gift('b2', '2026-05-01', 6_000, 'personB')];
+  assert.deepEqual(deprivedGifts(own, ALEX_DIES).map((g) => g.deprived), [0, toCents(2_000)]);
+  // $3,000 (half the joint $6,000) + $6,000 = $9,000: under the $10,000.
+  const joint = [gift('h', '2025-08-01', 6_000, 'household'), gift('b', '2026-05-01', 6_000, 'personB')];
+  assert.deepEqual(deprivedGifts(joint, ALEX_DIES).map((g) => g.deprived), [0, 0]);
+  // $4,000 (half the joint $8,000) + $8,000 = $12,000: $2,000 over.
+  const jointOver = [gift('h', '2025-08-01', 8_000, 'household'), gift('b', '2026-05-01', 8_000, 'personB')];
+  assert.deepEqual(deprivedGifts(jointOver, ALEX_DIES).map((g) => g.deprived), [0, toCents(2_000)]);
+});
+
+test('after the death the five-year test subtracts only the survivor\'s HALF of a pre-death inclusion (s 1126AB(2)(b))', () => {
+  // Blair's $20,000 in 2023-08 is $10,000 over as a couple, carried one-half each, so $5,000 was Blair's.
+  // For 2025-08: disposed $20k + $10k + $10k = $40k, less $5k included = $35k, $5,000 over $30,000.
+  // Subtracting the whole $10,000 would read $30,000 and nothing over — the pension over-stated.
+  const gifts = [
+    gift('b1', '2023-08-01', 20_000, 'personB'),
+    gift('b2', '2024-08-01', 10_000, 'personB'),
+    gift('b3', '2025-08-01', 10_000, 'personB'),
+    gift('b4', '2026-08-01', 10_000, 'personB'),
+  ];
+  assert.deepEqual(deprivedGifts(gifts, { month: '2024-01', survivor: 1 }).map((g) => g.deprived),
+    [toCents(10_000), 0, toCents(5_000), toCents(10_000)]);
+});
+
+test('a gift before or in the death month keeps the couple test', () => {
+  const before = [gift('a', '2025-08-01', 10_000, 'personA'), gift('b', '2026-02-28', 10_000, 'personB')];
+  assert.deepEqual(deprivedGifts(before, ALEX_DIES).map((g) => g.deprived), [0, toCents(10_000)]);
+  const inMonth = [gift('a', '2025-08-01', 10_000, 'personA'), gift('b', '2026-03-20', 10_000, 'personB')];
+  assert.deepEqual(deprivedGifts(inMonth, ALEX_DIES).map((g) => g.deprived), [0, toCents(10_000)]);
+});
+
+test('after the death month the five-year test subtracts only what the survivor\'s counted gifts included', () => {
+  const gifts = [
+    gift('b22', '2022-07-10', 10_000, 'personB'),
+    gift('b23', '2023-07-10', 10_000, 'personB'),
+    gift('a23', '2023-08-01', 40_000, 'personA'),
+    gift('b24', '2024-08-01', 10_000, 'personB'),
+    gift('b25', '2025-08-01', 10_000, 'personB'),
+  ];
+  // Blair's four $10,000s are $40,000 over five years, $10,000 over; Alex's $40,000 included is not Blair's to subtract.
+  assert.deepEqual(deprivedGifts(gifts, { month: '2024-01', survivor: 1 }).map((g) => g.deprived), [0, 0, toCents(40_000), 0, toCents(10_000)]);
+});
+
 test('a disabled gift is no gift', () => {
   assert.deepEqual(deprivedGifts([gift('g', '2025-08-01', 50_000, 'personA', false)]), []);
 });
@@ -234,6 +288,15 @@ test('walk: after the giver dies the deprived amount ends; the survivor\'s own g
   assert.equal('deprivedAssets' in at(byAlex, '2027-06'), false);
   const byBlair = project(SETTINGS, couple, [gift('g', '2026-11-15', 50_000, 'personB'), death]);
   assert.equal(at(byBlair, '2027-06').deprivedAssets, toCents(40_000));
+});
+
+test('walk: after the death month the survivor\'s gift has its own $10,000, the deceased\'s earlier gift aside', () => {
+  const couple = { persons: [person('Alex', '1955-06-01'), person('Blair', '1955-07-01')], homeStatus: 'occupied', openingOffsetBalance: toCents(600_000) };
+  const gifts = [gift('a', '2026-11-15', 10_000, 'personA'), gift('b', '2027-04-15', 10_000, 'personB')];
+  const alive = project(SETTINGS, couple, gifts);
+  assert.equal(at(alive, '2027-05').deprivedAssets, toCents(10_000), 'as a couple, one shared $10,000');
+  const widowed = project(SETTINGS, couple, [...gifts, entry('d', 'DEATH', '2027-02-10', {}, 'personA')]);
+  assert.equal('deprivedAssets' in at(widowed, '2027-05'), false);
 });
 
 test('aged care sees the deprived amount through the shared assessable figure', () => {

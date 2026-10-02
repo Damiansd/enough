@@ -114,3 +114,27 @@ Tests slice 1 must fail under mutation (all in a new `test/core-deprived-assets.
 - **J6: gift too big for the cash.** Falls to the existing `Unfunded shortfall` path (the one-off precedent). The deprived amount still counts, since the disposal occurred.
 - **J7: the reporting split in 2.1 (new `Month.deprivedAssets`).** The alternative, putting the phantom in `Month.assessableAssets`, is simpler but corrupts total wealth and the Pension-Only Age; not recommended.
 - **J8: gifts by someone below Age Pension age.** They count only when the pension test runs (s 1127 only drops gifts more than 5 years before qualification). No special handling needed.
+
+## Addendum, 2026-10-02: the after-death free areas (TODO GIFT-3 (a))
+
+Source: Social Security Act 1991 `C2004A04121`, latest compilation (No. 233, compilation date 19 September 2026), volume 3, fetched again from the Federal Register API (`documents/find(... asatspecification='Latest' ... volumeNumber=3 ...)`, curl with a desktop Chrome UA, HTTP 200).
+
+**A single person's tests count only that person's own disposals.**
+- s 1126AA(1): "This section applies to a disposal (the relevant disposal) on or after 1 July 2002 of an asset by a person who is not a member of a couple at the time of the relevant disposal."
+- s 1126AA(2): "If the amount of the relevant disposal, or the sum of that amount and the amounts (if any) of other disposals of assets previously made by the person during the income year in which the relevant disposal took place, exceeds $10,000, ..."
+- s 1126AB(1) is the same as s 1126AA(1). s 1126AB(2): "(a) the sum of the amount of the relevant disposal and the amounts of any previous disposals of assets made during the rolling period by the person; less (b) the sum of any amounts included in the value of the person's assets during the rolling period under section 1126AA, 1126AC or 1126AD or any previous application or applications of this section; exceeds $30,000, ..."
+
+**Transition from couple to single (joint disposals).**
+- s 1126AA(3): "If, during the income year in which the relevant disposal took place but before the time of the relevant disposal, the person was a member of a couple who jointly disposed of an asset, a reference in subsection (2) to the amounts (if any) of other disposals of assets previously made by the person during that income year includes a reference to one-half of the amount of the joint disposal."
+- s 1126AB(3): the same for the rolling period, "one-half of the amount of the joint disposal".
+- The reverse direction is s 1126AC(2): a couple's test counts disposals "(whether before or after they became members of the couple)".
+
+**Death (already built as ruling J2, unchanged).**
+- s 1126AC(4) / s 1126AD(4): "If, after the disposal referred to in paragraph (1)(a), the person dies, no amount is to be included in the value of the assets of the person's partner because of that disposal."
+- s 1126AC(5) / s 1126AD(5): "If, after the disposal referred to in paragraph (1)(a), the person's partner dies, any amount that, if the partner had not died, would have been included in the value of the assets of the partner because of that disposal is to be included in the value of the assets of the person."
+
+**What is built, and where it departs from the text (both conservative, a lower or equal pension).**
+- A gift dated after the death month is tested as a single person's: the pool is every earlier gift owned by the survivor or by `household`, including ones made before the death, inside the year / rolling period. The deceased's own gifts no longer use up the free areas.
+- **Revised in review (LIZ), 2026-10-02:** a `household` (joint) gift is counted at ONE-HALF in that pool, as s 1126AA(3)/1126AB(3) say (the first build counted it in full; the user asked for the death implications fixed, and the text is clear, so the conservative fallback did not apply). Odd cents halve UP.
+- The s 1126AB(2)(b) subtraction takes the SURVIVOR's share of what those pooled gifts included: one-half of a pre-death gift's included amount (a couple carries it one-half each), all of a post-death one; odd cents halve DOWN. The first build subtracted the whole household figure, which subtracts too much and OVER-STATES the pension — the opposite of its stated direction. The survivor's half of the deceased's own gifts, which the text would arguably also subtract, is still left out — the reading that cannot over-state.
+- Gifts in or before the death month keep the couple test (s 1126AC/AD) and the J2 carry rules.
