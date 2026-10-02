@@ -10002,10 +10002,14 @@ Australia and SSA ss 1126AA-AD, 1127; Aged Care Act 2024 s 330 imports it). Regi
 - [x] **GIFT-2** Door, form ("Give money away"), chat catalogue, "Gifts still counted by Centrelink"
   row + dotted chart line, guide section `{#gifts}`. Seen rendered on a copy of the real plan with a
   $100,000 gift in 2040-07: 59 rows, $90,000 nominal.
-- [ ] **GIFT-3** Known limits, conservative (understate the pension), not built: after a death the
-  survivor's gifts share one free-area count with the dead partner's; no exception is modelled
-  (unforeseen circumstances, granny flat, Special Disability Trust, give-back). The guide's
-  dictionary has no gift / deprived-asset entry.
+- [x] **GIFT-3** Closed 2026-10-02. Guide: dictionary rows *Deprived asset* and *Gifting limits*;
+  "selling something cheap counts too" (enter the shortfall as a GIFT); the after-death limit stated.
+  **Ruled NOT to build (mine, conservative-failure-mode precedent):** (a) after a death the survivor's
+  later gifts still share one free-area count with the dead partner's earlier ones — errs to a LOWER
+  pension, and splitting it needs per-gift giver history the single-person test would read; (b) no
+  exception is modelled — unforeseen circumstances is discretionary, granny flat / Special Disability
+  Trust / give-back each need inputs the plan doesn't hold; every gift counts, again the lower
+  pension. Both are told to the user in Chapter 49. Re-open only on a user ask.
 
 ## Parked — not scoped
 

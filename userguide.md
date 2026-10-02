@@ -2839,6 +2839,14 @@ disability trust for a family member, or a gift given back to you. *enough* does
 of these: it counts every gift. If one of them applies to you, your real pension could be higher than
 the forecast shows.
 
+**Selling something cheap counts too.** If you sell something for less than it's worth — a car to
+your daughter for $1, say — Centrelink treats the difference as a gift. Add a
+**{{name|Give money away}}** entry for the difference, on the day of the sale.
+
+**After one of you dies.** *enough* keeps counting both of your earlier gifts against the survivor's
+limits. Centrelink would count only the survivor's own gifts, so a survivor who gives money away soon
+after may get a little more pension than the forecast shows.
+
 ### Pip and Jo
 
 - **In {{fig age-pension-first-month month|January 2038}}**, when Pip's Age Pension starts, the **assets test** is the one holding it
@@ -4221,12 +4229,14 @@ A dictionary for everyone. Each word has a short meaning and the chapter where y
 | **Daily accommodation payment** | Paying for a care home room a bit every day, instead of all at once. | [Chapter 52](#aged-care) |
 | **Death cover** | Insurance that pays your family if you die. | [Chapter 11](#super-insurance) |
 | **Deeming** | Centrelink pretends your savings and investments earn a set rate, whatever they really earn. | [Chapter 49](#means-test) |
+| **Deprived asset** | Money you gave away above Centrelink's gifting limits. It still counts as yours for the Age Pension for five years. | [Chapter 49](#gifts) |
 | **Division 293** | An extra tax on super payments for people who earn a lot. | [Chapter 27](#division-293) |
 | **Downsizer contribution** | Putting money from selling your home into super, from age 55. | [Chapter 46](#downsizer-contribution) |
 | **Entry** | One dated change in your plan, like "retire on 1 January 2034". | [Chapter 16](#dated-entries) |
 | **Fee (super)** | Money your super fund charges to look after your super. | [Chapter 10](#super-fees) |
 | **Forecast** | A careful guess about the future. | [Chapter 6](#guess-not-promise) |
 | **Franking credit** | Tax a company has already paid on the money it pays you. It can make your own tax smaller. | [Chapter 30](#capital-gains-and-franking) |
+| **Gifting limits** | How much you can give away without it counting against your Age Pension: $10,000 a financial year and $30,000 over five years, one set for a couple. | [Chapter 49](#gifts) |
 | **Gross pay** | Your pay before tax comes out. | [Chapter 8](#household-people) |
 | **Home Equity Access Scheme (HEAS)** | A government loan against your home, paid to you each fortnight. | [Chapter 51](#home-equity-access) |
 | **Illness separation** | When a couple has to live apart because of illness or care. | [Chapter 54](#illness-separation) |
