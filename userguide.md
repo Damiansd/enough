@@ -2412,8 +2412,10 @@ A slider only moves a change that is already in the plan. If there is none, it i
 why. To add one, use **{{name|Change the plan}}**.
 
 As you move a slider, the chart draws just two lines: your Scenario and **{{name|Sandbox (unsaved)}}**.
-Beside the sliders, four answers are shown for each: when the money runs out, when you would live on
-the Age Pension alone, when the loan is paid off, and how much you could spend. The last one takes a
+Beside the sliders, five answers are shown for each: when the money runs out, whether you get any Age
+Pension as soon as you reach pension age, when you would live on the Age Pension alone, when the loan
+is paid off, and how much you could spend. For a couple, the pension-age answer is for whichever of you
+reaches pension age first. If it says No, it shows when the pension first starts. The last one takes a
 second to work out, so it says "updating…" until it is ready.
 
 Some mixes can't be forecast, such as stopping work before a transition to retirement pension starts.

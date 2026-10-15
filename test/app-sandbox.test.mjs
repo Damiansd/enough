@@ -225,7 +225,7 @@ test('unmoved sliders write nothing, and the four figures agree with the parent'
   const parent = project(PLAN.settings, PLAN.household, scenarioEntries(PLAN, scenarioById(PLAN, 'baseline')));
   const walked = sandboxWalk(candidate);
   const rows = sandboxFigures(PLAN.household, PLAN.settings.economicSeries.agePension, parent, walked.months);
-  assert.deepEqual(rows.map((row) => row.label), ['Money lasts until', 'Living on the Age Pension alone from', 'Mortgage paid off']);
+  assert.deepEqual(rows.map((row) => row.label), ['Money lasts until', 'Qualify for Pension from Pension age?', 'Living on the Age Pension alone from', 'Mortgage paid off']);
   for (const row of rows) {
     assert.equal(row.sandbox, row.selected);
     assert.equal(row.difference, 'same');
@@ -235,12 +235,15 @@ test('unmoved sliders write nothing, and the four figures agree with the parent'
 test('the figures show the difference, and a refused sandbox leaves its column blank rather than stale', () => {
   const parent = project(PLAN.settings, PLAN.household, scenarioEntries(PLAN, scenarioById(PLAN, 'baseline')));
   const smaller = sandboxWalk(sandboxCandidate(PLAN, 'baseline', at({ refinanceBalance: toCents(200_000) }), IDS));
-  const [, , mortgage] = sandboxFigures(PLAN.household, undefined, parent, smaller.months);
+  const [, , , mortgage] = sandboxFigures(PLAN.household, undefined, parent, smaller.months);
   assert.match(mortgage.difference, /^(\d+ years?)?( ?\d+ months?)? earlier$/);
   // The one-sided case names what happened, never a bare "changed" (user ruling 2026-09-30: state the gap).
   const early = sandboxWalk(sandboxCandidate(PLAN, 'baseline', at({ spendFactor: 1.5 }), IDS));
   const [lasts] = sandboxFigures(PLAN.household, undefined, parent, early.months);
   assert.equal(lasts.difference, 'now runs out');
+  // Qualifying at pension age: the parent's own answer is Yes or No, never blank.
+  const [, qualifies] = sandboxFigures(PLAN.household, undefined, parent, early.months);
+  assert.match(qualifies.selected, /^(Yes|No) — /);
   const blank = sandboxFigures(PLAN.household, undefined, parent, undefined);
   for (const row of blank) {
     assert.equal(row.sandbox, '');

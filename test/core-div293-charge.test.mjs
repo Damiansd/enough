@@ -435,5 +435,7 @@ test('no module under src/ filters or groups a line by DESCRIPTION PREFIX — it
   // month for the retirement sentence: `AGE_PENSION_LINE`, compared whole.
   // **SEVENTEEN since 2026-09-25 (P9-6)**: `app/downsizerAgePension.ts` totals the Age Pension paid:
   // `AGE_PENSION_LINE` and `AGE_PENSION_BEREAVEMENT_LINE`, each compared whole.
-  assert.equal(wholeComparisons, 17, 'the whole-description comparisons in src/ have moved, so the absence above proves nothing');
+  // **EIGHTEEN since 2026-10-15**: `app/sandbox.ts`'s `qualifiesAtPensionAge`, the Try changes row
+  // "Qualify for Pension from Pension age?": `AGE_PENSION_LINE`, compared whole.
+  assert.equal(wholeComparisons, 18, 'the whole-description comparisons in src/ have moved, so the absence above proves nothing');
 });

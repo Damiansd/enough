@@ -16,8 +16,9 @@
 // No DOM, no clock, no randomness: ids and the creation date are handed in. Every claim here is an
 // assertion in `test/app-sandbox.test.mjs`.
 import { parsePlan } from '../core/parsePlan.js'; // `.js` is correct in a `.ts` file — see tsconfig.json
-import { project } from '../core/projection.js';
-import { mortgagePayoff, pensionOnlyAge, shortfallAge } from '../core/outcomes.js';
+import { agesAt, mortgagePayoff, pensionOnlyAge, shortfallAge } from '../core/outcomes.js';
+import { AGE_PENSION_LINE, firstDayOf, project } from '../core/projection.js';
+import { hasReachedAgePensionAge } from '../core/household.js';
 import type { AgeAtMonth } from '../core/outcomes.js';
 import { RESOLUTION_CENTS } from '../core/sustainableSpend.js';
 import type { SustainableSpend } from '../core/sustainableSpend.js';
@@ -398,6 +399,48 @@ const readers = (household: Household, series: PlanFile['settings']['economicSer
 ];
 
 /**
+ * **"Qualify for Pension from Pension age?"** (user request, 2026-10-15). Pension age is the first month
+ * any living Person is Age Pension age on its first day — the engine's own test — or the walk's first
+ * month if someone already is. "Yes" when the walk pays an `Age Pension` line in that month; otherwise
+ * "No", with the month it is first paid, if ever. The line is the HOUSEHOLD's, so in a couple this
+ * answers for whoever reaches pension age first: a payment cannot be attributed to one Person.
+ */
+interface Qualifies {
+  readonly text: string;
+  readonly qualifies: boolean | undefined;
+  readonly firstPaid: string | undefined;
+}
+
+const qualifiesAtPensionAge = (months: readonly Month[], household: Household): Qualifies => {
+  const paid = (month: Month): boolean => month.lines.some((line) => line.description === AGE_PENSION_LINE);
+  const start = months.findIndex((month) =>
+    household.persons.some((person, index) => !(month.died ?? []).includes(index) && hasReachedAgePensionAge(person, firstDayOf(month.month))));
+  if (start === -1) return { text: 'Nobody reaches pension age', qualifies: undefined, firstPaid: undefined };
+  const at = months[start] as Month;
+  if (paid(at)) return { text: `Yes — ${atText(agesAt(household, at))}`, qualifies: true, firstPaid: at.month };
+  const later = months.slice(start).find(paid);
+  return later === undefined
+    ? { text: 'No — never paid', qualifies: false, firstPaid: undefined }
+    : { text: `No — first paid ${atText(agesAt(household, later))}`, qualifies: false, firstPaid: later.month };
+};
+
+const qualifiesRow = (household: Household, selected: readonly Month[], sandbox: readonly Month[] | undefined): FigureRow => {
+  const left = qualifiesAtPensionAge(selected, household);
+  const right = sandbox === undefined ? undefined : qualifiesAtPensionAge(sandbox, household);
+  const gap = (): string => {
+    if (right === undefined) return '';
+    if (left.qualifies !== right.qualifies) return right.qualifies === true ? 'now qualifies' : 'no longer qualifies';
+    if (left.firstPaid !== undefined && right.firstPaid !== undefined) {
+      const moved = monthIndex(right.firstPaid) - monthIndex(left.firstPaid);
+      return moved === 0 ? 'same' : `first paid ${monthsText(moved)}`;
+    }
+    if (left.firstPaid === right.firstPaid) return 'same';
+    return right.firstPaid === undefined ? 'no longer paid' : 'now paid';
+  };
+  return Object.freeze({ label: 'Qualify for Pension from Pension age?', selected: left.text, sandbox: right?.text ?? '', difference: gap() });
+};
+
+/**
  * The three live figures, Selected against Sandbox. `sandbox` is `undefined` when it was refused, and
  * then its column and the difference are blank.
  */
@@ -407,15 +450,17 @@ export const sandboxFigures = (
   selected: readonly Month[],
   sandbox: readonly Month[] | undefined,
 ): readonly FigureRow[] =>
-  readers(household, series).map(([label, read, words]) => {
+  readers(household, series).flatMap(([label, read, words]) => {
     const left = read(selected);
     const right = sandbox === undefined ? undefined : read(sandbox);
-    return Object.freeze({
+    const row: FigureRow = Object.freeze({
       label,
       selected: left.text,
       sandbox: right?.text ?? '',
       difference: right === undefined ? '' : difference(left, right, words),
     });
+    // Asked beside the other Age Pension row, ahead of it: first payment before pension-only.
+    return label === 'Living on the Age Pension alone from' ? [qualifiesRow(household, selected, sandbox), row] : [row];
   });
 
 export const UPDATING = 'updating…';
